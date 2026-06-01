@@ -61,13 +61,6 @@ scrape_configs:
         labels:
           node: murderbot
 
-  # Server metrics — murderbot: node exporter for CPU, RAM, disk, network
-  - job_name: murderbot-node
-    static_configs:
-      - targets: ["10.100.20.19:9100"]
-        labels:
-          node: murderbot
-
   # Cross-stack heartbeat — k3s Prometheus health probe (MetalLB LoadBalancer VIP)
   - job_name: k3s-prometheus-heartbeat
     scheme: http
