@@ -1,0 +1,69 @@
+groups:
+  - name: llm-inference-alerts
+    rules:
+
+      # llama-proxy is getting broken pipe errors — opencode is timing out before
+      # the server can finish processing the stripped+retried request. This is the
+      # timeout cascade we hit when the context fills up. Most likely the session
+      # needs to be restarted.
+      - alert: LlamaProxyBrokenPipe
+        expr: increase(proxy_upstream_errors_total{type="broken_pipe", node="murderbot"}[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "llama-proxy on murderbot is experiencing broken pipe errors"
+          description: |
+            {{ $value | printf "%.0f" }} broken pipe error(s) in the last 5 minutes.
+
+            opencode is closing the connection before llama-proxy can deliver the
+            response — typically because the context is near-full and prompt
+            processing takes longer than opencode's HTTP timeout.
+
+            Fix: restart the opencode session.
+              cd ~/claude/projects/murderbot
+              ./start-opencode-stable.sh --restart
+
+      # Generation speed has dropped well below normal (non-MTP ~56 t/s, MTP ~150 t/s).
+      # Below 30 t/s means CPU offload kicked in, the model is partially on disk,
+      # or something else is competing for VRAM. Not expected during normal operation.
+      - alert: LlamaGenerationSlow
+        expr: llamacpp:predicted_tokens_seconds{node="murderbot"} < 30
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "llama-server generation speed is below 30 t/s on murderbot"
+          description: |
+            Current average generation speed: {{ $value | printf "%.1f" }} tokens/s.
+            Normal: ~56 t/s (no-MTP) or ~150 t/s (MTP).
+
+            Possible causes:
+              - Another GPU workload (ComfyUI, FLUX) is sharing VRAM
+              - CPU offload kicked in (NGL too low for VRAM available)
+              - Thermal throttling
+              - OOM killer reduced GPU memory
+
+            Check: nvidia-smi, check for running ComfyUI/FLUX processes.
+
+      # The highest token count seen by the server since startup has crossed 85% of
+      # the context window. This is the leading indicator for the overflow/timeout
+      # cascade. If this fires, the session is at risk of broken pipes on the next
+      # few turns unless compaction runs.
+      - alert: LlamaContextNearFull
+        expr: llamacpp:n_tokens_max{node="murderbot"} / 131072 > 0.85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "llama-server context is {{ $value | humanizePercentage }} full on murderbot"
+          description: |
+            The largest request processed since last restart used
+            {{ $value | humanizePercentage }} of the 131072-token context window.
+
+            At this level, each request takes significantly longer to process
+            (prompt eval time scales linearly with context size), increasing the
+            risk of opencode HTTP timeouts and broken pipe errors.
+
+            If opencode's compaction hasn't fired automatically, consider
+            restarting the session to clear the context.
