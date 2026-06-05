@@ -125,3 +125,13 @@ if echo "$CHANGED" | grep -qE '^mac-mini-m4/zigbee2mqtt/'; then
     echo "$(date): zigbee2mqtt files changed, restarting zigbee2mqtt" >> "$LOG"
     "$DOCKER" restart zigbee2mqtt 2>/dev/null || true
 fi
+
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/komodo/'; then
+    echo "$(date): komodo stack files changed, redeploying" >> "$LOG"
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/komodo/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+fi
+
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/core/'; then
+    echo "$(date): core stack files changed, redeploying" >> "$LOG"
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+fi
