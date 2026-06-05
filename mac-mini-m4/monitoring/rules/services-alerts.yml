@@ -1,11 +1,12 @@
 groups:
   - name: https-probe-alerts
     rules:
-      # Fires per-service when any HTTPS probe target is unreachable for >5m
-      # Uses up==0 (scrape failure) because blackbox v0.28 returns content_length=-1 / probe_success=0 
-      # for HTTP/2 responses without Content-Length headers, making those metrics unreliable as health signals
+      # Fires per-service when any HTTPS probe target is unreachable for >5m.
+      # probe_success=0 covers both complete connection failures and HTTP 5xx responses
+      # (e.g. Traefik returning 502 when a backend is down). valid_status_codes: []
+      # defaults to 2xx, so any non-2xx sets probe_success=0.
       - alert: WebServiceDown
-        expr: probe_http_duration_seconds{job=~"https-probes.*", phase="transfer"} == 0
+        expr: probe_success{job=~"https-probes.*"} == 0
         for: 5m
         labels:
           severity: critical
@@ -14,16 +15,16 @@ groups:
           description: >
             HTTPS probe to {{ $labels.instance }} has been failing for more than 5 minutes.
 
-      # TLS cert expiring within 30 days — only when target is actually reachable 
+      # TLS cert expiring within 30 days — only when target is actually reachable
       - alert: TLSCertExpiringSoon
-        expr: probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} > 0 and (time() + 30 * 86400) > probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} and probe_http_duration_seconds{job=~"https-probes.*", phase="transfer"} != 0
+        expr: probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} > 0 and (time() + 30 * 86400) > probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} and probe_success{job=~"https-probes.*"} == 1
         for: 5m
         labels:
           severity: warning
 
-      # Cert expiring within 7 days — urgent  
+      # Cert expiring within 7 days — urgent
       - alert: TLSCertExpiringSoonCritical
-        expr: probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} > 0 and (time() + 7 * 86400) > probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} and probe_http_duration_seconds{job=~"https-probes.*", phase="transfer"} != 0
+        expr: probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} > 0 and (time() + 7 * 86400) > probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} and probe_success{job=~"https-probes.*"} == 1
         for: 5m
         labels:
           severity: critical
