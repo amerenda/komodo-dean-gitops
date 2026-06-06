@@ -31,17 +31,15 @@ services:
     container_name: ollama-init
     restart: "no"
     network_mode: host
-    # Override the default entrypoint (ollama serve) so we can run shell commands
-    entrypoint: ["/bin/sh"]
-    volumes:
-      - ${OLLAMA_DATA_HOST_PATH:-/Users/alex/.ollama}:/root/.ollama
-    command: >
-      -c '
-        sleep 5 &&
-        echo "Pulling Qwen2.5-7B-Instruct (fast, excellent tool calling)..." &&
-        OLLAMA_HOST=http://localhost:11434 ollama pull qwen2.5:7b-instruct-q4_K_M &&
-        echo "Qwen2.5-7B-Instruct ready."
-      '
+    labels:
+      komodo.skip:
+    # Clear the default entrypoint (/ollama) so we can run shell commands instead
+    entrypoint: []
+    env_file:
+      - ollama.env
+    environment:
+      OLLAMA_DEFAULT_MODEL: ${OLLAMA_DEFAULT_MODEL:-qwen2.5:7b-instruct-q4_K_M}
+    command: ["sh", "-c", "sleep 5 && echo \"Pulling $$OLLAMA_DEFAULT_MODEL...\" && OLLAMA_HOST=http://localhost:11434 ollama pull \"$$OLLAMA_DEFAULT_MODEL\" && echo \"$$OLLAMA_DEFAULT_MODEL ready.\""]
 
   llm-agent:
     image: amerenda/llm-manager:agent-${AGENT_IMAGE_TAG:-latest}
