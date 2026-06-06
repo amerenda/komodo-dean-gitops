@@ -134,6 +134,7 @@ name = "llm-mac-mini-m4"
 description = "llm-manager agent + Ollama in compose; agent API :8090"
 tags = ["mac-mini"]
 deploy = true
+ignore_services = ["ollama-init"]
 [stack.config]
 server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
