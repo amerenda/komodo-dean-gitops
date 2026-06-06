@@ -134,15 +134,15 @@ name = "llm-mac-mini-m4"
 description = "llm-manager agent + Ollama in compose; agent API :8090"
 tags = ["mac-mini"]
 deploy = true
-ignore_services = ["ollama-init"]
 [stack.config]
 server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/llm/compose.yaml"]
 git_account = "amerenda"
-# Komodo passes this as docker compose -p … (overrides checkout dir name "llm").
+ignore_services = ["ollama-init"]
 project_name = "llm-mac-mini-m4"
+
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
