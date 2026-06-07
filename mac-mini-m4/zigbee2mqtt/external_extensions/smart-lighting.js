@@ -245,7 +245,8 @@ class SmartLighting {
 
     // ── Full scene push (config change) ─────────────────────
     // Stores ALL 4 scenes on every group so scene_recall works for any window.
-    // Does NOT touch hue_power_on_* — script.set_bulb_defaults in HA owns those.
+    // Also updates hue_power_on_* on each bulb to the current-window scene values
+    // so bulbs power on correctly even when the extension hasn't responded yet.
     // Does NOT scene_recall here (avoids visible snap-back after config push).
 
     async _fullScenePush() {
@@ -273,6 +274,27 @@ class SmartLighting {
                     sceneAdd.color_temp = scene.color_temp;
                 }
                 commands.push({ topic: `${roomName}/set`, payload: { scene_add: sceneAdd } });
+            }
+
+            // For smart_power_on rooms: boot LED-off so the extension can turn it on
+            // at exactly the right scene — zero flash. Non-smart rooms boot directly
+            // at scene values since the extension won't fire for them on announce.
+            const effectiveWindow = this._getEffectiveWindow(roomName);
+            const currentScene = roomConfig.scenes && roomConfig.scenes[effectiveWindow];
+            const smartPowerOn = roomConfig.smart_power_on !== false;
+            if (currentScene) {
+                for (const light of (roomConfig.lights || [])) {
+                    commands.push({
+                        topic: `${light}/set`,
+                        payload: smartPowerOn
+                            ? { hue_power_on_behavior: 'off' }
+                            : {
+                                hue_power_on_behavior: 'on',
+                                hue_power_on_brightness: currentScene.brightness,
+                                hue_power_on_color_temperature: currentScene.color_temp || 370,
+                              }
+                    });
+                }
             }
         }
 
@@ -342,13 +364,15 @@ class SmartLighting {
             const scene = roomConfig.scenes && roomConfig.scenes[effectiveWindow];
             if (!scene) return;
 
-            const cmd = { state: 'ON', brightness: scene.brightness };
+            // hue_power_on_behavior is 'off' so the LED is dark until this fires.
+            // transition:1 gives a clean 1 s fade-in — no flash, no pop.
+            const cmd = { state: 'ON', brightness: scene.brightness, transition: 1 };
             if (scene.color) cmd.color = scene.color;
             else if (scene.color_temp !== undefined) cmd.color_temp = scene.color_temp;
 
             this.logger.info(`[SL] smart_power_on: ${friendlyName} announced → ${effectiveWindow} (${roomName})`);
-            // 2 s delay: let the bulb finish its rejoin handshake before commanding it.
-            setTimeout(() => this._sendCommand(`${friendlyName}/set`, cmd), 2000);
+            // 300 ms is enough for the Zigbee rejoin handshake; LED is dark the whole time.
+            setTimeout(() => this._sendCommand(`${friendlyName}/set`, cmd), 300);
             return;
         }
     }
