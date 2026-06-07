@@ -1,0 +1,16 @@
+sl_all_rooms_off:
+  alias: "SL: All Rooms Off"
+  description: "Turn off all rooms unconditionally — no toggle, never turns lights on"
+  mode: single
+  sequence:
+    - repeat:
+        for_each:
+          - living_room
+          - bedroom
+          - bathroom
+          - kitchen
+          - hallway
+        sequence:
+          - service: script.sl_room_off
+            data:
+              room: "{{ repeat.item }}"
