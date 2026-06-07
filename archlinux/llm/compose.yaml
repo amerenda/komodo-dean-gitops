@@ -37,7 +37,7 @@ services:
 
   # Pull the default always-on model on first deploy (one-shot, exits after).
   ollama-init:
-    image: ollama/ollama:${OLLAMA_AMD_IMAGE_TAG:-0.21.0-rocm}
+    image: ollama/ollama:${OLLAMA_IMAGE_TAG:-0.21.0}
     pull_policy: always
     container_name: ollama-init
     restart: "no"
@@ -51,42 +51,6 @@ services:
     environment:
       OLLAMA_DEFAULT_MODEL: ${OLLAMA_DEFAULT_MODEL:-qwen3:8b-q4_K_M}
     command: ["sh", "-c", "sleep 5 && echo \"Pulling $$OLLAMA_DEFAULT_MODEL...\" && OLLAMA_HOST=http://localhost:11434 ollama pull \"$$OLLAMA_DEFAULT_MODEL\" && echo \"$$OLLAMA_DEFAULT_MODEL ready.\""]
-
-  # Host network: default bridge cannot open TCP to LAN (e.g. k3s Traefik at
-  # 10.100.20.203) on this host — registration/heartbeats to BACKEND_URL time out.
-  # Ollama stays on the bridge with published 11434; agent talks to it via localhost.
-  llm-agent:
-    image: amerenda/llm-manager:agent-amd-${AGENT_IMAGE_TAG:-latest}
-    pull_policy: always
-    container_name: llm-agent
-    restart: unless-stopped
-    network_mode: host
-    env_file:
-      - .env
-    environment:
-      RUNNER_HOSTNAME: archlinux
-      OLLAMA_URL: http://127.0.0.1:11434
-      OLLAMA_CONTAINER: ollama
-      HSA_OVERRIDE_GFX_VERSION: ${HSA_OVERRIDE_GFX_VERSION:-}
-      COMPOSE_PROFILE: ""
-      COMPOSE_DIR: ${HOST_LLM_COMPOSE_DIR}
-      COMPOSE_DIR_LOCAL: /host/llm-compose
-      MODEL_STORAGE_PATH: /host-ollama-models
-    depends_on:
-      - ollama
-    volumes:
-      - llm-agent-tls:/data/tls
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /:/hostfs:ro
-      - ${OLLAMA_MODELS_HOST_PATH:-/mnt/storage/models}:/host-ollama-models:ro
-      - /sys/module/amdgpu:/sys/module/amdgpu:ro
-      - ${HOST_LLM_COMPOSE_DIR}:/host/llm-compose:rw
-    devices:
-      - /dev/kfd:/dev/kfd
-      - /dev/dri:/dev/dri
-    group_add:
-      - "${VIDEO_GID:-985}"
-      - "${RENDER_GID:-989}"
 
 volumes:
   llm-agent-tls:
