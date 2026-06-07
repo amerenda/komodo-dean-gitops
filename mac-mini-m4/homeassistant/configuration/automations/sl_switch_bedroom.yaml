@@ -63,9 +63,7 @@ action:
                   room: bedroom
       - conditions: "{{ trigger.id == 'btn1_long' }}"
         sequence:
-          - service: script.sl_room_off
-            data:
-              room: bedroom
+          - service: script.sl_toggle_all
       - conditions: "{{ trigger.id == 'btn2_short' }}"
         sequence:
           - service: light.turn_on
