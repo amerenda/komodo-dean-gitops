@@ -28,6 +28,8 @@ services:
       - /etc/komodo:/etc/komodo
       # BWS access token (mode 0600 on host) — read by pre_deploy via /run/secrets/.
       - /etc/komodo/.bws-secret:/run/secrets/bws-access-token:ro
+      # gitops repo clone (SSH-managed); required for files_on_host stacks (llm-archlinux).
+      - /home/alex/komodo-dean-gitops:/home/alex/komodo-dean-gitops:ro
       # Media-server bind-mount roots so Periphery can pre-create stack folders.
       - /mnt/storage/media/config:/mnt/storage/media/config
       - /mnt/storage:/mnt/storage
