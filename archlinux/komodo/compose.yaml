@@ -1,0 +1,32 @@
+# Komodo Periphery for the archlinux host.
+# Self-managed (komodo.skip): deployed by Ansible
+# (playbooks/infrastructure/setup-archlinux-komodo.yml in ansible-playbooks),
+# never re-deployed by Komodo itself.
+#
+# Komodo Core (on mac-mini-m4) connects out to https://<this-host>:8120 using
+# PERIPHERY_PASSKEYS (shared secret from Bitwarden Secrets Manager).
+
+name: komodo
+
+services:
+  periphery:
+    build:
+      context: .
+      dockerfile: Dockerfile.periphery
+    image: komodo-periphery
+    container_name: komodo-periphery
+    labels:
+      komodo.skip:
+    restart: unless-stopped
+    network_mode: host
+    env_file: ./compose.env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/proc
+      - /etc/komodo:/etc/komodo
+      # BWS access token (mode 0600 on host) — read by pre_deploy via /run/secrets/.
+      - /etc/komodo/.bws-secret:/run/secrets/bws-access-token:ro
+      # gitops repo clone (SSH-managed); required for files_on_host stacks (llm-archlinux).
+      - /home/alex/komodo-dean-gitops:/home/alex/komodo-dean-gitops:ro
+      # Ollama data and model storage.
+      - /mnt/storage:/mnt/storage

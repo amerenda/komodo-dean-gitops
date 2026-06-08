@@ -1,0 +1,22 @@
+FROM ghcr.io/moghtech/komodo-periphery:2.1.2
+
+ARG BWS_VERSION=2.0.0
+
+# Install bws CLI (Bitwarden Secrets Manager) for pre_deploy secret injection.
+# Detects target arch from $(uname -m) so this image builds on both x86_64 and aarch64.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl unzip jq ca-certificates \
+    && set -eu \
+    && case "$(uname -m)" in \
+         x86_64)        bws_target="x86_64-unknown-linux-gnu" ;; \
+         aarch64|arm64) bws_target="aarch64-unknown-linux-gnu" ;; \
+         *) echo "Unsupported arch: $(uname -m)" >&2; exit 1 ;; \
+       esac \
+    && curl -fsSL -o /tmp/bws.zip \
+       "https://github.com/bitwarden/sdk-sm/releases/download/bws-v${BWS_VERSION}/bws-${bws_target}-${BWS_VERSION}.zip" \
+    && unzip /tmp/bws.zip -d /usr/local/bin/ \
+    && chmod +x /usr/local/bin/bws \
+    && rm /tmp/bws.zip \
+    && apt-get purge -y unzip \
+    && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
