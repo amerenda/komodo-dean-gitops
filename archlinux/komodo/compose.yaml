@@ -1,21 +1,19 @@
-# Komodo Periphery for the murderbot (Debian) host.
+# Komodo Periphery for the archlinux host.
 # Self-managed (komodo.skip): deployed by Ansible
-# (playbooks/infrastructure/setup-debian-komodo.yml in ansible-playbooks),
+# (playbooks/infrastructure/setup-archlinux-komodo.yml in ansible-playbooks),
 # never re-deployed by Komodo itself.
 #
 # Komodo Core (on mac-mini-m4) connects out to https://<this-host>:8120 using
 # PERIPHERY_PASSKEYS (shared secret from Bitwarden Secrets Manager).
-#
-# Top-level name fixes the Docker Compose project name (see `docker compose ls`);
-# without it, the project would default to the parent directory name (`komodo`).
 
-name: murderbot-periphery
+name: komodo
 
 services:
   periphery:
     build:
       context: .
       dockerfile: Dockerfile.periphery
+    image: komodo-periphery
     container_name: komodo-periphery
     labels:
       komodo.skip:
@@ -30,6 +28,5 @@ services:
       - /etc/komodo/.bws-secret:/run/secrets/bws-access-token:ro
       # gitops repo clone (SSH-managed); required for files_on_host stacks (llm-archlinux).
       - /home/alex/komodo-dean-gitops:/home/alex/komodo-dean-gitops:ro
-      # Media-server bind-mount roots so Periphery can pre-create stack folders.
-      - /mnt/storage/media/config:/mnt/storage/media/config
+      # Ollama data and model storage.
       - /mnt/storage:/mnt/storage
