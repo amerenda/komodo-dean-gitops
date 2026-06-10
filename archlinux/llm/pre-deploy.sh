@@ -18,7 +18,14 @@ RENDER_GID="${RENDER_GID:-${RENDER_GID_DETECTED:-989}}"
 
 export BWS_ACCESS_TOKEN="${BWS_ACCESS_TOKEN:-$(cat /run/secrets/bws-access-token)}"
 
-PSK="$(bws secret get "$BWS_LLM_AGENT_PSK_UUID" --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)"
+# LLM_MANAGER_AGENT_PSK may be injected by Komodo variable interpolation ([[LLM_MANAGER_AGENT_PSK]])
+# in the pre_deploy command — fall back to BWS only if it isn't already set.
+# This avoids external DNS lookups on hosts where external DNS is unavailable.
+if [[ -n "${LLM_MANAGER_AGENT_PSK:-}" ]]; then
+  PSK="$LLM_MANAGER_AGENT_PSK"
+else
+  PSK="$(bws secret get "$BWS_LLM_AGENT_PSK_UUID" --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)"
+fi
 
 BACKEND_PUBLIC="${BACKEND_PUBLIC:-https://llm-manager-backend.amer.dev}"
 BACKEND_PUBLIC="${BACKEND_PUBLIC%/}"
