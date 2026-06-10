@@ -68,6 +68,25 @@ services:
       timeout: 5s
       retries: 3
 
+  # ============================================================
+  # Qdrant — Vector store (REST :6333, gRPC :6334)
+  # network_mode: host — accessible at 0.0.0.0:6333 from LAN.
+  # ============================================================
+  qdrant:
+    image: qdrant/qdrant:v1.13.6
+    container_name: qdrant
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      QDRANT__SERVICE__API_KEY: "${QDRANT_API_KEY}"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:6333/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 volumes:
   technitium-data:
     external: true
@@ -78,3 +97,4 @@ volumes:
   mongo-data:
     external: true
     name: services_mongo-data
+  qdrant-data:
