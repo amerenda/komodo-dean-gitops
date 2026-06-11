@@ -4,7 +4,7 @@ name: llm-murderbot
 
 services:
   llama-server:
-    image: ghcr.io/amerenda/murderbot-llm:${LLAMA_IMAGE_TAG:-latest}
+    image: amerenda/murderbot-llm:${LLAMA_IMAGE_TAG:-latest}
     container_name: llama-server
     restart: unless-stopped
     deploy:
