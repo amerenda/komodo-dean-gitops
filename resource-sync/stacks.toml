@@ -40,6 +40,7 @@ printf 'MONGO_PASSWORD=%s\n' "$(bws secret get d0213758-1881-4d35-8fd2-b39d015cb
 printf 'BACKUP_ACCESS_KEY=%s\n' "$(bws secret get af4a292f-1f9f-45b1-9c56-b37300df69dc --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/core/.env
 printf 'BACKUP_SECRET_KEY=%s\n' "$(bws secret get d2d87681-b2e3-4a3e-b821-b37300df7ce5 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/core/.env
 printf 'BACKUP_ENDPOINT=%s\n' "$(bws secret get 2c95ebd0-9330-455b-abbd-b37300e580b0 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/core/.env
+printf 'QDRANT_API_KEY=%s\n' "$(bws secret get d134c7a7-de93-46d5-8e77-b46501500d97 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/core/.env
 """
 
 # ── Automation: Home Assistant, Voice Pipeline, Zigbee, MQTT ───────────────
