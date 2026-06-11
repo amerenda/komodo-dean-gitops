@@ -176,7 +176,7 @@ bash archlinux/llm/pre-deploy.sh
 
 [[server]]
 name = "murderbot"
-description = "Debian home server (10.100.20.19) — media-server stack"
+description = "Debian home server (10.100.20.19) — media-server, llm-murderbot stacks"
 tags = ["murderbot"]
 [server.config]
 address = "https://10.100.20.19:8120"
@@ -195,6 +195,21 @@ tags = ["archlinux"]
 address = "https://10.100.20.25:8120"
 enabled = true
 passkey = ""
+
+# ── LLM: llama.cpp inference (murderbot) ────────────────────────────────────
+
+[[stack]]
+name = "llm-murderbot"
+description = "llama-server (llama.cpp) serving Qwen3.6-35B on port 8088 — LiteLLM primary backend"
+tags = ["murderbot", "llm"]
+deploy = true
+[stack.config]
+server = "murderbot"
+repo = "amerenda/komodo-dean-gitops"
+branch = "main"
+file_paths = ["murderbot/llm/compose.yaml"]
+git_account = "amerenda"
+project_name = "llm-murderbot"
 
 # ── Media server (murderbot only) ───────────────────────────────────────────
 
