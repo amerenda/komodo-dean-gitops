@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.local.dns-keepalive</string>
+    <!-- Query Technitium directly every 10s to keep the OrbStack VM warm.
+         Without this, macOS throttles the idle VM causing cold-start DNS latency
+         (100-800ms) on the first query after an idle period, which manifests as
+         SSH hangs and slow page loads through the Tailscale exit node. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/dig</string>
+        <string>@127.0.0.1</string>
+        <string>-p</string>
+        <string>5354</string>
+        <string>.</string>
+        <string>SOA</string>
+        <string>+time=1</string>
+        <string>+tries=1</string>
+        <string>+short</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>10</integer>
+    <key>StandardOutPath</key>
+    <string>/dev/null</string>
+    <key>StandardErrorPath</key>
+    <string>/dev/null</string>
+</dict>
+</plist>

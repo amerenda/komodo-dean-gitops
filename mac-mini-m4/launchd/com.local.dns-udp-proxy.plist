@@ -13,6 +13,14 @@
     <true/>
     <key>KeepAlive</key>
     <true/>
+    <!-- Pin backend socket to loopback so Tailscale utun route changes on the
+         Mac Mini host don't cause the proxy to pick a stale source IP and drop
+         packets. OrbStack's port 5354 forwarder is always on 127.0.0.1. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>DNS_PROXY_BACKEND_SRC</key>
+        <string>127.0.0.1</string>
+    </dict>
     <key>StandardOutPath</key>
     <string>/var/log/dns-udp-proxy.log</string>
     <key>StandardErrorPath</key>
