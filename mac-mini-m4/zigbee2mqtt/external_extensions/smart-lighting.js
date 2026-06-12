@@ -18,7 +18,31 @@ const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'frid
 // Stagger delay between Zigbee commands (ms) to avoid flooding
 const CMD_STAGGER = 200;
 
-// bedroom off_hold custom scene — defined here so it survives without HA
+// Maps Zigbee action string → button config key in switchConfig
+const ACTION_TO_BTN = {
+    'on_press_release':  'b1_short',
+    'on_hold':           'b1_long',
+    'up_press_release':  'b2_short',
+    'up_hold':           'b2_long',
+    'down_press_release':'b3_short',
+    'down_hold':         'b3_long',
+    'off_press_release': 'b4_short',
+    'off_hold':          'b4_long',
+};
+
+// Default action per button when selector is 'Default' or unset
+const BTN_DEFAULTS = {
+    b1_short: 'Toggle Room',
+    b1_long:  'Power Off All',
+    b2_short: 'Brightness Up',
+    b2_long:  'Brightness Max',
+    b3_short: 'Brightness Down',
+    b3_long:  'Brightness Min',
+    b4_short: 'Cycle Scenes',
+    b4_long:  'Custom Scene',
+};
+
+// bedroom 'Custom Scene' — hardcoded SexySex colors
 const SEXYSEX_SCENE = [
     { device: 'bedroom_1', cmd: { state: 'ON', brightness: 45, color: { x: 0.37, y: 0.20 }, transition: 1 } },
     { device: 'bedroom_2', cmd: { state: 'ON', brightness: 45, color: { x: 0.26, y: 0.11 }, transition: 1 } },
@@ -392,16 +416,30 @@ class SmartLighting {
         if (!this.config) return;
         if (this.config.sl_enabled === false) return;
 
+        const btnKey = ACTION_TO_BTN[action];
+        if (!btnKey) {
+            this.logger.debug(`[SL] switch ${switchName}: unhandled action ${action}`);
+            return;
+        }
+
+        const configured = switchConfig[btnKey];
+        const actionName = (!configured || configured === 'Default')
+            ? BTN_DEFAULTS[btnKey]
+            : configured;
+
+        this.logger.info(`[SL] switch ${switchName}: ${action} → ${actionName} (room=${switchConfig.room_group})`);
+        this._executeAction(actionName, switchConfig);
+    }
+
+    _executeAction(actionName, switchConfig) {
         const roomName = switchConfig.room_group;
-        const brightStepPct = Number(switchConfig.brightness_step_pct) || 20;
+        const brightStepPct = Number(switchConfig.brightness_step_pct) || 5;
         const minBrightPct = Number(switchConfig.min_brightness_pct) || 5;
         const brightStep = Math.round(brightStepPct / 100 * 254);
         const minBright = Math.max(1, Math.round(minBrightPct / 100 * 254));
 
-        this.logger.info(`[SL] switch ${switchName}: action=${action} room=${roomName}`);
-
-        switch (action) {
-            case 'on_press_release':
+        switch (actionName) {
+            case 'Toggle Room':
                 if (this._roomAnyOn(roomName)) {
                     this._sendCommand(`${roomName}/set`, { state: 'OFF' });
                     this._switchLastScene[roomName] = null;
@@ -409,38 +447,38 @@ class SmartLighting {
                     this._switchTurnRoomOn(roomName);
                 }
                 break;
-
-            case 'on_hold':
-                // All rooms off — never turns lights on
+            case 'Power Off Room':
+                this._sendCommand(`${roomName}/set`, { state: 'OFF' });
+                this._switchLastScene[roomName] = null;
+                break;
+            case 'Power Off All':
                 this._allRoomsOff();
                 break;
-
-            case 'up_press_release':
+            case 'Brightness Up':
                 this._sendCommand(`${roomName}/set`, { brightness_step: brightStep });
                 break;
-
-            case 'up_hold':
+            case 'Brightness Max':
                 this._sendCommand(`${roomName}/set`, { brightness: 254 });
                 break;
-
-            case 'down_press_release':
+            case 'Brightness Down':
                 this._sendCommand(`${roomName}/set`, { brightness_step: -brightStep });
                 break;
-
-            case 'down_hold':
+            case 'Brightness Min':
                 this._sendCommand(`${roomName}/set`, { brightness: minBright });
                 break;
-
-            case 'off_press_release':
+            case 'Cycle Scenes':
                 this._cycleScenesForRoom(roomName);
                 break;
-
-            case 'off_hold':
+            case 'Custom Scene':
                 this._customAction(switchConfig);
                 break;
-
+            case 'Multi-Room Scene':
+                this._multiRoomOn(switchConfig);
+                break;
+            case 'Do Nothing':
+                break;
             default:
-                this.logger.debug(`[SL] switch ${switchName}: unhandled action ${action}`);
+                this.logger.warn(`[SL] unknown action name: ${actionName}`);
         }
     }
 
@@ -491,7 +529,7 @@ class SmartLighting {
     }
 
     _customAction(switchConfig) {
-        // bedroom off_hold → SexySex scene
+        // bedroom → SexySex scene
         if (switchConfig.room_key === 'bedroom') {
             this.logger.info('[SL] SexySex scene activated');
             for (const { device, cmd } of SEXYSEX_SCENE) {
@@ -500,7 +538,7 @@ class SmartLighting {
             return;
         }
 
-        // Other rooms off_hold → toggle all rooms
+        // Other rooms → toggle all rooms
         if (!this.config || !this.config.rooms) return;
         const anyOn = Object.keys(this.config.rooms).some(r => this._roomAnyOn(r));
         if (anyOn) {
@@ -510,6 +548,15 @@ class SmartLighting {
                 this._switchTurnRoomOn(roomName);
             }
         }
+    }
+
+    _multiRoomOn(switchConfig) {
+        const groups = switchConfig.multi_room_groups || [];
+        if (!groups.length) return;
+        for (const roomName of groups) {
+            this._switchTurnRoomOn(roomName);
+        }
+        this.logger.info(`[SL] multi-room on: [${groups.join(', ')}]`);
     }
 
     // ── Schedule calculation ─────────────────────────────────
