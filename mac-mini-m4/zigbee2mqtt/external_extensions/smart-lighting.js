@@ -433,7 +433,7 @@ class SmartLighting {
 
     _executeAction(actionName, switchConfig) {
         const roomName = switchConfig.room_group;
-        const brightStepPct = Number(switchConfig.brightness_step_pct) || 20;
+        const brightStepPct = Number(switchConfig.brightness_step_pct) || 5;
         const minBrightPct = Number(switchConfig.min_brightness_pct) || 5;
         const brightStep = Math.round(brightStepPct / 100 * 254);
         const minBright = Math.max(1, Math.round(minBrightPct / 100 * 254));
