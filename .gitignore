@@ -15,6 +15,11 @@ mac-mini-m4/komodo/secrets/
 mac-mini-m4/komodo/.env
 mac-mini-m4/core/.env
 
+# archlinux stack secrets (written by pre_deploy)
+archlinux/llm/.env
+archlinux/llm/ollama.env
+archlinux/llm/ollama.ui.env
+
 # murderbot stack secrets (written by pre_deploy)
 murderbot/media-server/.env
 murderbot/media-server/vpn-user.txt
