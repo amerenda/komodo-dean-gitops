@@ -1,3 +1,6 @@
+include:
+  - path: generated/*.yaml
+
 x-runner-common: &runner-common
   image: myoung34/github-runner:ubuntu-noble
   restart: unless-stopped
@@ -25,22 +28,6 @@ services:
     environment:
       REPO_URL: https://github.com/amerenda/ecdysis
       RUNNER_NAME: mini-ecdysis
-      LABELS: self-hosted,linux,arm64,docker,mac-mini
-
-  runner-llm-manager:
-    <<: *runner-common
-    container_name: runner-llm-manager
-    environment:
-      REPO_URL: https://github.com/amerenda/llm-manager
-      RUNNER_NAME: mini-llm-manager
-      LABELS: self-hosted,linux,arm64,docker,mac-mini
-
-  runner-mycroft:
-    <<: *runner-common
-    container_name: runner-mycroft
-    environment:
-      REPO_URL: https://github.com/amerenda/mycroft
-      RUNNER_NAME: mini-mycroft
       LABELS: self-hosted,linux,arm64,docker,mac-mini
 
   runner-wikimedia:
