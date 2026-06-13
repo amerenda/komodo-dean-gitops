@@ -135,3 +135,13 @@ if echo "$CHANGED" | grep -qE '^mac-mini-m4/core/'; then
     echo "$(date): core stack files changed, redeploying" >> "$LOG"
     "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
 fi
+
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/runners/'; then
+    echo "$(date): runners stack files changed, redeploying" >> "$LOG"
+    "$DOCKER" compose -p runners -f "$HOST_REPO/mac-mini-m4/runners/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+fi
+
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/llm/'; then
+    echo "$(date): llm stack files changed, redeploying" >> "$LOG"
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/llm/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+fi

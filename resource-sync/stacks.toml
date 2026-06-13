@@ -105,7 +105,7 @@ bws secret get c7ccdb87-b04e-428e-bbcf-b4340156edf6 --access-token "$BWS_ACCESS_
 
 [[stack]]
 name = "runners"
-description = "GitHub Actions runners (k3s-runners, ecdysis, llm-manager, mycroft, wikimedia, photos)"
+description = "GitHub Actions runners (k3s-runners, ecdysis, wikimedia, photos, praetor, dean-mcp, quiz, schoolmode)"
 tags = ["mac-mini"]
 deploy = true
 [stack.config]

@@ -49,6 +49,17 @@ Named volumes declared in compose files are created automatically by Docker on f
 
 All image tags in every compose.yaml are pinned intentionally. Never update a version tag without being explicitly asked and confirming the target version. Unpinned bumps have caused production outages (e.g., Zigbee2MQTT 2.9.2 broke Zigbee requiring full recovery).
 
+## How to add a mac-mini arm64 GitHub Actions runner
+
+Use the `add_mac_mini_runner(name)` tool from infra-mcp — it appends a service block
+to `mac-mini-m4/runners/compose.yaml` and opens a PR on this repo. Komodo auto-deploys
+within 60s of merge, registering the runner with `amerenda/<name>` under labels
+`[self-hosted, linux, arm64, docker, mac-mini]`.
+
+**Do NOT** manually edit runners/compose.yaml — use the infra-mcp tool so the entry is
+generated consistently. For the full provisioning pattern for a new app, see the infra-mcp
+docs: `scaffold_app → provision_app → open_deploy_pr + add_mac_mini_runner`.
+
 ## Stacks (mac-mini-m4)
 
 | Directory | Services |
@@ -58,6 +69,7 @@ All image tags in every compose.yaml are pinned intentionally. Never update a ve
 | `komodo/` | Komodo Core |
 | `llm/` | Ollama, LLM Manager |
 | `monitoring/` | Prometheus, Grafana |
+| `runners/` | GitHub Actions arm64 runners |
 
 ## Ports and network_mode
 
