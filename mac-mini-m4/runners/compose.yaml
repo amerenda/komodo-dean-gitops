@@ -1,6 +1,3 @@
-include:
-  - path: generated/*.yaml
-
 x-runner-common: &runner-common
   image: myoung34/github-runner:ubuntu-noble
   restart: unless-stopped
@@ -46,3 +43,34 @@ services:
       RUNNER_NAME: mini-photos
       LABELS: self-hosted,linux,arm64,docker,mac-mini
 
+  runner-dean-mcp:
+    <<: *runner-common
+    container_name: runner-dean-mcp
+    environment:
+      REPO_URL: https://github.com/amerenda/dean-mcp
+      RUNNER_NAME: mini-dean-mcp
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
+
+  runner-praetor:
+    <<: *runner-common
+    container_name: runner-praetor
+    environment:
+      REPO_URL: https://github.com/amerenda/praetor
+      RUNNER_NAME: mini-praetor
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
+
+  runner-quiz:
+    <<: *runner-common
+    container_name: runner-quiz
+    environment:
+      REPO_URL: https://github.com/amerenda/quiz
+      RUNNER_NAME: mini-quiz
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
+
+  runner-schoolmode:
+    <<: *runner-common
+    container_name: runner-schoolmode
+    environment:
+      REPO_URL: https://github.com/amerenda/schoolmode
+      RUNNER_NAME: mini-schoolmode
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
