@@ -128,7 +128,11 @@ fi
 
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/komodo/'; then
     echo "$(date): komodo stack files changed, redeploying" >> "$LOG"
-    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/komodo/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+    # Always use compose down+up (not restart/rm) so network endpoints are
+    # cleaned up properly. docker rm -f without compose down leaves stale
+    # libnetwork endpoints that block future deploys.
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/komodo/compose.yaml" down --remove-orphans >> "$LOG" 2>&1 || true
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/komodo/compose.yaml" up -d >> "$LOG" 2>&1 || true
 fi
 
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/core/'; then
