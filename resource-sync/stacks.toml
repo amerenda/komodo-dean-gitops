@@ -101,6 +101,30 @@ printf 'MONITORING_DIR=%s/mac-mini-m4/monitoring\n' "$(pwd)" >> mac-mini-m4/moni
 bws secret get c7ccdb87-b04e-428e-bbcf-b4340156edf6 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value > mac-mini-m4/monitoring/ha-token
 """
 
+# ── OpenWebUI: Chat interface — claw.amer.dev ─────────────────────────────
+
+[[stack]]
+name = "openwebui"
+description = "OpenWebUI chat interface — always-up on mac-mini-m4, proxied via claw.amer.dev"
+tags = ["mac-mini"]
+deploy = true
+[stack.config]
+server = "mac-mini-m4"
+repo = "amerenda/komodo-dean-gitops"
+branch = "main"
+file_paths = ["mac-mini-m4/openwebui/compose.yaml"]
+git_account = "amerenda"
+project_name = "openwebui"
+[stack.config.pre_deploy]
+command = """
+export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
+mkdir -p /Users/alex/komodo/openwebui/data
+_BWSL=$(bws secret list --access-token "$BWS_ACCESS_TOKEN")
+printf 'OPENAI_API_BASE_URL=https://litellm.amer.dev/v1\n' > mac-mini-m4/openwebui/.env
+printf 'OPENAI_API_KEY=%s\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "openwebui-dean-llm-api-key") | .value')" >> mac-mini-m4/openwebui/.env
+printf 'WEBUI_SECRET_KEY=%s\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "openwebui-dean-secret-key") | .value')" >> mac-mini-m4/openwebui/.env
+"""
+
 # ── Runners: GitHub Actions self-hosted runners ───────────────────────────
 
 [[stack]]
