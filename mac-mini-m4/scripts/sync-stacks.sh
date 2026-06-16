@@ -152,5 +152,12 @@ fi
 
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/openwebui/'; then
     echo "$(date): openwebui stack files changed, redeploying" >> "$LOG"
-    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/openwebui/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+    # openwebui compose uses env_file (.env written by inject-secrets) so we must
+    # run compose from the Komodo stacks checkout, not HOST_REPO (which has no .env).
+    OWUI_STACKS_DIR="$KOMODO_PERIPHERY_ROOT/stacks/openwebui"
+    if [ -d "$OWUI_STACKS_DIR/.git" ]; then
+        git -C "$OWUI_STACKS_DIR" fetch --quiet origin main 2>/dev/null || true
+        git -C "$OWUI_STACKS_DIR" reset --hard origin/main --quiet 2>/dev/null || true
+    fi
+    "$DOCKER" compose -f "$OWUI_STACKS_DIR/mac-mini-m4/openwebui/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
 fi
