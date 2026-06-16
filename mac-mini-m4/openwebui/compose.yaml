@@ -16,6 +16,7 @@ services:
       ENABLE_OLLAMA_API: "false"
       WEBUI_AUTH: "true"
       ENABLE_COMMUNITY_SHARING: "false"
+      DATABASE_URL: "${DATABASE_URL}"
     volumes:
       - /Users/alex/komodo/openwebui/data:/app/backend/data
     healthcheck:

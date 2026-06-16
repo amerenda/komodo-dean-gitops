@@ -55,6 +55,7 @@ printf 'BACKUP_ACCESS_KEY=%s\n' "$(bws secret get af4a292f-1f9f-45b1-9c56-b37300
 printf 'BACKUP_SECRET_KEY=%s\n' "$(bws secret get d2d87681-b2e3-4a3e-b821-b37300df7ce5 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/core/.env
 printf 'BACKUP_ENDPOINT=%s\n' "$(bws secret get 2c95ebd0-9330-455b-abbd-b37300e580b0 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/core/.env
 printf 'QDRANT_API_KEY=%s\n' "$(bws secret get d134c7a7-de93-46d5-8e77-b46501500d97 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/core/.env
+printf 'OPENWEBUI_DB_PASSWORD=%s\n' "$(bws secret get ba388db7-ff49-4c2f-a019-b46b003c2581 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/core/.env
 """
 
 # ── Automation: Home Assistant, Voice Pipeline, Zigbee, MQTT ───────────────
@@ -137,6 +138,7 @@ _BWSL=$(bws secret list --access-token "$BWS_ACCESS_TOKEN")
 printf 'OPENAI_API_BASE_URL=https://litellm.amer.dev/v1\n' > mac-mini-m4/openwebui/.env
 printf 'OPENAI_API_KEY=%s\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "litellm-master-key") | .value')" >> mac-mini-m4/openwebui/.env
 printf 'WEBUI_SECRET_KEY=%s\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "openwebui-dean-secret-key") | .value')" >> mac-mini-m4/openwebui/.env
+printf 'DATABASE_URL=postgresql://openwebui:%s@host.docker.internal/openwebui\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "openwebui-dean-db-password") | .value')" >> mac-mini-m4/openwebui/.env
 """
 
 # ── Runners: GitHub Actions self-hosted runners ───────────────────────────
