@@ -149,3 +149,8 @@ if echo "$CHANGED" | grep -qE '^mac-mini-m4/llm/'; then
     echo "$(date): llm stack files changed, redeploying" >> "$LOG"
     "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/llm/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
 fi
+
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/openwebui/'; then
+    echo "$(date): openwebui stack files changed, redeploying" >> "$LOG"
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/openwebui/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+fi
