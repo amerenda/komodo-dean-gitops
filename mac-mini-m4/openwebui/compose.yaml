@@ -17,6 +17,8 @@ services:
       WEBUI_AUTH: "true"
       ENABLE_COMMUNITY_SHARING: "false"
       DATABASE_URL: "${DATABASE_URL}"
+      ENABLE_MEMORY_TOOL: "true"
+      MEM0_BASE_URL: "https://mem0.amer.dev"
     volumes:
       - /Users/alex/komodo/openwebui/data:/app/backend/data
     healthcheck:
