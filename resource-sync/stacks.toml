@@ -23,7 +23,6 @@ description = "Technitium DNS, PostgreSQL, MongoDB, database backups"
 tags = ["mac-mini"]
 deploy = true
 [stack.config]
-server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/core/compose.yaml"]
@@ -51,7 +50,6 @@ description = "Home Assistant, Whisper, Piper, OpenWakeWord, Mosquitto, Zigbee2M
 tags = ["mac-mini"]
 deploy = true
 [stack.config]
-server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/automation/compose.yaml"]
@@ -67,7 +65,6 @@ description = "Alpine cron container: prunes old GTFS realtime zips and HA backu
 tags = ["mac-mini"]
 deploy = true
 [stack.config]
-server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/gtfs-cleanup/compose.yaml"]
@@ -82,7 +79,6 @@ description = "Prometheus, Grafana, node-exporter, postgres/mongo/technitium exp
 tags = ["mac-mini"]
 deploy = true
 [stack.config]
-server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/monitoring/compose.yaml"]
@@ -109,7 +105,6 @@ description = "OpenWebUI chat interface — always-up on mac-mini-m4, proxied vi
 tags = ["mac-mini"]
 deploy = true
 [stack.config]
-server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/openwebui/compose.yaml"]
@@ -133,7 +128,6 @@ description = "GitHub Actions runners (k3s-runners, ecdysis, wikimedia, photos, 
 tags = ["mac-mini"]
 deploy = true
 [stack.config]
-server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/runners/compose.yaml"]
@@ -161,7 +155,6 @@ tags = ["mac-mini"]
 deploy = true
 ignore_services = ["ollama-init"]
 [stack.config]
-server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/llm/compose.yaml"]
