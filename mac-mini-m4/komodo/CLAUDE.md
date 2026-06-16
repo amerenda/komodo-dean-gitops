@@ -19,14 +19,6 @@ Recovery if stale endpoint exists:
 4. Run `docker network rm <old-network>` to clean up the stale bridge
 5. Rename back to `komodo-net` in `compose.yaml` and push
 
-## Known stale network artifact (2026-06-15)
-
-`komodo_komodo-net` has a permanently stuck stale endpoint from a force-removed container.
-The stack is currently running on `komodo_komodo-net-2`. To clean up:
-- Restart the Docker daemon on mac-mini-m4 (brief service disruption, all containers auto-restart)
-- Run: `docker network rm komodo_komodo-net`
-- Rename `komodo-net-2` → `komodo-net` in `compose.yaml` and push
-
 ## Version pinning — DO NOT UPDATE without explicit instruction
 
 | Service | Tag | Notes |
