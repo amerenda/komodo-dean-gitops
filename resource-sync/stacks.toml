@@ -121,7 +121,7 @@ export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
 mkdir -p /Users/alex/komodo/openwebui/data
 _BWSL=$(bws secret list --access-token "$BWS_ACCESS_TOKEN")
 printf 'OPENAI_API_BASE_URL=https://litellm.amer.dev/v1\n' > mac-mini-m4/openwebui/.env
-printf 'OPENAI_API_KEY=%s\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "openwebui-dean-llm-api-key") | .value')" >> mac-mini-m4/openwebui/.env
+printf 'OPENAI_API_KEY=%s\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "litellm-master-key") | .value')" >> mac-mini-m4/openwebui/.env
 printf 'WEBUI_SECRET_KEY=%s\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "openwebui-dean-secret-key") | .value')" >> mac-mini-m4/openwebui/.env
 """
 
