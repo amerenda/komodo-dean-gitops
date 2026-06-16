@@ -7,11 +7,11 @@ services:
     restart: unless-stopped
     pull_policy: always
     ports:
-      - "3000:8080"
+      - "3001:8080"
     env_file:
       - .env
     environment:
-      WEBUI_URL: "https://claw.amer.dev"
+      WEBUI_URL: "https://bot.amer.dev"
       DEFAULT_MODELS: "qwen3-35b"
       ENABLE_OLLAMA_API: "false"
       WEBUI_AUTH: "true"
