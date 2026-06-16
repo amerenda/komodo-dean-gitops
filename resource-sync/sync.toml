@@ -11,5 +11,5 @@ managed = true
 webhook_enabled = true
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
-resource_path = ["resource-sync/stacks.toml"]
+resource_path = ["resource-sync/stacks.toml", "resource-sync/sync.toml"]
 git_account = "amerenda"
