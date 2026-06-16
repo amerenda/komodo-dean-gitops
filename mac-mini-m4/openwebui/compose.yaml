@@ -12,7 +12,7 @@ services:
       - .env
     environment:
       WEBUI_URL: "https://bot.amer.dev"
-      DEFAULT_MODELS: "qwen3-35b"
+      DEFAULT_MODELS: "qwen3-35b-think"
       ENABLE_OLLAMA_API: "false"
       WEBUI_AUTH: "true"
       ENABLE_COMMUNITY_SHARING: "false"
