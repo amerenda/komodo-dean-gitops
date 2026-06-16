@@ -15,6 +15,20 @@
 #   murderbot/     stacks deployed to the murderbot (Debian) Periphery host
 #   archlinux/     stacks deployed to the Arch Linux Periphery host
 
+# ── mac-mini-m4 Periphery server ──────────────────────────────────────────
+# Periphery connects outbound to Core via WebSocket (core uses komodo-net alias 'periphery').
+# address = Docker service name resolvable on komodo-net; insecure_tls because self-signed cert.
+
+[[server]]
+name = "mac-mini-m4"
+description = "Mac Mini M4 Periphery — core komodo-net service at periphery:8120"
+tags = ["mac-mini"]
+[server.config]
+address = "https://periphery:8120"
+enabled = true
+insecure_tls = true
+passkey = ""
+
 # ── Core: DNS, Postgres, MongoDB, Backups ──────────────────────────────────
 
 [[stack]]
@@ -23,6 +37,7 @@ description = "Technitium DNS, PostgreSQL, MongoDB, database backups"
 tags = ["mac-mini"]
 deploy = true
 [stack.config]
+server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/core/compose.yaml"]
@@ -50,6 +65,7 @@ description = "Home Assistant, Whisper, Piper, OpenWakeWord, Mosquitto, Zigbee2M
 tags = ["mac-mini"]
 deploy = true
 [stack.config]
+server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/automation/compose.yaml"]
@@ -65,6 +81,7 @@ description = "Alpine cron container: prunes old GTFS realtime zips and HA backu
 tags = ["mac-mini"]
 deploy = true
 [stack.config]
+server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/gtfs-cleanup/compose.yaml"]
@@ -79,6 +96,7 @@ description = "Prometheus, Grafana, node-exporter, postgres/mongo/technitium exp
 tags = ["mac-mini"]
 deploy = true
 [stack.config]
+server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/monitoring/compose.yaml"]
@@ -101,10 +119,11 @@ bws secret get c7ccdb87-b04e-428e-bbcf-b4340156edf6 --access-token "$BWS_ACCESS_
 
 [[stack]]
 name = "openwebui"
-description = "OpenWebUI chat interface — always-up on mac-mini-m4, proxied via claw.amer.dev"
+description = "OpenWebUI chat interface — always-up on mac-mini-m4, proxied via bot.amer.dev"
 tags = ["mac-mini"]
 deploy = true
 [stack.config]
+server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/openwebui/compose.yaml"]
@@ -128,6 +147,7 @@ description = "GitHub Actions runners (k3s-runners, ecdysis, wikimedia, photos, 
 tags = ["mac-mini"]
 deploy = true
 [stack.config]
+server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/runners/compose.yaml"]
@@ -155,6 +175,7 @@ tags = ["mac-mini"]
 deploy = true
 ignore_services = ["ollama-init"]
 [stack.config]
+server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
 file_paths = ["mac-mini-m4/llm/compose.yaml"]
