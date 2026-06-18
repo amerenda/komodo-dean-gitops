@@ -82,3 +82,11 @@ services:
       REPO_URL: https://github.com/amerenda/phase16-test
       RUNNER_NAME: mini-phase16-test
       LABELS: self-hosted,linux,arm64,docker,mac-mini
+
+  runner-phase16-e2e:
+    <<: *runner-common
+    container_name: runner-phase16-e2e
+    environment:
+      REPO_URL: https://github.com/amerenda/phase16-e2e
+      RUNNER_NAME: mini-phase16-e2e
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
