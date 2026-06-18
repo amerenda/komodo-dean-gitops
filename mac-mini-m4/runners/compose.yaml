@@ -74,3 +74,11 @@ services:
       REPO_URL: https://github.com/amerenda/schoolmode
       RUNNER_NAME: mini-schoolmode
       LABELS: self-hosted,linux,arm64,docker,mac-mini
+
+  runner-phase16-test:
+    <<: *runner-common
+    container_name: runner-phase16-test
+    environment:
+      REPO_URL: https://github.com/amerenda/phase16-test
+      RUNNER_NAME: mini-phase16-test
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
