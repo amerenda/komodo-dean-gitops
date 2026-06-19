@@ -16,7 +16,7 @@ services:
               capabilities: [gpu]
     environment:
       MODEL: /mnt/models/llms/qwen36/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
-      NGL: "${NGL:-41}"
+      NGL: "${NGL:-99}"
       CTX: "${CTX:-131072}"
       PORT: "8088"
       NVIDIA_VISIBLE_DEVICES: all
