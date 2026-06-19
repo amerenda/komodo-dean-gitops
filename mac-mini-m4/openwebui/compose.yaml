@@ -2,10 +2,9 @@ name: openwebui
 
 services:
   openwebui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:v0.9.6
     container_name: openwebui
     restart: unless-stopped
-    pull_policy: always
     ports:
       - "3001:8080"
     env_file:
