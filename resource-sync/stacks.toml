@@ -201,8 +201,9 @@ tags = ["archlinux"]
 deploy = true
 [stack.config]
 server = "archlinux"
-files_on_host = true
-run_directory = "/home/alex/komodo-dean-gitops"
+repo = "amerenda/komodo-dean-gitops"
+branch = "main"
+git_account = "amerenda"
 file_paths = ["archlinux/llm/compose.yaml"]
 project_name = "llm-archlinux"
 ignore_services = ["ollama-init"]
