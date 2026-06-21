@@ -26,8 +26,5 @@ services:
       - /etc/komodo:/etc/komodo
       # BWS access token (mode 0600 on host) — read by pre_deploy via /run/secrets/.
       - /etc/komodo/.bws-secret:/run/secrets/bws-access-token:ro
-      # gitops repo clone (SSH-managed); required for files_on_host stacks (llm-archlinux).
-      # Not :ro — pre_deploy scripts write generated env files into this directory.
-      - /home/alex/komodo-dean-gitops:/home/alex/komodo-dean-gitops
       # Ollama data and model storage.
       - /mnt/storage:/mnt/storage
