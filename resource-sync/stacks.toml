@@ -140,6 +140,7 @@ printf 'OPENAI_API_KEY=%s\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "lit
 printf 'WEBUI_SECRET_KEY=%s\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "openwebui-dean-secret-key") | .value')" >> mac-mini-m4/openwebui/.env
 printf 'DATABASE_URL=postgresql://openwebui:%s@host.docker.internal/openwebui\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "openwebui-dean-db-password") | .value')" >> mac-mini-m4/openwebui/.env
 printf 'MEM0_API_KEY=%s\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "mem0-admin-api-key") | .value')" >> mac-mini-m4/openwebui/.env
+printf 'PRAETOR_API_KEY=%s\n' "$(echo "$_BWSL" | jq -r '.[] | select(.key == "praetor-api-key") | .value')" >> mac-mini-m4/openwebui/.env
 """
 
 # ── Runners: GitHub Actions self-hosted runners ───────────────────────────

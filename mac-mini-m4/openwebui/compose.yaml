@@ -11,13 +11,14 @@ services:
       - .env
     environment:
       WEBUI_URL: "https://bot.amer.dev"
-      DEFAULT_MODELS: "qwen3-35b-think"
+      DEFAULT_MODELS: "qwen3-35b-think-custom"
       ENABLE_OLLAMA_API: "false"
       WEBUI_AUTH: "true"
       ENABLE_COMMUNITY_SHARING: "false"
       DATABASE_URL: "${DATABASE_URL}"
       ENABLE_MEMORY_TOOL: "true"
       MEM0_BASE_URL: "https://mem0.amer.dev"
+      PRAETOR_API_KEY: "${PRAETOR_API_KEY}"
     volumes:
       - /Users/alex/komodo/openwebui/data:/app/backend/data
     healthcheck:
