@@ -116,6 +116,12 @@ def switch_model(req: SwitchRequest, x_psk: str = Header(...)) -> dict:
                 "NVIDIA_VISIBLE_DEVICES": "all",
                 "NVIDIA_DRIVER_CAPABILITIES": "compute,utility",
             },
+            # Compose labels so `docker compose up` on next Komodo deploy can manage this
+            # container rather than failing with a name conflict.
+            labels={
+                "com.docker.compose.project": "llm-murderbot",
+                "com.docker.compose.service": "llama-server",
+            },
         )
     except Exception as exc:
         logger.error("Failed to start llama-server: %s", exc)
