@@ -48,7 +48,7 @@ services:
       LLAMA_IMAGE: "amerenda/murderbot-llm:${LLAMA_IMAGE_TAG:-latest}"
       MODEL_VOLUME: "/mnt/storage/models:/mnt/models:ro"
     command: >
-      sh -c "pip install fastapi uvicorn --quiet && python /app/model_switcher.py"
+      sh -c "pip install fastapi uvicorn docker --quiet && python /app/model_switcher.py"
     healthcheck:
       test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8091/health')"]
       interval: 30s
