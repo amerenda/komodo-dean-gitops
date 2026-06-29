@@ -1,12 +1,16 @@
 """Model switcher — HTTP endpoint that restarts llama-server with a different GGUF.
 
 POST /switch {"model": "<name>"} with X-PSK header.
+Blocks until llama-server is healthy on the new model (up to 5 min), then returns.
 Called by the praetor webhook adapter so OWU users can switch models via chat.
 """
 from __future__ import annotations
 
 import logging
 import os
+import time
+import urllib.error
+import urllib.request
 
 import docker as docker_sdk
 import uvicorn
@@ -32,6 +36,21 @@ _MODEL_VOLUME = os.environ.get("MODEL_VOLUME", "/mnt/storage/models:/mnt/models:
 
 class SwitchRequest(BaseModel):
     model: str
+
+
+def _wait_for_healthy(timeout: int = 300, interval: int = 5) -> bool:
+    """Poll http://localhost:8088/health until {"status":"ok"} or timeout (seconds)."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            with urllib.request.urlopen("http://localhost:8088/health", timeout=3) as resp:
+                import json
+                if json.loads(resp.read()).get("status") == "ok":
+                    return True
+        except (urllib.error.URLError, OSError):
+            pass
+        time.sleep(interval)
+    return False
 
 
 def _docker_client() -> docker_sdk.DockerClient:
@@ -102,13 +121,13 @@ def switch_model(req: SwitchRequest, x_psk: str = Header(...)) -> dict:
         logger.error("Failed to start llama-server: %s", exc)
         raise HTTPException(status_code=500, detail=f"Failed to start llama-server: {exc}") from exc
 
-    logger.info("llama-server restarted with model=%s", req.model)
-    return {
-        "status": "switching",
-        "model": req.model,
-        "path": model_path,
-        "note": "Server loading — /health on :8088 confirms readiness (up to 5 min)",
-    }
+    logger.info("llama-server container started, waiting for healthy on :8088 ...")
+    if _wait_for_healthy():
+        logger.info("llama-server healthy on model=%s", req.model)
+        return {"status": "ready", "model": req.model, "path": model_path}
+
+    logger.warning("llama-server did not become healthy within 5 min for model=%s", req.model)
+    return {"status": "timeout", "model": req.model, "path": model_path}
 
 
 if __name__ == "__main__":
