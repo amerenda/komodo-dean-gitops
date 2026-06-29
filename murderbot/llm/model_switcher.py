@@ -7,8 +7,8 @@ from __future__ import annotations
 
 import logging
 import os
-import subprocess
 
+import docker as docker_sdk
 import uvicorn
 from fastapi import FastAPI, Header, HTTPException
 from pydantic import BaseModel
@@ -32,6 +32,10 @@ _MODEL_VOLUME = os.environ.get("MODEL_VOLUME", "/mnt/storage/models:/mnt/models:
 
 class SwitchRequest(BaseModel):
     model: str
+
+
+def _docker_client() -> docker_sdk.DockerClient:
+    return docker_sdk.DockerClient(base_url="unix:///var/run/docker.sock")
 
 
 @app.get("/health")
@@ -60,28 +64,43 @@ def switch_model(req: SwitchRequest, x_psk: str = Header(...)) -> dict:
 
     logger.info("Switching llama-server to model=%s (%s)", req.model, model_path)
 
-    subprocess.run(["docker", "stop", "llama-server"], check=False, capture_output=True)
-    subprocess.run(["docker", "rm", "llama-server"], check=False, capture_output=True)
+    # Parse volume spec "host_path:container_path:options"
+    vol_parts = _MODEL_VOLUME.split(":")
+    host_vol = vol_parts[0]
+    container_vol = vol_parts[1] if len(vol_parts) > 1 else host_vol
+    vol_mode = vol_parts[2] if len(vol_parts) > 2 else "rw"
 
-    run_cmd = [
-        "docker", "run", "-d",
-        "--name", "llama-server",
-        "--restart", "unless-stopped",
-        "--gpus", "all",
-        "-v", _MODEL_VOLUME,
-        "-p", "8088:8088",
-        "-e", f"MODEL={model_path}",
-        "-e", "NGL=99",
-        "-e", "CTX=131072",
-        "-e", "PORT=8088",
-        "-e", "NVIDIA_VISIBLE_DEVICES=all",
-        "-e", "NVIDIA_DRIVER_CAPABILITIES=compute,utility",
-        _LLAMA_IMAGE,
-    ]
-    result = subprocess.run(run_cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        logger.error("docker run failed: %s", result.stderr)
-        raise HTTPException(status_code=500, detail=f"docker run failed: {result.stderr[:300]}")
+    client = _docker_client()
+
+    try:
+        existing = client.containers.get("llama-server")
+        logger.info("Stopping existing llama-server container")
+        existing.stop(timeout=30)
+        existing.remove()
+    except docker_sdk.errors.NotFound:
+        pass
+
+    try:
+        client.containers.run(
+            _LLAMA_IMAGE,
+            detach=True,
+            name="llama-server",
+            restart_policy={"Name": "unless-stopped"},
+            device_requests=[docker_sdk.types.DeviceRequest(count=-1, capabilities=[["gpu"]])],
+            volumes={host_vol: {"bind": container_vol, "mode": vol_mode}},
+            ports={"8088/tcp": 8088},
+            environment={
+                "MODEL": model_path,
+                "NGL": "99",
+                "CTX": "131072",
+                "PORT": "8088",
+                "NVIDIA_VISIBLE_DEVICES": "all",
+                "NVIDIA_DRIVER_CAPABILITIES": "compute,utility",
+            },
+        )
+    except Exception as exc:
+        logger.error("Failed to start llama-server: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Failed to start llama-server: {exc}") from exc
 
     logger.info("llama-server restarted with model=%s", req.model)
     return {
