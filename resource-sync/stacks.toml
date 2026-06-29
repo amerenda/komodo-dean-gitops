@@ -174,7 +174,7 @@ chmod +x /Users/alex/komodo/runner-secrets/entrypoint-wrapper.sh
 
 [[stack]]
 name = "llm-mac-mini-m4"
-description = "llm-manager agent + Ollama in compose; agent API :8090"
+description = "Ollama on Mac Mini — LiteLLM routes directly to :11434 (llm-agent removed 2026-06-29)"
 tags = ["mac-mini"]
 deploy = true
 ignore_services = ["ollama-init"]
@@ -197,7 +197,7 @@ bash mac-mini-m4/llm/pre-deploy.sh
 
 [[stack]]
 name = "llm-archlinux"
-description = "llm-manager agent + Ollama in compose; agent API :8090 (AMD RX 9070 XT)"
+description = "Ollama on Arch Linux — AMD ROCm, RX 9070 XT, LiteLLM routes directly to :11434"
 tags = ["archlinux"]
 deploy = true
 [stack.config]
