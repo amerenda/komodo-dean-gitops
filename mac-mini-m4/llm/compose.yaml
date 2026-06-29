@@ -1,8 +1,6 @@
-# llm-manager stack on Mac Mini — agent + compose-managed Ollama.
+# Ollama inference stack on Mac Mini — compose-managed Ollama.
+# llm-agent removed 2026-06-29: LiteLLM (litellm.amer.dev) routes directly to :11434.
 # Top-level name fixes the Docker Compose project name; matches Komodo stack id.
-#
-# Mount the full host Ollama data dir to /root/.ollama (not .../models → /root/.ollama).
-# See archlinux/llm/compose.yaml for rationale.
 name: llm-mac-mini-m4
 
 services:
@@ -41,34 +39,4 @@ services:
       OLLAMA_DEFAULT_MODEL: ${OLLAMA_DEFAULT_MODEL:-qwen2.5:7b-instruct-q4_K_M}
     command: ["sh", "-c", "sleep 5 && echo \"Pulling $$OLLAMA_DEFAULT_MODEL...\" && OLLAMA_HOST=http://localhost:11434 ollama pull \"$$OLLAMA_DEFAULT_MODEL\" && echo \"$$OLLAMA_DEFAULT_MODEL ready.\""]
 
-  llm-agent:
-    image: amerenda/llm-manager:agent-${AGENT_IMAGE_TAG:-latest}
-    pull_policy: always
-    container_name: llm-agent
-    restart: unless-stopped
-    network_mode: host
-    env_file:
-      - .env
-    environment:
-      RUNNER_HOSTNAME: mac-mini-m4
-      AGENT_UNIFIED_MEMORY_VRAM: "true"
-      OLLAMA_URL: http://localhost:11434
-      OLLAMA_CONTAINER: ollama
-      AGENT_DISK_STAT_PATH: /host-ollama-data
-      COMPOSE_PROFILE: ""
-      COMPOSE_DIR: ${HOST_LLM_COMPOSE_DIR}
-      COMPOSE_DIR_LOCAL: /host/llm-compose
-      MODEL_STORAGE_PATH: /host-ollama-models
-    depends_on:
-      - ollama
-    volumes:
-      - llm-agent-tls:/data/tls
-      - /var/run/docker.sock:/var/run/docker.sock
-      # Agent disk stats use /hostfs + OLLAMA_*_HOST_PATH; bind mounts alone lie on OrbStack.
-      - /:/hostfs:ro
-      - ${OLLAMA_MODELS_HOST_PATH:-/Users/alex/.ollama/models}:/host-ollama-models:ro
-      - ${OLLAMA_DATA_HOST_PATH:-/Users/alex/.ollama}:/host-ollama-data:ro
-      - ${HOST_LLM_COMPOSE_DIR}:/host/llm-compose:rw
-
-volumes:
-  llm-agent-tls:
+volumes: {}
