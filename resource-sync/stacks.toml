@@ -247,6 +247,7 @@ name = "llm-murderbot"
 description = "llama-server (llama.cpp) serving Qwen3.6-35B on port 8088 — LiteLLM primary backend + model-switcher sidecar on 8091"
 tags = ["murderbot", "llm"]
 deploy = true
+ignore_services = ["llama-server"]
 [stack.config]
 server = "murderbot"
 repo = "amerenda/komodo-dean-gitops"
@@ -254,10 +255,12 @@ branch = "main"
 file_paths = ["murderbot/llm/compose.yaml"]
 git_account = "amerenda"
 project_name = "llm-murderbot"
+ignore_services = ["llama-server"]
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
 printf 'SWITCH_PSK=%s\n' "$(bws secret get fb822d8e-fd24-4d6c-b854-b478010f282d --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" > murderbot/llm/.env
+printf 'HF_TOKEN=%s\n' "$(bws secret get d76ac5f6-3c43-4bc8-bb99-b444016f4aed --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> murderbot/llm/.env
 """
 
 # ── Media server (murderbot only) ───────────────────────────────────────────
