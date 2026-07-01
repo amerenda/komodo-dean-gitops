@@ -256,6 +256,7 @@ file_paths = ["murderbot/llm/compose.yaml"]
 git_account = "amerenda"
 project_name = "llm-murderbot"
 ignore_services = ["llama-server"]
+extra_args = ["model-switcher"]
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)

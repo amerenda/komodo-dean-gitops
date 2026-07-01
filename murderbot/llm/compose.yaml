@@ -1,12 +1,41 @@
 # llama.cpp inference stack on murderbot — NVIDIA RTX PRO 4000 Blackwell (SM_120a)
 # Serves Qwen3.6-35B-A3B on port 8088; LiteLLM routes qwen3-35b → 10.100.20.19:8088
 #
-# llama-server is intentionally NOT in this file.
-# model-switcher owns the full llama-server lifecycle via Docker SDK (startup + model switch).
-# Komodo only manages model-switcher; model-switcher manages llama-server.
+# Komodo deploys only model-switcher (extra_args = ["model-switcher"] in stacks.toml).
+# model-switcher's _startup_manager() starts llama-server via Docker SDK on boot.
+# llama-server is declared here so Komodo can display it (docker compose ps finds it by labels).
 name: llm-murderbot
 
 services:
+  llama-server:
+    image: amerenda/murderbot-llm:${LLAMA_IMAGE_TAG:-latest}
+    container_name: llama-server
+    restart: unless-stopped
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      MODEL: ${MODEL:-/mnt/models/llms/qwen36/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf}
+      NGL: "${NGL:-99}"
+      CTX: "${CTX:-131072}"
+      PORT: "8088"
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    ports:
+      - "8088:8088"
+    volumes:
+      - /mnt/storage/models:/mnt/models:ro
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8088/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 300s
+
   model-switcher:
     image: amerenda/model-switcher:latest
     container_name: model-switcher
