@@ -1,0 +1,24 @@
+name: Smoke Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    # Every 15 minutes — catches failures not caused by a commit to this repo
+    - cron: "*/15 * * * *"
+
+jobs:
+  komodo-health:
+    name: Komodo cluster health
+    runs-on: [self-hosted, mac-mini]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assert all servers Ok and all stacks running
+        env:
+          KOMODO_API_KEY: ${{ secrets.KOMODO_API_KEY }}
+          KOMODO_API_SECRET: ${{ secrets.KOMODO_API_SECRET }}
+        run: python3 scripts/smoke_test.py
