@@ -36,22 +36,22 @@ services:
       start_period: 300s
 
   model-switcher:
-    image: python:3.12-slim
+    image: amerenda/model-switcher:latest
     container_name: model-switcher
     restart: unless-stopped
     network_mode: host
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./model_switcher.py:/app/model_switcher.py:ro
+      - /mnt/storage/models:/mnt/models
     environment:
       SWITCH_PSK: "${SWITCH_PSK}"
-      LLAMA_IMAGE: "amerenda/murderbot-llm:${LLAMA_IMAGE_TAG:-latest}"
+      MANAGED_CONTAINER: "llama-server"
+      MANAGED_IMAGE: "amerenda/murderbot-llm:${LLAMA_IMAGE_TAG:-latest}"
+      MODEL_BASE_DIR: "/mnt/models/llms"
       MODEL_VOLUME: "/mnt/storage/models:/mnt/models:ro"
-    command: >
-      sh -c "pip install fastapi uvicorn docker --quiet && python /app/model_switcher.py"
-    healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8091/health')"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+      INFERENCE_PORT: "8088"
+      GPU_DRIVER: "nvidia"
+      PROD_MODEL_PATH: "${MODEL:-/mnt/models/llms/qwen36/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf}"
+      NGL: "${NGL:-99}"
+      CTX: "${CTX:-131072}"
+      HF_TOKEN: "${HF_TOKEN:-}"
