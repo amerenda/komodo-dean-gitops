@@ -58,3 +58,4 @@ services:
       HF_TOKEN: "${HF_TOKEN:-}"
       COMPOSE_PROJECT_NAME: "llm-murderbot"
       HEALTH_TIMEOUT: "600"
+      LLAMA_CONFIG_HASH: "${LLAMA_CONFIG_HASH:-}"

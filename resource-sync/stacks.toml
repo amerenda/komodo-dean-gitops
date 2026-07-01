@@ -256,12 +256,12 @@ file_paths = ["murderbot/llm/compose.yaml"]
 git_account = "amerenda"
 project_name = "llm-murderbot"
 ignore_services = ["llama-server"]
-extra_args = ["model-switcher"]
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
 printf 'SWITCH_PSK=%s\n' "$(bws secret get fb822d8e-fd24-4d6c-b854-b478010f282d --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" > murderbot/llm/.env
 printf 'HF_TOKEN=%s\n' "$(bws secret get d76ac5f6-3c43-4bc8-bb99-b444016f4aed --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> murderbot/llm/.env
+printf 'LLAMA_CONFIG_HASH=%s\n' "$(docker compose -f murderbot/llm/compose.yaml config --hash llama-server 2>/dev/null | awk '{print $2}')" >> murderbot/llm/.env
 """
 
 # ── Media server (murderbot only) ───────────────────────────────────────────
