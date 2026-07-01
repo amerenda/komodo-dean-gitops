@@ -38,6 +38,7 @@ services:
 
   model-switcher:
     image: amerenda/model-switcher:latest
+    pull_policy: always
     container_name: model-switcher
     restart: unless-stopped
     network_mode: host
@@ -59,3 +60,9 @@ services:
       COMPOSE_PROJECT_NAME: "llm-murderbot"
       HEALTH_TIMEOUT: "600"
       LLAMA_CONFIG_HASH: "${LLAMA_CONFIG_HASH:-}"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8091/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
