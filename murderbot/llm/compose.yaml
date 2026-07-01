@@ -56,3 +56,4 @@ services:
       CTX: "${CTX:-131072}"
       HF_TOKEN: "${HF_TOKEN:-}"
       COMPOSE_PROJECT_NAME: "llm-murderbot"
+      HEALTH_TIMEOUT: "600"
