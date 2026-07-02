@@ -165,6 +165,13 @@ prometheus:
 # Media sources - expose local media folders to Media dashboard
 media_source: {}
 
+# Logger — suppress known-noisy integration spam
+logger:
+  default: warning
+  logs:
+    pychromecast.socket_client: critical
+    custom_components.gtfs_realtime.coordinator: critical
+
 # Shell commands
 shell_command:
   cleanup_old_photos: 'find /config/www/pets -name "*.jpg" -mtime +30 -delete && find /config/www/intruders -name "*.jpg" -mtime +30 -delete'

@@ -6,7 +6,7 @@ Contains: Home Assistant, Mosquitto, Zigbee2MQTT.
 
 | Service | Pinned version | Reason |
 |---------|---------------|--------|
-| `homeassistant` | `2026.3.4` | Stable; test before bumping |
+| `homeassistant` | `2026.7.0` | Stable; test before bumping |
 | `mosquitto` | digest-pinned | Stable |
 | `zigbee2mqtt` | **`2.9.1`** | **HARD LOCK — see below** |
 
