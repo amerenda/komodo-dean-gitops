@@ -90,3 +90,11 @@ services:
       REPO_URL: https://github.com/amerenda/phase16-e2e
       RUNNER_NAME: mini-phase16-e2e
       LABELS: self-hosted,linux,arm64,docker,mac-mini
+
+  runner-komodo-dean-gitops:
+    <<: *runner-common
+    container_name: runner-komodo-dean-gitops
+    environment:
+      REPO_URL: https://github.com/amerenda/komodo-dean-gitops
+      RUNNER_NAME: mini-komodo-dean-gitops
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
