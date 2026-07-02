@@ -200,7 +200,6 @@ name = "llm-archlinux"
 description = "Ollama on Arch Linux — AMD ROCm, RX 9070 XT, LiteLLM routes directly to :11434"
 tags = ["archlinux"]
 deploy = true
-ignore_services = ["ollama-init"]
 [stack.config]
 server = "archlinux"
 repo = "amerenda/komodo-dean-gitops"
@@ -208,11 +207,17 @@ branch = "main"
 git_account = "amerenda"
 file_paths = ["archlinux/llm/compose.yaml"]
 project_name = "llm-archlinux"
-ignore_services = ["ollama-init"]
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
 bash archlinux/llm/pre-deploy.sh
+"""
+[stack.config.post_deploy]
+command = """
+OLLAMA_DEFAULT_MODEL=$(grep -E '^OLLAMA_DEFAULT_MODEL=' archlinux/llm/gitops.env 2>/dev/null | cut -d= -f2 | tr -d '"')
+OLLAMA_DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-qwen3:8b-q4_K_M}"
+echo "Pulling default Ollama model: ${OLLAMA_DEFAULT_MODEL}"
+docker exec ollama ollama pull "${OLLAMA_DEFAULT_MODEL}"
 """
 
 # ── murderbot Periphery server (Debian) ───────────────────────────────────
