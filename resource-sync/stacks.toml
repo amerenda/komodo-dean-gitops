@@ -200,6 +200,7 @@ name = "llm-archlinux"
 description = "Ollama on Arch Linux — AMD ROCm, RX 9070 XT, LiteLLM routes directly to :11434"
 tags = ["archlinux"]
 deploy = true
+ignore_services = ["ollama-init"]
 [stack.config]
 server = "archlinux"
 repo = "amerenda/komodo-dean-gitops"
