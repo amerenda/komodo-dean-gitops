@@ -56,6 +56,9 @@ services:
     container_name: mongo
     restart: unless-stopped
     network_mode: host
+    # WiredTiger cache capped at 256MB — actual working set is ~65MB (UniFi only).
+    # Default would claim ~6GB on a 16GB host; this frees memory for HA and Ollama.
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
     volumes:
       - mongo-data:/data/db
       - ../mongo/init-unifi.sh:/docker-entrypoint-initdb.d/init-unifi.sh:ro
