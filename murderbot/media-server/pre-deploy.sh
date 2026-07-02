@@ -58,7 +58,7 @@ chmod 0755 "${CONFIG_ROOT}/seerr" "$SEERR_CONFIG_DIR"
   echo "USENET_DOWNLOADS=/mnt/storage/downloads/complete"
   echo "USENET_DOWNLOADS_INCOMPLETE=/mnt/storage/downloads/incomplete"
   echo "TRANSCODE_FOLDER=/mnt/storage/cache/transcode"
-  echo "JELLYFIN_URL=media.amer.dev"
+  echo "JELLYFIN_URL=http://10.100.20.19:8096"
 } > "$ENV"
 
 # Sanity check: assert media-server compose file is at the expected path so
