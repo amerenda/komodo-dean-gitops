@@ -18,4 +18,5 @@ jobs:
         env:
           KOMODO_API_KEY: ${{ secrets.KOMODO_API_KEY }}
           KOMODO_API_SECRET: ${{ secrets.KOMODO_API_SECRET }}
+          KOMODO_URL: http://host.docker.internal:9120
         run: python3 scripts/smoke_test.py
