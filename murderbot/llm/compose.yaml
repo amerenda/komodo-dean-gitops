@@ -1,5 +1,5 @@
 # llama.cpp inference stack on murderbot — NVIDIA RTX PRO 4000 Blackwell (SM_120a)
-# Serves Qwen3.6-35B-A3B on port 8088; LiteLLM routes qwen3-35b → 10.100.20.19:8088
+# Serves Qwen3.6-27B on port 8088; LiteLLM routes qwen36-27b → 10.100.20.19:8088
 #
 # Komodo deploys only model-switcher (extra_args = ["model-switcher"] in stacks.toml).
 # model-switcher's _startup_manager() starts llama-server via Docker SDK on boot.
@@ -19,7 +19,7 @@ services:
               count: all
               capabilities: [gpu]
     environment:
-      MODEL: ${MODEL:-/mnt/models/llms/qwen36/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf}
+      MODEL: ${MODEL:-/mnt/models/llms/qwen36/Qwen3.6-27B-UD-Q4_K_XL.gguf}
       NGL: "${NGL:-99}"
       CTX: "${CTX:-131072}"
       PORT: "8088"
@@ -53,7 +53,7 @@ services:
       MODEL_VOLUME: "/mnt/storage/models:/mnt/models:ro"
       INFERENCE_PORT: "8088"
       GPU_DRIVER: "nvidia"
-      PROD_MODEL_PATH: "${MODEL:-/mnt/models/llms/qwen36/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf}"
+      PROD_MODEL_PATH: "${MODEL:-/mnt/models/llms/qwen36/Qwen3.6-27B-UD-Q4_K_XL.gguf}"
       NGL: "${NGL:-99}"
       CTX: "${CTX:-131072}"
       HF_TOKEN: "${HF_TOKEN:-}"
