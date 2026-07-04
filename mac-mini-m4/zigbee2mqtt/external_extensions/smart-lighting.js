@@ -160,17 +160,7 @@ class SmartLighting {
 
         this.checkInterval = setInterval(() => this._checkWindowTransition(), 30000);
 
-        if (this.config && this.currentWindow) {
-            const pushedHash = this._loadPushedHash();
-            if (pushedHash === null) {
-                this.logger.info(`[SL] Bootstrapping pushed hash (${this.configHash}) — scenes assumed current on bulbs`);
-                this._savePushedHash(this.configHash);
-            } else if (this.configHash !== pushedHash) {
-                this.logger.info(`[SL] Config hash changed since last push (${pushedHash} → ${this.configHash}) — will push on next config update from HA`);
-            } else {
-                this.logger.info(`[SL] Scenes up to date on bulbs (hash=${this.configHash})`);
-            }
-        }
+        this._handleStartupPush();
 
         this._publishStatus('started');
     }
@@ -274,6 +264,17 @@ class SmartLighting {
         }
         this.logger.info(`[SL] snap edit-recall: ${displayName} (${window})`);
         this._recallSceneIfOn(displayName, roomConfig, window);
+    }
+
+    // ── Startup scene push ───────────────────────────────────
+    // Always called at startup regardless of hash. The config hash reflects HA
+    // helper values only — a code change to scene_add format (e.g., adding
+    // state: 'ON') doesn't change the hash, so skipping on hash-match would
+    // leave bulbs with stale scenes that cannot turn lights on via scene_recall.
+    _handleStartupPush() {
+        if (!this.config || !this.currentWindow) return;
+        this.logger.info(`[SL] Startup scene push — refreshing all scenes on bulbs (hash=${this.configHash})`);
+        this._fullScenePush();
     }
 
     // ── Full scene push (config change) ─────────────────────

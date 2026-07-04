@@ -480,6 +480,88 @@ describe('_calculateCurrentWindow', () => {
     });
 });
 
+// ── Startup scene push — ensures scene_recall turns lights on ─────────────────
+//
+// scene_recall only turns a light ON if the stored scene includes the OnOff
+// attribute (state: 'ON' in the scene_add payload). The config hash reflects HA
+// helper values — NOT code content. So after a code change that adds state: 'ON'
+// to scene_add, the hash is unchanged and the old skip-if-hash-matches logic
+// silently leaves bulbs with stale scenes that cannot turn lights on.
+//
+// Fix: _handleStartupPush() always calls _fullScenePush regardless of hash so
+// every Z2M restart guarantees the bulbs have current scenes.
+
+describe('Startup scene push — scene_recall correctness', () => {
+    test('_fullScenePush includes state "ON" in every scene_add so recall turns light on', async () => {
+        const sl = makeInstance(JSON.parse(JSON.stringify(BASE_CONFIG)));
+        sl.currentWindow = 'evening';
+        sl._getEffectiveWindow = () => 'evening';
+        sl._savePushedHash = jest.fn();
+        sl._publishStatus = jest.fn();
+
+        const commands = [];
+        sl._sendCommandsStaggered = jest.fn(async (cmds) => { commands.push(...cmds); });
+
+        await sl._fullScenePush();
+
+        const sceneAdds = commands.filter(c => c.payload && c.payload.scene_add);
+        expect(sceneAdds.length).toBeGreaterThan(0);
+        for (const { payload } of sceneAdds) {
+            expect(payload.scene_add).toHaveProperty('state', 'ON');
+        }
+    });
+
+    test('_handleStartupPush always calls _fullScenePush even when config hash matches last push', () => {
+        // Without this fix: if pushedHash === configHash, startup skips the push.
+        // Bulbs keep stale scenes (no state: 'ON') and scene_recall never turns lights on.
+        const sl = makeInstance(JSON.parse(JSON.stringify(BASE_CONFIG)));
+        sl.configHash = 'fakehash';
+        sl._loadPushedHash = () => 'fakehash'; // hash matches — old code: skip push
+        sl._savePushedHash = jest.fn();
+        sl._fullScenePush = jest.fn();
+
+        sl._handleStartupPush(); // must exist and must call _fullScenePush unconditionally
+
+        expect(sl._fullScenePush).toHaveBeenCalledTimes(1);
+    });
+
+    test('switch press after startup push sends scene_recall that will turn light on', () => {
+        // Full chain: startup pushes scene_add (state: 'ON') → bulbs store scene →
+        // switch press sends scene_recall integer → bulb turns on at correct scene.
+        // If startup push is skipped, bulbs have old scenes and recall silently fails.
+        const sl = makeInstance(JSON.parse(JSON.stringify(BASE_CONFIG)));
+        sl.currentWindow = 'evening';
+        sl._switchLastScene = {};
+
+        const pushCalls = [];
+        sl._fullScenePush = jest.fn(() => pushCalls.push(true));
+
+        // Startup push must happen before switch presses are accepted
+        sl._handleStartupPush();
+        expect(pushCalls).toHaveLength(1);
+
+        // Now switch press must send scene_recall (not direct command — that flickers)
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+        sl._switchTurnRoomOn('Living Room');
+
+        expect(sent).toHaveLength(1);
+        expect(sent[0].topic).toBe('Living Room/set');
+        // Plain integer — Z2M recalls the scene (with state: 'ON' stored by startup push)
+        expect(typeof sent[0].payload.scene_recall).toBe('number');
+        expect(sent[0].payload.scene_recall).toBe(3); // evening = 3
+    });
+
+    test('_handleStartupPush does nothing when no config is loaded', () => {
+        const sl = makeInstance(null); // no config
+        sl._fullScenePush = jest.fn();
+
+        sl._handleStartupPush();
+
+        expect(sl._fullScenePush).not.toHaveBeenCalled();
+    });
+});
+
 // ── smart_power_on: _onDeviceAnnounce still uses direct command ──────────────
 
 describe('_onDeviceAnnounce — direct command (individual bulb, not group)', () => {
