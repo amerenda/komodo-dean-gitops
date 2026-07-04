@@ -46,6 +46,22 @@ action:
           - service: script.sl_room_on
             data:
               room: kitchen
+      - if:
+          - condition: state
+            entity_id: input_boolean.ha_arrive_bedroom
+            state: "on"
+        then:
+          - service: script.sl_room_on
+            data:
+              room: bedroom
+      - if:
+          - condition: state
+            entity_id: input_boolean.ha_arrive_bathroom
+            state: "on"
+        then:
+          - service: script.sl_room_on
+            data:
+              room: bathroom
   # AC home temp — always, if enabled (covers case where nearby zone didn't fire)
   - if:
       - condition: state
