@@ -235,6 +235,83 @@ describe('_switchTurnRoomOn — uses scene_recall, not direct command', () => {
     });
 });
 
+// ── Toggle Room regression — the exact "off works, on doesn't" failure ────────
+//
+// When lights are OFF and the toggle action fires, _executeAction('Toggle Room')
+// must call _switchTurnRoomOn, which must send a scene_recall integer (not an
+// object). If the format is wrong, Z2M silently ignores the command and the
+// light stays off. This is the regression from the first scene_recall attempt.
+
+describe('Toggle Room — power-on path sends a plain-integer scene_recall', () => {
+    function makeConfiguredInstance(houseMode = 'Home') {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        config.house_mode = houseMode;
+        config.switches = {
+            living_room_s_1: {
+                room_group: 'Living Room',
+                room_key: 'living_room',
+                b1_short: 'Default',
+                brightness_step_pct: 20,
+                min_brightness_pct: 5,
+            },
+        };
+        const sl = makeInstance(config);
+        sl._switchLastScene = {};
+        return sl;
+    }
+
+    test('toggle when room is OFF → scene_recall integer, not object', () => {
+        const sl = makeConfiguredInstance();
+        sl.currentWindow = 'evening';
+        // Room is off
+        sl._deviceStateCache['Living Room'] = 'OFF';
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._executeAction('Toggle Room', sl.config.switches['living_room_s_1']);
+
+        expect(sent).toHaveLength(1);
+        expect(sent[0].topic).toBe('Living Room/set');
+        // Must be a plain integer — object form { ID: N } is silently ignored by Z2M
+        expect(typeof sent[0].payload.scene_recall).toBe('number');
+        expect(sent[0].payload.scene_recall).toBe(3); // evening = 3
+    });
+
+    test('toggle when room is ON → state: OFF (no scene_recall)', () => {
+        const sl = makeConfiguredInstance();
+        sl._deviceStateCache['Living Room'] = 'ON';
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._executeAction('Toggle Room', sl.config.switches['living_room_s_1']);
+
+        expect(sent).toHaveLength(1);
+        expect(sent[0].payload).toEqual({ state: 'OFF' });
+        expect(sent[0].payload).not.toHaveProperty('scene_recall');
+    });
+
+    test('toggle off then on (full cycle) → OFF then scene_recall integer', () => {
+        const sl = makeConfiguredInstance();
+        sl.currentWindow = 'morning';
+        sl._deviceStateCache['Living Room'] = 'ON';
+        const sent = [];
+        sl._sendCommand = (topic, payload) => {
+            sent.push({ topic, payload });
+            // Simulate state change
+            if (payload.state === 'OFF') sl._deviceStateCache['Living Room'] = 'OFF';
+            if (typeof payload.scene_recall === 'number') sl._deviceStateCache['Living Room'] = 'ON';
+        };
+        const switchConfig = sl.config.switches['living_room_s_1'];
+
+        sl._executeAction('Toggle Room', switchConfig); // turn off
+        sl._executeAction('Toggle Room', switchConfig); // turn on
+
+        expect(sent[0].payload).toEqual({ state: 'OFF' });
+        expect(typeof sent[1].payload.scene_recall).toBe('number');
+        expect(sent[1].payload.scene_recall).toBe(1); // morning = 1
+    });
+});
+
 // ── _cycleScenesForRoom — uses scene_recall ──────────────────────────────────
 
 describe('_cycleScenesForRoom — uses scene_recall, not direct command', () => {
