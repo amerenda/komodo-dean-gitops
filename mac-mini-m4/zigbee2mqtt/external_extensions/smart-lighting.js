@@ -298,6 +298,7 @@ class SmartLighting {
                 const sceneAdd = {
                     ID: WINDOW_SCENE_ID[window],
                     name: window,
+                    state: 'ON',
                     transition: 2,
                     brightness: scene.brightness,
                 };
@@ -499,7 +500,7 @@ class SmartLighting {
         // without briefly flashing at its previous state (the direct-command path did: turn ON
         // at last state, then set color, causing a visible flicker on power-on).
         const sceneId = WINDOW_SCENE_ID[effectiveWindow];
-        this._sendCommand(`${roomName}/set`, { scene_recall: { ID: sceneId } });
+        this._sendCommand(`${roomName}/set`, { scene_recall: sceneId });
         this._switchLastScene[roomName] = effectiveWindow;
     }
 
@@ -526,7 +527,7 @@ class SmartLighting {
         if (!roomConfig.scenes || !roomConfig.scenes[targetWindow]) return;
 
         const sceneId = WINDOW_SCENE_ID[targetWindow];
-        this._sendCommand(`${roomName}/set`, { scene_recall: { ID: sceneId } });
+        this._sendCommand(`${roomName}/set`, { scene_recall: sceneId });
         this._switchLastScene[roomName] = targetWindow;
         this.logger.info(`[SL] cycle scene: ${roomName} → ${targetWindow}`);
     }
