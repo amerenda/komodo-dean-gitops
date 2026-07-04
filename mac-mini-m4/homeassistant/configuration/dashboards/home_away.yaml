@@ -35,6 +35,10 @@ views:
             name: Living Room
           - entity: input_boolean.ha_arrive_kitchen
             name: Kitchen
+          - entity: input_boolean.ha_arrive_bedroom
+            name: Bedroom
+          - entity: input_boolean.ha_arrive_bathroom
+            name: Bathroom
           - type: section
             label: Climate
           - entity: input_boolean.ha_ac_home
