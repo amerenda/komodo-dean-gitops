@@ -1,0 +1,65 @@
+title: Home & Away
+views:
+  - title: Home & Away
+    path: home-away
+    icon: mdi:home-account
+    cards:
+      # ── Status ─────────────────────────────────────────────
+      - type: entities
+        title: Presence
+        show_header_toggle: false
+        entities:
+          - entity: person.alex_merenda
+            name: Alex
+          - entity: person.eirill
+            name: Eirill
+          - entity: climate.151732605151026_climate
+            name: AC
+
+      # ── Master switch ───────────────────────────────────────
+      - type: entities
+        entities:
+          - entity: input_boolean.ha_automation_enabled
+            name: Automations Active
+
+      # ── On arrival ─────────────────────────────────────────
+      - type: entities
+        title: On Arrival
+        show_header_toggle: false
+        entities:
+          - type: section
+            label: Welcome Lights (only if no one else is home)
+          - entity: input_boolean.ha_arrive_hallway
+            name: Hallway
+          - entity: input_boolean.ha_arrive_living_room
+            name: Living Room
+          - entity: input_boolean.ha_arrive_kitchen
+            name: Kitchen
+          - type: section
+            label: Climate
+          - entity: input_boolean.ha_ac_home
+            name: Set AC to home temp
+
+      # ── On departure ───────────────────────────────────────
+      - type: entities
+        title: When Everyone Leaves
+        show_header_toggle: false
+        entities:
+          - type: section
+            label: Lights
+          - entity: input_boolean.ha_leave_lights_off
+            name: Turn off all lights
+          - type: section
+            label: Climate
+          - entity: input_boolean.ha_ac_away
+            name: Set AC to away temp
+
+      # ── AC targets ─────────────────────────────────────────
+      - type: entities
+        title: AC Temperature Targets
+        show_header_toggle: false
+        entities:
+          - entity: input_number.ha_ac_home_temp
+            name: Home temp (approach / arrival)
+          - entity: input_number.ha_ac_away_temp
+            name: Away temp (everyone leaves)
