@@ -1,0 +1,39 @@
+name: Lighting Tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mac-mini-m4/zigbee2mqtt/**'
+      - 'mac-mini-m4/homeassistant/**'
+  pull_request:
+    paths:
+      - 'mac-mini-m4/zigbee2mqtt/**'
+      - 'mac-mini-m4/homeassistant/**'
+
+jobs:
+  z2m-extension-tests:
+    name: Z2M extension unit tests (Jest)
+    runs-on: [self-hosted, mac-mini]
+    defaults:
+      run:
+        working-directory: mac-mini-m4/zigbee2mqtt/external_extensions
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Jest tests
+        run: npm test
+
+  ha-config-validation:
+    name: HA config validation
+    runs-on: [self-hosted, mac-mini]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate YAML syntax and helper references
+        run: python3 scripts/validate_lighting.py
