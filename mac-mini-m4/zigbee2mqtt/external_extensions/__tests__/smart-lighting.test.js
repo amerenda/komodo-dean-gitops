@@ -150,7 +150,7 @@ describe('_switchTurnRoomOn — uses scene_recall, not direct command', () => {
 
         expect(sent).toHaveLength(1);
         expect(sent[0].topic).toBe('Living Room/set');
-        expect(sent[0].payload).toEqual({ scene_recall: { ID: 3 } }); // evening = 3
+        expect(sent[0].payload).toEqual({ scene_recall: 3 }); // evening = 3
     });
 
     test('sends scene_recall ID 1 for morning window', () => {
@@ -164,7 +164,7 @@ describe('_switchTurnRoomOn — uses scene_recall, not direct command', () => {
         sl._getEffectiveWindow = () => 'morning';
         sl._switchTurnRoomOn('Bedroom');
 
-        expect(sent[0].payload).toEqual({ scene_recall: { ID: 1 } }); // morning = 1
+        expect(sent[0].payload).toEqual({ scene_recall: 1 }); // morning = 1
     });
 
     test('does NOT send direct color/brightness command (no flicker)', () => {
@@ -249,7 +249,7 @@ describe('_cycleScenesForRoom — uses scene_recall, not direct command', () => 
 
         expect(sent).toHaveLength(1);
         expect(sent[0].payload).toHaveProperty('scene_recall');
-        expect(sent[0].payload.scene_recall).toHaveProperty('ID');
+        expect(typeof sent[0].payload.scene_recall).toBe('number');
     });
 
     test('advances through windows in order: morning→day→evening→night→morning', () => {
@@ -260,7 +260,7 @@ describe('_cycleScenesForRoom — uses scene_recall, not direct command', () => 
         sl._switchLastScene = {};
         const ids = [];
         sl._sendCommand = (_, payload) => {
-            if (payload.scene_recall) ids.push(payload.scene_recall.ID);
+            if (typeof payload.scene_recall === 'number') ids.push(payload.scene_recall);
         };
 
         for (let i = 0; i < 5; i++) {
