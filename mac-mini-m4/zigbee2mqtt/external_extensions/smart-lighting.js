@@ -493,10 +493,13 @@ class SmartLighting {
         if (hm === 'Sleep' && !roomConfig.motion_night) return;
 
         const effectiveWindow = this._getEffectiveWindow(roomName);
-        const payload = this._buildDirectScenePayload(effectiveWindow, roomConfig);
-        if (!payload) return;
+        if (!roomConfig.scenes || !roomConfig.scenes[effectiveWindow]) return;
 
-        this._sendCommand(`${roomName}/set`, payload);
+        // scene_recall is atomic — bulb transitions directly from off to the stored scene
+        // without briefly flashing at its previous state (the direct-command path did: turn ON
+        // at last state, then set color, causing a visible flicker on power-on).
+        const sceneId = WINDOW_SCENE_ID[effectiveWindow];
+        this._sendCommand(`${roomName}/set`, { scene_recall: { ID: sceneId } });
         this._switchLastScene[roomName] = effectiveWindow;
     }
 
@@ -520,10 +523,10 @@ class SmartLighting {
             ? (WINDOWS.includes(current) ? current : 'morning')
             : WINDOWS[(WINDOWS.indexOf(last) + 1) % WINDOWS.length];
 
-        const payload = this._buildDirectScenePayload(targetWindow, roomConfig);
-        if (!payload) return;
+        if (!roomConfig.scenes || !roomConfig.scenes[targetWindow]) return;
 
-        this._sendCommand(`${roomName}/set`, payload);
+        const sceneId = WINDOW_SCENE_ID[targetWindow];
+        this._sendCommand(`${roomName}/set`, { scene_recall: { ID: sceneId } });
         this._switchLastScene[roomName] = targetWindow;
         this.logger.info(`[SL] cycle scene: ${roomName} → ${targetWindow}`);
     }
