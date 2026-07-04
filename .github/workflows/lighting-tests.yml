@@ -42,7 +42,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install pyyaml
-        run: pip3 install pyyaml --quiet
+        run: pip3 install pyyaml --quiet --break-system-packages
 
       - name: Validate YAML syntax and helper references
         run: python3 scripts/validate_lighting.py
