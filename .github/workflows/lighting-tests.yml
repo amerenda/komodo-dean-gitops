@@ -22,6 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mac-mini-m4/zigbee2mqtt/external_extensions/package-lock.json
+
       - name: Install dependencies
         run: npm ci
 
@@ -34,6 +40,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Install pyyaml
+        run: pip3 install pyyaml --quiet
 
       - name: Validate YAML syntax and helper references
         run: python3 scripts/validate_lighting.py
