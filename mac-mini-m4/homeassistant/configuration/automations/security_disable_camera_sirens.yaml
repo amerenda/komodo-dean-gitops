@@ -1,0 +1,22 @@
+alias: "Security: Disable Camera Sirens on Connect"
+id: security_disable_camera_sirens
+description: >
+  Re-disables siren_on_event whenever a camera comes back online (from unavailable).
+  Covers factory resets and privacy mode toggling — setting lives in camera firmware
+  but this ensures it's always correct.
+mode: queued
+max: 5
+trigger:
+  - platform: state
+    entity_id: switch.bedroom_siren_on_event
+    from: "unavailable"
+  - platform: state
+    entity_id: switch.living_room_siren_on_event
+    from: "unavailable"
+condition:
+  - condition: template
+    value_template: "{{ trigger.to_state.state not in ['unavailable', 'unknown'] }}"
+action:
+  - service: switch.turn_off
+    target:
+      entity_id: "{{ trigger.entity_id }}"
