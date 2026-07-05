@@ -11,5 +11,16 @@ condition:
   - condition: state
     entity_id: group.members
     state: "not_home"
+  # Block if either tracker is unavailable — prevents cameras activating on HA restart
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: device_tracker.pixel_9_pro_xl_2
+        state: "unavailable"
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: device_tracker.eirill_iphone
+        state: "unavailable"
 action:
   - service: script.camera_privacy_off
