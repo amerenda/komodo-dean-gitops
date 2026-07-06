@@ -21,10 +21,11 @@ VSTACK_VERSION="v1.0.1"
 STREAMLINE_VERSION="v0.2.0"
 HUE_LIGHT_VERSION="v1.9.0"
 MIDEA_AC_LAN_VERSION="v0.6.11"
+IPHONEDETECT_VERSION="2.5.0"
 
 # Combined marker for all components
 MARKER=/config/.ha-init-versions
-EXPECTED="${HACS_VERSION}|${MUSHROOM_VERSION}|${BUBBLE_VERSION}|${CARD_MOD_VERSION}|${VSTACK_VERSION}|${STREAMLINE_VERSION}|${HUE_LIGHT_VERSION}|${MIDEA_AC_LAN_VERSION}"
+EXPECTED="${HACS_VERSION}|${MUSHROOM_VERSION}|${BUBBLE_VERSION}|${CARD_MOD_VERSION}|${VSTACK_VERSION}|${STREAMLINE_VERSION}|${HUE_LIGHT_VERSION}|${MIDEA_AC_LAN_VERSION}|${IPHONEDETECT_VERSION}"
 
 if [ -f "$MARKER" ] && [ "$(cat "$MARKER")" = "$EXPECTED" ]; then
   echo "All components at expected versions — nothing to do"
@@ -62,6 +63,23 @@ if [ ! -f "$MIDEA_MARKER" ] || [ "$(cat "$MIDEA_MARKER")" != "$MIDEA_AC_LAN_VERS
   echo "midea_ac_lan ${MIDEA_AC_LAN_VERSION} installed"
 else
   echo "midea_ac_lan ${MIDEA_AC_LAN_VERSION} already installed"
+fi
+
+# ── iphonedetect integration ─────────────────────────────────
+# Detects iPhones via mDNS even in deep sleep — MAC-independent (tracks by IP).
+# After this installs and HA restarts: Settings > Devices & Services > Add Integration
+# > "iPhone Device Tracker" > enter IP (static IP set on Eirill's phone) + name.
+IPHONEDETECT_MARKER=/config/custom_components/iphonedetect/.version
+if [ ! -f "$IPHONEDETECT_MARKER" ] || [ "$(cat "$IPHONEDETECT_MARKER")" != "$IPHONEDETECT_VERSION" ]; then
+  echo "Installing iphonedetect ${IPHONEDETECT_VERSION}..."
+  wget -qO /tmp/iphonedetect.zip "https://github.com/mudape/iphonedetect/releases/download/${IPHONEDETECT_VERSION}/iphonedetect.zip"
+  rm -rf /config/custom_components/iphonedetect
+  mkdir -p /config/custom_components/iphonedetect
+  unzip -o /tmp/iphonedetect.zip -d /config/custom_components/iphonedetect
+  echo "$IPHONEDETECT_VERSION" > "$IPHONEDETECT_MARKER"
+  echo "iphonedetect ${IPHONEDETECT_VERSION} installed"
+else
+  echo "iphonedetect ${IPHONEDETECT_VERSION} already installed"
 fi
 
 # ── Frontend cards ───────────────────────────────────────────
