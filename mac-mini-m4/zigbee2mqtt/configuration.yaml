@@ -18,8 +18,10 @@ advanced:
   last_seen: ISO_8601
 
 availability:
+  enabled: true
   active:
-    timeout: 10
+    timeout: 5     # ping mains-powered devices after 5 min of silence (default 10)
+    backoff: false # don't increase interval on failed pings — keep retrying every 5 min
   passive:
     timeout: 1500
 
