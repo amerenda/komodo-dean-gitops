@@ -61,6 +61,24 @@ chmod 0755 "${CONFIG_ROOT}/seerr" "$SEERR_CONFIG_DIR"
   echo "JELLYFIN_URL=http://10.100.20.19:8096"
 } > "$ENV"
 
+# Enforce versioned Jellyfin anime plugin configs to prevent title-similarity
+# false-matches from contaminating the Movies/TV libraries with anime metadata.
+# AniDB at threshold=50 (the default) matched "Obsession (2026)" → hentai and
+# "Gladiator II" → hentai, corrupting 63+ movie NFOs before being caught.
+# These files pin TitleSimilarityThreshold=95. The per-library fix (disabling
+# AniDB/AniList/AniSearch as providers for Movies + TV in the Jellyfin admin
+# UI) must be done manually — see CLAUDE.md for steps.
+JELLYFIN_PLUGIN_CONF="${CONFIG_ROOT}/jellyfin/config/data/plugins/configurations"
+mkdir -p "$JELLYFIN_PLUGIN_CONF"
+for _plugin in AniDB AniList AniSearch; do
+  _src="murderbot/media-server/config/jellyfin-plugins/Jellyfin.Plugin.${_plugin}.xml"
+  _dst="${JELLYFIN_PLUGIN_CONF}/Jellyfin.Plugin.${_plugin}.xml"
+  if [[ -f "$_src" ]]; then
+    cp "$_src" "$_dst"
+    echo "media-server pre-deploy: applied Jellyfin.Plugin.${_plugin}.xml"
+  fi
+done
+
 # Sanity check: assert media-server compose file is at the expected path so
 # Komodo's `docker compose up` doesn't silently use the wrong cwd.
 test -f murderbot/media-server/compose.yaml \
