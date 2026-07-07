@@ -21,7 +21,8 @@ services:
     environment:
       OLLAMA_HOST: 0.0.0.0:11434
       OLLAMA_MODELS: /mnt/models
-      HSA_OVERRIDE_GFX_VERSION: ${HSA_OVERRIDE_GFX_VERSION:-}
+      # HSA_OVERRIDE_GFX_VERSION must NOT be set to empty string — ROCm silently fails GPU
+      # detection if this var is present with an empty value. Only set via ollama.env if needed.
       # Always-on serving config — single model loaded at a time for max speed and lowest latency
       OLLAMA_NUM_PARALLEL: "1"
       OLLAMA_MAX_LOADED_MODELS: "1"
