@@ -1,16 +1,23 @@
-# llama.cpp inference stack on murderbot — NVIDIA RTX PRO 4000 Blackwell (SM_120a)
-# Serves Qwen3.6-27B on port 8088; LiteLLM routes qwen36-27b → 10.100.20.19:8088
+# vLLM inference stack on murderbot — NVIDIA RTX PRO 4000 Blackwell (SM_120a)
+# Serves nvidia/Qwen3.6-27B-NVFP4 on port 8088; LiteLLM routes to http://10.100.20.19:8088
 #
-# Komodo deploys only model-switcher (extra_args = ["model-switcher"] in stacks.toml).
-# model-switcher's _startup_manager() starts llama-server via Docker SDK on boot.
-# llama-server is declared here so Komodo can display it (docker compose ps finds it by labels).
+# Model is loaded from HF Hub on first start (cached at HF_HOME=/mnt/models/hf-cache).
+# start_period=1200s covers download (~14 GB) + load + torch.compile on cold start.
+#
+# Key flags:
+#   --quantization modelopt  : ModelOpt NVFP4 checkpoint format
+#   --served-model-name      : multiple names preserve LiteLLM backward compat
+#   --kv-cache-dtype fp8     : 2x KV capacity vs bf16 on the same VRAM budget
+#   --swap-space 0           : disables CPU KV cache swap — keeps all inference on GPU
+#   --gpu-memory-utilization 0.95: ~13.5 GB weights + 10 GB headroom for KV cache
 name: llm-murderbot
 
 services:
-  llama-server:
-    image: amerenda/murderbot-llm:${LLAMA_IMAGE_TAG:-latest}
-    container_name: llama-server
+  vllm-server:
+    image: vllm/vllm-openai:v0.24.0-cu129
+    container_name: vllm-server
     restart: unless-stopped
+    ipc: host
     deploy:
       resources:
         reservations:
@@ -19,50 +26,49 @@ services:
               count: all
               capabilities: [gpu]
     environment:
-      MODEL: ${MODEL:-/mnt/models/llms/qwen36/Qwen3.6-27B-UD-Q4_K_XL.gguf}
-      NGL: "${NGL:-99}"
-      CTX: "${CTX:-131072}"
-      PORT: "8088"
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN}
+      HF_HOME: /mnt/models/hf-cache
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
+    entrypoint: ["python3", "-m", "vllm.entrypoints.openai.api_server"]
+    command:
+      - "--model"
+      - "nvidia/Qwen3.6-27B-NVFP4"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8088"
+      - "--quantization"
+      - "modelopt"
+      - "--reasoning-parser"
+      - "qwen3"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "qwen3"
+      - "--served-model-name"
+      - "qwen3-35b"
+      - "--served-model-name"
+      - "qwen36-35b"
+      - "--served-model-name"
+      - "qwen36-27b"
+      - "--max-model-len"
+      - "32768"
+      - "--max-num-seqs"
+      - "4"
+      - "--gpu-memory-utilization"
+      - "0.95"
+      - "--kv-cache-dtype"
+      - "fp8"
+      - "--swap-space"
+      - "0"
+      - "--disable-log-requests"
     ports:
       - "8088:8088"
     volumes:
-      - /mnt/storage/models:/mnt/models:ro
+      - /mnt/storage/models:/mnt/models
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8088/health"]
       interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 300s
-
-  model-switcher:
-    image: amerenda/model-switcher:latest
-    pull_policy: always
-    container_name: model-switcher
-    restart: unless-stopped
-    network_mode: host
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /mnt/storage/models:/mnt/models
-    environment:
-      SWITCH_PSK: "${SWITCH_PSK}"
-      MANAGED_CONTAINER: "llama-server"
-      MANAGED_IMAGE: "amerenda/murderbot-llm:${LLAMA_IMAGE_TAG:-latest}"
-      MODEL_BASE_DIR: "/mnt/models/llms"
-      MODEL_VOLUME: "/mnt/storage/models:/mnt/models:ro"
-      INFERENCE_PORT: "8088"
-      GPU_DRIVER: "nvidia"
-      PROD_MODEL_PATH: "${MODEL:-/mnt/models/llms/qwen36/Qwen3.6-27B-UD-Q4_K_XL.gguf}"
-      NGL: "${NGL:-99}"
-      CTX: "${CTX:-131072}"
-      HF_TOKEN: "${HF_TOKEN:-}"
-      COMPOSE_PROJECT_NAME: "llm-murderbot"
-      HEALTH_TIMEOUT: "600"
-      LLAMA_CONFIG_HASH: "${LLAMA_CONFIG_HASH:-}"
-    healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8091/health')"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 1200s
