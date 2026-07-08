@@ -41,19 +41,37 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9105"]
 
- # Komodo Core HTTPS health probe (https-probes-komodo) replaces this — port 9120 served only HTML, no metrics
-  # LLM metrics — murderbot: llama.cpp metrics endpoint (port 8088, default)
-  - job_name: murderbot-llama-cpp
+  # Komodo Core HTTPS health probe (https-probes-komodo) replaces this — port 9120 served only HTML, no metrics
+  # LLM metrics — murderbot: vLLM metrics endpoint (port 8088)
+  - job_name: murderbot-vllm
     metrics_path: /metrics
     static_configs:
       - targets: ["10.100.20.19:8088"]
         labels:
           node: murderbot
     relabel_configs:
-      # Set instance to "murderbot" so {instance=~"$host"} works in Grafana
       - target_label: instance
         replacement: murderbot
 
+  # Node metrics — murderbot: direct scrape with node label for Grafana host variable
+  - job_name: murderbot-node
+    static_configs:
+      - targets: ["10.100.20.19:9100"]
+        labels:
+          node: murderbot
+    relabel_configs:
+      - target_label: instance
+        replacement: murderbot
+
+  # Node metrics — archlinux: direct scrape with node label for Grafana host variable
+  - job_name: archlinux-node
+    static_configs:
+      - targets: ["10.100.20.25:9100"]
+        labels:
+          node: archlinux
+    relabel_configs:
+      - target_label: instance
+        replacement: archlinux
 
   # GPU metrics — murderbot: nvidia-exporter for GPU health (nvidia_gpu_*)
   - job_name: murderbot-nvidia
@@ -61,6 +79,16 @@ scrape_configs:
       - targets: ["10.100.20.19:9101"]
         labels:
           node: murderbot
+
+  # GPU metrics — archlinux: amdgpu-exporter (port 9101, deploy archlinux/gpu-exporter stack first)
+  - job_name: archlinux-amd-gpu
+    static_configs:
+      - targets: ["10.100.20.25:9101"]
+        labels:
+          node: archlinux
+    relabel_configs:
+      - target_label: instance
+        replacement: archlinux
 
   # Cross-stack heartbeat — k3s Prometheus health probe (MetalLB LoadBalancer VIP)
   - job_name: k3s-prometheus-heartbeat
