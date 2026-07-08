@@ -197,6 +197,21 @@ bash mac-mini-m4/llm/pre-deploy.sh
 
 # ── LLM: llm-manager agent + compose Ollama (Arch Linux, AMD ROCm) ──────────
 
+# ── GPU Exporter: AMD GPU metrics (archlinux) ────────────────────────────────
+
+[[stack]]
+name = "gpu-exporter-archlinux"
+description = "AMD GPU Prometheus exporter (amdgpu-exporter) for RX 9070 XT — exposes amdgpu_* metrics on port 9101"
+tags = ["archlinux"]
+deploy = true
+[stack.config]
+server = "archlinux"
+repo = "amerenda/komodo-dean-gitops"
+branch = "main"
+file_paths = ["archlinux/gpu-exporter/compose.yaml"]
+git_account = "amerenda"
+project_name = "gpu-exporter-archlinux"
+
 [[stack]]
 name = "llm-archlinux"
 description = "Ollama on Arch Linux — AMD ROCm, RX 9070 XT, LiteLLM routes directly to :11434"
