@@ -1061,14 +1061,17 @@
         "name": "host",
         "label": "Host",
         "type": "custom",
+        "query": "murderbot,archlinux",
         "options": [
           { "text": "murderbot", "value": "murderbot", "selected": true },
-          { "text": "archlinux", "value": "archlinux" }
+          { "text": "archlinux", "value": "archlinux", "selected": false }
         ],
-        "current": { "text": "murderbot", "value": "murderbot" },
+        "current": { "selected": true, "text": "murderbot", "value": "murderbot" },
         "multi": false,
         "includeAll": false,
-        "hide": 0
+        "hide": 0,
+        "refresh": 0,
+        "sort": 0
       }
     ]
   },
