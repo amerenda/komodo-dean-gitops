@@ -2,14 +2,14 @@
 # Serves nvidia/Qwen3.6-27B-NVFP4 on port 8088; LiteLLM routes to http://10.100.20.19:8088
 #
 # Model is loaded from HF Hub on first start (cached at HF_HOME=/mnt/models/hf-cache).
-# start_period=1200s covers download (~14 GB) + load + torch.compile on cold start.
+# start_period=1200s covers cold start (model load + profiling pass ~3-4 min).
 #
 # Key flags:
-#   --quantization modelopt  : ModelOpt NVFP4 checkpoint format
-#   --served-model-name      : multiple names preserve LiteLLM backward compat
-#   --kv-cache-dtype fp8     : 2x KV capacity vs bf16 on the same VRAM budget
-#   --swap-space 0           : disables CPU KV cache swap — keeps all inference on GPU
-#   --gpu-memory-utilization 0.95: ~13.5 GB weights + 10 GB headroom for KV cache
+#   --quantization modelopt      : ModelOpt NVFP4 checkpoint format
+#   --enforce-eager              : required — CUDA graph capture exhausts VRAM after 20 GB model load
+#   --kv-cache-dtype fp8         : 2x KV capacity vs bf16; valid on SM120 Blackwell
+#   --gpu-memory-utilization 0.97: 23.28 GB budget → 0.73 GiB KV after 22.55 GB profiling peak
+#   --max-model-len 16384        : 0.73 GiB KV fits 16K ctx; 32K needs 1.15 GiB (insufficient)
 name: llm-murderbot
 
 services:
