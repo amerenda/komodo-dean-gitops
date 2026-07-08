@@ -11,25 +11,13 @@
   "panels": [
     {
       "type": "row",
-      "title": "Host selector",
-      "collapsed": true,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "id": 0
-    },
-    {
-      "type": "row",
-      "title": "Inference throughput",
+      "title": "Inference Throughput",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 1
+        "y": 0
       },
       "id": 1
     },
@@ -40,15 +28,16 @@
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
+        "h": 7,
         "w": 12,
         "x": 0,
-        "y": 3
+        "y": 1
       },
       "id": 2,
       "fieldConfig": {
         "defaults": {
-          "unit": "tokens/v",
+          "unit": "reqps",
+          "displayName": "gen tokens/s",
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
@@ -73,8 +62,8 @@
       },
       "targets": [
         {
-          "expr": "rate(llamacpp:tokens_predicted_total{node=~\"$host\"}[5m])",
-          "legendFormat": "{{instance}}",
+          "expr": "rate(vllm:generation_tokens_total{node=~\"$host\"}[5m])",
+          "legendFormat": "{{instance}} — gen tokens/s",
           "refId": "A"
         }
       ]
@@ -86,15 +75,16 @@
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
+        "h": 7,
         "w": 12,
         "x": 12,
-        "y": 3
+        "y": 1
       },
       "id": 3,
       "fieldConfig": {
         "defaults": {
-          "unit": "tokens/v",
+          "unit": "reqps",
+          "displayName": "prompt tokens/s",
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
@@ -119,37 +109,88 @@
       },
       "targets": [
         {
-          "expr": "rate(llamacpp:prompt_tokens_total{node=~\"$host\"}[5m])",
-          "legendFormat": "{{instance}}",
+          "expr": "rate(vllm:prompt_tokens_total{node=~\"$host\"}[5m])",
+          "legendFormat": "{{instance}} — prompt tokens/s",
           "refId": "A"
         }
       ]
     },
     {
       "type": "row",
-      "title": "Latency",
+      "title": "Request Latency",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
+        "x": 0,
+        "y": 8
+      },
+      "id": 20
+    },
+    {
+      "type": "timeseries",
+      "title": "Time to first token p50 / p95 (s)",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 8,
         "x": 0,
         "y": 9
       },
-      "id": 4
+      "id": 21,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(vllm:time_to_first_token_seconds_bucket{node=~\"$host\"}[5m]))",
+          "legendFormat": "p50",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(vllm:time_to_first_token_seconds_bucket{node=~\"$host\"}[5m]))",
+          "legendFormat": "p95",
+          "refId": "B"
+        }
+      ]
     },
     {
       "type": "timeseries",
-      "title": "Generation latency (ms/token)",
+      "title": "Inter-token latency p50 / p95 (ms)",
       "datasource": {
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 11
+        "h": 7,
+        "w": 8,
+        "x": 8,
+        "y": 9
       },
-      "id": 5,
+      "id": 22,
       "fieldConfig": {
         "defaults": {
           "unit": "ms",
@@ -177,28 +218,33 @@
       },
       "targets": [
         {
-          "expr": "rate(llamacpp:tokens_predicted_seconds_total{node=~\"$host\"}[5m]) / rate(llamacpp:tokens_predicted_total{node=~\"$host\"}[5m]) * 1000",
-          "legendFormat": "{{instance}}",
+          "expr": "histogram_quantile(0.50, rate(vllm:inter_token_latency_seconds_bucket{node=~\"$host\"}[5m])) * 1000",
+          "legendFormat": "p50",
           "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(vllm:inter_token_latency_seconds_bucket{node=~\"$host\"}[5m])) * 1000",
+          "legendFormat": "p95",
+          "refId": "B"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Prompt latency (ms/token)",
+      "title": "End-to-end request latency p50 / p95 (s)",
       "datasource": {
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 11
+        "h": 7,
+        "w": 8,
+        "x": 16,
+        "y": 9
       },
-      "id": 6,
+      "id": 23,
       "fieldConfig": {
         "defaults": {
-          "unit": "ms",
+          "unit": "s",
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
@@ -223,113 +269,26 @@
       },
       "targets": [
         {
-          "expr": "rate(llamacpp:prompt_seconds_total{node=~\"$host\"}[5m]) / rate(llamacpp:prompt_tokens_total{node=~\"$host\"}[5m]) * 1000",
-          "legendFormat": "{{instance}}",
+          "expr": "histogram_quantile(0.50, rate(vllm:e2e_request_latency_seconds_bucket{node=~\"$host\"}[5m]))",
+          "legendFormat": "p50",
           "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Avg generation throughput (tokens/s)",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 19
-      },
-      "id": 99,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "tokens/s",
-          "custom": {
-            "drawDraw": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true
-          },
-          "min": 0
         },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
         {
-          "expr": "llamacpp:predicted_tokens_seconds{node=~\"$host\"}",
-          "legendFormat": "{{instance}} - avg gen tokens/s",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Avg prompt throughput (tokens/s)",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 25
-      },
-      "id": 100,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "tokens/s",
-          "custom": {
-            "drawDraw": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "llamacpp:prompt_tokens_seconds{node=~\"$host\"}",
-          "legendFormat": "{{instance}} - avg prompt tokens/s",
-          "refId": "A"
+          "expr": "histogram_quantile(0.95, rate(vllm:e2e_request_latency_seconds_bucket{node=~\"$host\"}[5m]))",
+          "legendFormat": "p95",
+          "refId": "B"
         }
       ]
     },
     {
       "type": "row",
-      "title": "System health",
+      "title": "System Health",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 16
       },
       "id": 7
     },
@@ -340,15 +299,15 @@
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
-        "w": 8,
+        "h": 7,
+        "w": 6,
         "x": 0,
-        "y": 33
+        "y": 17
       },
       "id": 8,
       "fieldConfig": {
         "defaults": {
-          "unit": "none",
+          "unit": "short",
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
@@ -360,18 +319,9 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 1
-              },
-              {
-                "color": "red",
-                "value": 3
-              }
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 3 }
             ]
           }
         },
@@ -390,7 +340,7 @@
       },
       "targets": [
         {
-          "expr": "llamacpp:requests_processing{node=~\"$host\"}",
+          "expr": "vllm:num_requests_running{node=~\"$host\"}",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
@@ -398,63 +348,17 @@
     },
     {
       "type": "timeseries",
-      "title": "Deferred requests",
+      "title": "Queued requests",
       "datasource": {
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 8,
-        "y": 33
+        "h": 7,
+        "w": 6,
+        "x": 6,
+        "y": 17
       },
       "id": 9,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "llamacpp:requests_deferred{node=~\"$host\"}",
-          "legendFormat": "{{instance}}",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Busy slots per decode (GPU utilisation)",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 8,
-        "x": 16,
-        "y": 33
-      },
-      "id": 10,
       "fieldConfig": {
         "defaults": {
           "unit": "short",
@@ -482,7 +386,101 @@
       },
       "targets": [
         {
-          "expr": "llamacpp:n_busy_slots_per_decode{node=~\"$host\"}",
+          "expr": "vllm:num_requests_waiting{node=~\"$host\"}",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "KV cache usage (%)",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 12,
+        "y": 17
+      },
+      "id": 10,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "vllm:kv_cache_usage_perc{node=~\"$host\"} * 100",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Prefix cache hit rate (%)",
+      "datasource": {
+        "type": "prometheus"
+      },
+      "gridPos": {
+        "h": 7,
+        "w": 6,
+        "x": 18,
+        "y": 17
+      },
+      "id": 11,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 18,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(vllm:prefix_cache_hits_total{node=~\"$host\"}[5m]) / clamp_min(rate(vllm:prefix_cache_queries_total{node=~\"$host\"}[5m]), 1) * 100",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
@@ -490,188 +488,117 @@
     },
     {
       "type": "row",
-      "title": "Cumulative stats",
+      "title": "Cumulative Stats",
       "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 24
       },
-      "id": 11
+      "id": 40
     },
     {
       "type": "stat",
-      "title": "Total tokens generated",
+      "title": "Generation tokens (1h)",
       "datasource": {
         "type": "prometheus"
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 8,
         "x": 0,
-        "y": 41
+        "y": 25
       },
-      "id": 12,
+      "id": 41,
       "fieldConfig": {
         "defaults": {
           "unit": "none",
           "thresholds": {
             "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              }
-            ]
+            "steps": [{ "color": "blue", "value": null }]
           }
         }
       },
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
+        "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "value",
         "graphMode": "area"
       },
       "targets": [
         {
-          "expr": "sum(irate(llamacpp:tokens_predicted_total{node=~\"$host\"}[1h]))",
-          "legendFormat": "",
+          "expr": "increase(vllm:generation_tokens_total{node=~\"$host\"}[1h])",
+          "legendFormat": "{{instance}}",
           "refId": "A"
         }
       ]
     },
     {
       "type": "stat",
-      "title": "Total prompt tokens",
+      "title": "Prompt tokens (1h)",
       "datasource": {
         "type": "prometheus"
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 6,
-        "y": 41
+        "w": 8,
+        "x": 8,
+        "y": 25
       },
-      "id": 13,
+      "id": 42,
       "fieldConfig": {
         "defaults": {
           "unit": "none",
           "thresholds": {
             "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
+            "steps": [{ "color": "green", "value": null }]
           }
         }
       },
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
+        "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "value",
         "graphMode": "area"
       },
       "targets": [
         {
-          "expr": "sum(irate(llamacpp:prompt_tokens_total{node=~\"$host\"}[1h]))",
-          "legendFormat": "",
+          "expr": "increase(vllm:prompt_tokens_total{node=~\"$host\"}[1h])",
+          "legendFormat": "{{instance}}",
           "refId": "A"
         }
       ]
     },
     {
       "type": "stat",
-      "title": "Max context window used",
+      "title": "Successful requests (1h)",
       "datasource": {
         "type": "prometheus"
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
-        "x": 12,
-        "y": 41
+        "w": 8,
+        "x": 16,
+        "y": 25
       },
-      "id": 14,
+      "id": 43,
       "fieldConfig": {
         "defaults": {
           "unit": "none",
           "thresholds": {
             "mode": "absolute",
-            "steps": [
-              {
-                "color": "yellow",
-                "value": null
-              }
-            ]
+            "steps": [{ "color": "purple", "value": null }]
           }
         }
       },
       "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
+        "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "value",
         "graphMode": "area"
       },
       "targets": [
         {
-          "expr": "max(llamacpp:n_tokens_max{node=~\"$host\"})",
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "Total decode calls",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 18,
-        "y": 41
-      },
-      "id": 15,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "none",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "purple",
-                "value": null
-              }
-            ]
-          }
-        }
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ]
-        },
-        "colorMode": "value",
-        "graphMode": "area"
-      },
-      "targets": [
-        {
-          "expr": "sum(llamacpp:n_decode_total{node=~\"$host\"})",
-          "legendFormat": "",
+          "expr": "increase(vllm:request_success_total{node=~\"$host\"}[1h])",
+          "legendFormat": "{{instance}}",
           "refId": "A"
         }
       ]
@@ -684,7 +611,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 29
       },
       "id": 30
     },
@@ -695,10 +622,10 @@
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
-        "w": 24,
+        "h": 7,
+        "w": 12,
         "x": 0,
-        "y": 47
+        "y": 30
       },
       "id": 31,
       "fieldConfig": {
@@ -730,22 +657,27 @@
       "targets": [
         {
           "expr": "nvidia_gpu_utilization{node=~\"$host\"}",
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{instance}} (NVIDIA)",
           "refId": "A"
+        },
+        {
+          "expr": "amdgpu_busy_percent{node=~\"$host\"}",
+          "legendFormat": "{{instance}} (AMD)",
+          "refId": "B"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "GPU Temperature (\u00b0C)",
+      "title": "GPU Temperature (°C)",
       "datasource": {
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 54
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 30
       },
       "id": 32,
       "fieldConfig": {
@@ -776,8 +708,13 @@
       "targets": [
         {
           "expr": "nvidia_gpu_temperature{node=~\"$host\"}",
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{instance}} (NVIDIA)",
           "refId": "A"
+        },
+        {
+          "expr": "amdgpu_temperature_celsius{node=~\"$host\"}",
+          "legendFormat": "{{instance}} (AMD)",
+          "refId": "B"
         }
       ]
     },
@@ -788,10 +725,10 @@
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
-        "w": 24,
+        "h": 7,
+        "w": 12,
         "x": 0,
-        "y": 61
+        "y": 37
       },
       "id": 33,
       "fieldConfig": {
@@ -822,8 +759,13 @@
       "targets": [
         {
           "expr": "nvidia_gpu_power_usage{node=~\"$host\"}",
-          "legendFormat": "{{instance}}",
+          "legendFormat": "{{instance}} (NVIDIA)",
           "refId": "A"
+        },
+        {
+          "expr": "amdgpu_power_watts{node=~\"$host\"}",
+          "legendFormat": "{{instance}} (AMD)",
+          "refId": "B"
         }
       ]
     },
@@ -834,10 +776,10 @@
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
-        "w": 24,
-        "x": 0,
-        "y": 68
+        "h": 7,
+        "w": 12,
+        "x": 12,
+        "y": 37
       },
       "id": 34,
       "fieldConfig": {
@@ -868,45 +810,70 @@
       "targets": [
         {
           "expr": "nvidia_gpu_memory_used{node=~\"$host\"}",
-          "legendFormat": "{{instance}} - Used",
+          "legendFormat": "{{instance}} NVIDIA used",
           "refId": "A"
         },
         {
           "expr": "nvidia_gpu_memory_total{node=~\"$host\"}",
-          "legendFormat": "{{instance}} - Total",
+          "legendFormat": "{{instance}} NVIDIA total",
           "refId": "B"
+        },
+        {
+          "expr": "amdgpu_vram_used_bytes{node=~\"$host\"}",
+          "legendFormat": "{{instance}} AMD used",
+          "refId": "C"
+        },
+        {
+          "expr": "amdgpu_vram_total_bytes{node=~\"$host\"}",
+          "legendFormat": "{{instance}} AMD total",
+          "refId": "D"
         }
       ]
     },
     {
+      "type": "text",
+      "title": "AMD GPU monitoring — archlinux",
+      "datasource": null,
+      "gridPos": {
+        "h": 3,
+        "w": 24,
+        "x": 0,
+        "y": 44
+      },
+      "id": 35,
+      "options": {
+        "mode": "markdown",
+        "content": "**archlinux AMD GPU panels** require the `gpu-exporter-archlinux` Komodo stack to be deployed first (`archlinux/gpu-exporter/compose.yaml`). NVIDIA panels (murderbot) show data immediately."
+      }
+    },
+    {
       "type": "row",
-      "title": "Proxy \u2014 Overflow Recovery",
+      "title": "System — Node Metrics",
+      "collapsed": false,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 74
+        "y": 47
       },
-      "id": 200,
-      "collapsed": false,
-      "panels": []
+      "id": 50
     },
     {
       "type": "timeseries",
-      "title": "Request rate by outcome",
+      "title": "CPU Utilization (%)",
       "datasource": {
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
+        "h": 7,
         "w": 12,
         "x": 0,
-        "y": 75
+        "y": 48
       },
-      "id": 201,
+      "id": 51,
       "fieldConfig": {
         "defaults": {
-          "unit": "reqps",
+          "unit": "percent",
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
@@ -914,7 +881,8 @@
             "showPoints": "never",
             "spanNulls": true
           },
-          "min": 0
+          "min": 0,
+          "max": 100
         },
         "overrides": []
       },
@@ -931,38 +899,28 @@
       },
       "targets": [
         {
-          "expr": "rate(proxy_requests_total{node=~\"$host\",outcome=\"success\"}[5m])",
-          "legendFormat": "success",
+          "expr": "(1 - avg by (node) (rate(node_cpu_seconds_total{node=~\"$host\",mode=\"idle\",job=~\"murderbot-node|archlinux-node\"}[5m]))) * 100",
+          "legendFormat": "{{node}}",
           "refId": "A"
-        },
-        {
-          "expr": "rate(proxy_requests_total{node=~\"$host\",outcome=\"overflow_recovered\"}[5m])",
-          "legendFormat": "overflow recovered",
-          "refId": "B"
-        },
-        {
-          "expr": "rate(proxy_requests_total{node=~\"$host\",outcome=\"error\"}[5m])",
-          "legendFormat": "error",
-          "refId": "C"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Active requests (in-flight)",
+      "title": "RAM Usage",
       "datasource": {
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
+        "h": 7,
         "w": 12,
         "x": 12,
-        "y": 75
+        "y": 48
       },
-      "id": 202,
+      "id": 52,
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "bytes",
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
@@ -987,178 +945,30 @@
       },
       "targets": [
         {
-          "expr": "proxy_active_requests{node=~\"$host\"}",
-          "legendFormat": "active",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Request latency p50 / p95 / p99 (s)",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 81
-      },
-      "id": 203,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "s",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "histogram_quantile(0.50, rate(proxy_request_duration_seconds_bucket{node=~\"$host\"}[5m]))",
-          "legendFormat": "p50",
+          "expr": "node_memory_MemTotal_bytes{node=~\"$host\",job=~\"murderbot-node|archlinux-node\"} - node_memory_MemAvailable_bytes{node=~\"$host\",job=~\"murderbot-node|archlinux-node\"}",
+          "legendFormat": "{{node}} used",
           "refId": "A"
         },
         {
-          "expr": "histogram_quantile(0.95, rate(proxy_request_duration_seconds_bucket{node=~\"$host\"}[5m]))",
-          "legendFormat": "p95",
-          "refId": "B"
-        },
-        {
-          "expr": "histogram_quantile(0.99, rate(proxy_request_duration_seconds_bucket{node=~\"$host\"}[5m]))",
-          "legendFormat": "p99",
-          "refId": "C"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Overflow events/min + strip rounds/min",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 81
-      },
-      "id": 204,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "rate(proxy_overflow_events_total{node=~\"$host\"}[5m]) * 60",
-          "legendFormat": "overflow 400s / min",
-          "refId": "A"
-        },
-        {
-          "expr": "rate(proxy_overflow_strip_rounds_count{node=~\"$host\"}[5m]) * 60",
-          "legendFormat": "overflowing requests / min",
+          "expr": "node_memory_MemTotal_bytes{node=~\"$host\",job=~\"murderbot-node|archlinux-node\"}",
+          "legendFormat": "{{node}} total",
           "refId": "B"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Messages stripped / min",
+      "title": "Network In (bytes/s)",
       "datasource": {
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
+        "h": 7,
         "w": 12,
         "x": 0,
-        "y": 87
+        "y": 55
       },
-      "id": 205,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "rate(proxy_messages_stripped_total{node=~\"$host\"}[5m]) * 60",
-          "legendFormat": "msgs stripped",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Bytes stripped / min",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 87
-      },
-      "id": 206,
+      "id": 53,
       "fieldConfig": {
         "defaults": {
           "unit": "Bps",
@@ -1186,28 +996,28 @@
       },
       "targets": [
         {
-          "expr": "rate(proxy_bytes_stripped_total{node=~\"$host\"}[5m]) * 60",
-          "legendFormat": "bytes stripped",
+          "expr": "rate(node_network_receive_bytes_total{node=~\"$host\",job=~\"murderbot-node|archlinux-node\",device!~\"lo|veth.*|cali.*|tunl.*\"}[5m])",
+          "legendFormat": "{{node}} {{device}}",
           "refId": "A"
         }
       ]
     },
     {
       "type": "timeseries",
-      "title": "Strip rounds p50 / p95 (per overflowing request)",
+      "title": "Network Out (bytes/s)",
       "datasource": {
         "type": "prometheus"
       },
       "gridPos": {
-        "h": 6,
+        "h": 7,
         "w": 12,
-        "x": 0,
-        "y": 93
+        "x": 12,
+        "y": 55
       },
-      "id": 207,
+      "id": 54,
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
+          "unit": "Bps",
           "custom": {
             "drawStyle": "line",
             "lineWidth": 2,
@@ -1232,583 +1042,9 @@
       },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, rate(proxy_overflow_strip_rounds_bucket{node=~\"$host\"}[10m]))",
-          "legendFormat": "p50 rounds",
+          "expr": "rate(node_network_transmit_bytes_total{node=~\"$host\",job=~\"murderbot-node|archlinux-node\",device!~\"lo|veth.*|cali.*|tunl.*\"}[5m])",
+          "legendFormat": "{{node}} {{device}}",
           "refId": "A"
-        },
-        {
-          "expr": "histogram_quantile(0.95, rate(proxy_overflow_strip_rounds_bucket{node=~\"$host\"}[10m]))",
-          "legendFormat": "p95 rounds",
-          "refId": "B"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Upstream errors / min",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 93
-      },
-      "id": 208,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "rate(proxy_upstream_errors_total{node=~\"$host\",type=\"broken_pipe\"}[5m]) * 60",
-          "legendFormat": "broken pipe",
-          "refId": "A"
-        },
-        {
-          "expr": "rate(proxy_upstream_errors_total{node=~\"$host\",type=\"conn_refused\"}[5m]) * 60",
-          "legendFormat": "conn refused",
-          "refId": "B"
-        },
-        {
-          "expr": "rate(proxy_upstream_errors_total{node=~\"$host\",type=\"other\"}[5m]) * 60",
-          "legendFormat": "other",
-          "refId": "C"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Last-seen context: messages remaining after strip",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 99
-      },
-      "id": 209,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "proxy_last_messages_remaining{node=~\"$host\"}",
-          "legendFormat": "msgs remaining",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Last-seen strip depth (rounds on last overflow request)",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 99
-      },
-      "id": 210,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "proxy_last_strip_rounds{node=~\"$host\"}",
-          "legendFormat": "rounds",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "row",
-      "title": "Session Health",
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 105
-      },
-      "id": 300,
-      "collapsed": false,
-      "panels": []
-    },
-    {
-      "type": "stat",
-      "title": "Context high-water mark (% of 131072, since last restart)",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 0,
-        "y": 106
-      },
-      "id": 301,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 60
-              },
-              {
-                "color": "orange",
-                "value": 80
-              },
-              {
-                "color": "red",
-                "value": 85
-              }
-            ]
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto"
-      },
-      "targets": [
-        {
-          "expr": "llamacpp:n_tokens_max{node=~\"$host\"} / 131072 * 100",
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "Overflow recovery rate (% of chat requests)",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 8,
-        "y": 106
-      },
-      "id": 302,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 20
-              },
-              {
-                "color": "orange",
-                "value": 50
-              },
-              {
-                "color": "red",
-                "value": 75
-              }
-            ]
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto"
-      },
-      "targets": [
-        {
-          "expr": "rate(proxy_requests_total{node=~\"$host\",outcome=\"overflow_recovered\"}[10m]) / clamp_min(rate(proxy_requests_total{node=~\"$host\",outcome=~\"success|overflow_recovered\"}[10m]), 0.0001) * 100",
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "Current generation speed (tokens/s)",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 8,
-        "x": 16,
-        "y": 106
-      },
-      "id": 303,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 30
-              },
-              {
-                "color": "yellow",
-                "value": 50
-              },
-              {
-                "color": "green",
-                "value": 80
-              }
-            ]
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "auto",
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto"
-      },
-      "targets": [
-        {
-          "expr": "llamacpp:predicted_tokens_seconds{node=~\"$host\"}",
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Context high-water mark over time (tokens)",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 110
-      },
-      "id": 304,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "none"
-            }
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "llamacpp:n_tokens_max{node=~\"$host\"}",
-          "legendFormat": "n_tokens_max",
-          "refId": "A"
-        },
-        {
-          "expr": "vector(131072)",
-          "legendFormat": "context limit (131072)",
-          "refId": "B"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "Prompt : generation token ratio (rising = context-heavy session)",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 110
-      },
-      "id": 305,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "none"
-            }
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "rate(llamacpp:prompt_tokens_total{node=~\"$host\"}[5m]) / clamp_min(rate(llamacpp:tokens_predicted_total{node=~\"$host\"}[5m]), 0.001)",
-          "legendFormat": "prompt tokens per generated token",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "row",
-      "title": "System \u2014 murderbot",
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 116
-      },
-      "id": 310,
-      "collapsed": false,
-      "panels": []
-    },
-    {
-      "type": "timeseries",
-      "title": "CPU utilisation (%)",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 0,
-        "y": 117
-      },
-      "id": 311,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "percent",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "none"
-            }
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "(1 - rate(node_cpu_seconds_total{node=~\"$host\",mode=\"idle\"}[5m])) * 100",
-          "legendFormat": "CPU used %",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "type": "timeseries",
-      "title": "RAM usage",
-      "datasource": {
-        "type": "prometheus"
-      },
-      "gridPos": {
-        "h": 6,
-        "w": 12,
-        "x": 12,
-        "y": 117
-      },
-      "id": 312,
-      "fieldConfig": {
-        "defaults": {
-          "unit": "bytes",
-          "custom": {
-            "drawStyle": "line",
-            "lineWidth": 2,
-            "fillOpacity": 18,
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "mode": "none"
-            }
-          },
-          "min": 0
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "node_memory_MemTotal_bytes{node=~\"$host\"} - node_memory_MemAvailable_bytes{node=~\"$host\"}",
-          "legendFormat": "used",
-          "refId": "A"
-        },
-        {
-          "expr": "node_memory_MemTotal_bytes{node=~\"$host\"}",
-          "legendFormat": "total",
-          "refId": "B"
         }
       ]
     }
@@ -1816,8 +1052,7 @@
   "schemaVersion": 39,
   "tags": [
     "llm",
-    "llama-cpp",
-    "ollama",
+    "vllm",
     "inference"
   ],
   "templating": {
@@ -1825,19 +1060,15 @@
       {
         "name": "host",
         "label": "Host",
-        "type": "query",
-        "datasource": {
-          "type": "prometheus"
-        },
-        "query": "label_values(llamacpp:n_tokens_max, node)",
-        "refresh": 2,
-        "sort": 1,
-        "multi": true,
-        "includeAll": true,
-        "current": {
-          "text": "All",
-          "value": "$__all"
-        }
+        "type": "custom",
+        "options": [
+          { "text": "murderbot", "value": "murderbot", "selected": true },
+          { "text": "archlinux", "value": "archlinux" }
+        ],
+        "current": { "text": "murderbot", "value": "murderbot" },
+        "multi": false,
+        "includeAll": false,
+        "hide": 0
       }
     ]
   },
@@ -1848,5 +1079,5 @@
   "timepicker": {},
   "title": "LLM Inference",
   "uid": "llm-inference",
-  "version": 1
+  "version": 2
 }

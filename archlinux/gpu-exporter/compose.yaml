@@ -1,0 +1,17 @@
+name: gpu-exporter-archlinux
+
+services:
+  amdgpu-exporter:
+    image: ghcr.io/nicholaswilde/amdgpu-exporter:latest
+    container_name: amdgpu-exporter
+    restart: unless-stopped
+    ports:
+      - "9101:9101"
+    devices:
+      - /dev/dri:/dev/dri
+      - /dev/kfd:/dev/kfd
+    group_add:
+      - "video"
+      - "render"
+    environment:
+      PORT: "9101"
