@@ -2,7 +2,7 @@ name: gpu-exporter-archlinux
 
 services:
   amdgpu-exporter:
-    image: rocm/device-metrics-exporter:latest
+    image: rocm/device-metrics-exporter:v1.4.2
     container_name: amdgpu-exporter
     restart: unless-stopped
     ports:
