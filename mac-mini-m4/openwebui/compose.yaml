@@ -11,7 +11,7 @@ services:
       - .env
     environment:
       WEBUI_URL: "https://bot.amer.dev"
-      DEFAULT_MODELS: "qwen3-35b-think-custom"  # display name: murderbot-v0
+      DEFAULT_MODELS: "murderbot-v1-custom"  # display name: murderbot-v1
       ENABLE_OLLAMA_API: "false"
       WEBUI_AUTH: "true"
       ENABLE_COMMUNITY_SHARING: "false"
