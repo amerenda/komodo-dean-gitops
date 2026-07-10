@@ -1,0 +1,874 @@
+{
+  "title": "Praetor — AI Agent Platform",
+  "uid": "praetor-platform",
+  "tags": ["app", "praetor", "ai-agents"],
+  "refresh": "30s",
+  "time": { "from": "now-3h", "to": "now" },
+  "schemaVersion": 38,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Pods Running",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "green", "value": 8 }
+            ]
+          },
+          "mappings": []
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [
+        {
+          "expr": "count(kube_pod_status_phase{namespace=\"praetor\", phase=\"Running\"})",
+          "legendFormat": "Running"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "OOM Kills (24h)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [
+        {
+          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"praetor\", container=\"coder-worker\"}[24h]))",
+          "legendFormat": "Coder Restarts"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Active Tasks",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "blue", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [
+        {
+          "expr": "sum(praetor_task_active) or vector(0)",
+          "legendFormat": "Active"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Coder Memory Usage",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.6 },
+              { "color": "red", "value": 0.85 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{namespace=\"praetor\", container=\"coder-worker\"} / on(container) kube_pod_container_resource_limits{namespace=\"praetor\", resource=\"memory\", container=\"coder-worker\"}",
+          "legendFormat": "Coder"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Task Success Rate (1h)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "green", "value": 0.9 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [
+        {
+          "expr": "sum(increase(praetor_task_invocations_total{status=\"success\"}[1h])) / (sum(increase(praetor_task_invocations_total[1h])) > 0) or vector(1)",
+          "legendFormat": "Success Rate"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Total Tasks Completed (1h)",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 0 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "text", "value": null }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "value" },
+      "targets": [
+        {
+          "expr": "sum(increase(praetor_task_invocations_total[1h])) or vector(0)",
+          "legendFormat": "Tasks"
+        }
+      ]
+    },
+
+    {
+      "id": 7,
+      "title": "Agent Status Overview",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 4 },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "auto" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Memory Used" },
+            "properties": [{ "id": "unit", "value": "bytes" }]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Mem %" },
+            "properties": [
+              { "id": "unit", "value": "percentunit" },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 0.6 },
+                    { "color": "red", "value": 0.85 }
+                  ]
+                }
+              },
+              { "id": "custom.displayMode", "value": "color-background" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Restarts" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 1 },
+                    { "color": "red", "value": 5 }
+                  ]
+                }
+              },
+              { "id": "custom.displayMode", "value": "color-text" }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "sortBy": [{ "displayName": "Container", "desc": false }],
+        "footer": { "show": false }
+      },
+      "transformations": [
+        {
+          "id": "merge",
+          "options": {}
+        },
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": {
+              "container": "Container",
+              "Value #A": "Memory Used",
+              "Value #B": "Mem %",
+              "Value #C": "CPU (cores)",
+              "Value #D": "Restarts"
+            }
+          }
+        }
+      ],
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{namespace=\"praetor\", container!=\"\", container!=\"POD\"}",
+          "legendFormat": "{{container}}",
+          "instant": true,
+          "refId": "A"
+        },
+        {
+          "expr": "container_memory_working_set_bytes{namespace=\"praetor\", container!=\"\", container!=\"POD\"} / on(container) group_left() kube_pod_container_resource_limits{namespace=\"praetor\", resource=\"memory\", container!=\"\"}",
+          "legendFormat": "{{container}}",
+          "instant": true,
+          "refId": "B"
+        },
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{namespace=\"praetor\", container!=\"\", container!=\"POD\"}[5m])",
+          "legendFormat": "{{container}}",
+          "instant": true,
+          "refId": "C"
+        },
+        {
+          "expr": "kube_pod_container_status_restarts_total{namespace=\"praetor\", container!=\"\"}",
+          "legendFormat": "{{container}}",
+          "instant": true,
+          "refId": "D"
+        }
+      ]
+    },
+
+    {
+      "id": 8,
+      "title": "All Agents — Memory Usage vs Limit",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 12 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byFrameRefID", "options": "limit" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 4] } },
+              { "id": "custom.lineWidth", "value": 1 },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }
+            ]
+          }
+        ]
+      },
+      "options": { "tooltip": { "mode": "multi" } },
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{namespace=\"praetor\", container!=\"\", container!=\"POD\"}",
+          "legendFormat": "{{container}}",
+          "refId": "usage"
+        },
+        {
+          "expr": "kube_pod_container_resource_limits{namespace=\"praetor\", resource=\"memory\", container!=\"\"}",
+          "legendFormat": "limit: {{container}}",
+          "refId": "limit"
+        }
+      ]
+    },
+
+    {
+      "id": 9,
+      "title": "All Agents — CPU Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "axisLabel": "cores" },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{namespace=\"praetor\", container!=\"\", container!=\"POD\"}[5m])",
+          "legendFormat": "{{container}}"
+        }
+      ]
+    },
+
+    { "id": 100, "title": "Coder Agent", "type": "row", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 28 }, "collapsed": false },
+
+    {
+      "id": 101,
+      "title": "Coder — Memory",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 29 },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "color": { "mode": "palette-classic" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Limit" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 4] } },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{namespace=\"praetor\", container=\"coder-worker\"}",
+          "legendFormat": "Used"
+        },
+        {
+          "expr": "kube_pod_container_resource_limits{namespace=\"praetor\", resource=\"memory\", container=\"coder-worker\"}",
+          "legendFormat": "Limit"
+        }
+      ]
+    },
+    {
+      "id": 102,
+      "title": "Coder — CPU",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 29 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "custom": { "axisLabel": "cores" }, "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{namespace=\"praetor\", container=\"coder-worker\"}[5m])",
+          "legendFormat": "CPU"
+        }
+      ]
+    },
+    {
+      "id": 103,
+      "title": "Coder — Network I/O",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 29 },
+      "fieldConfig": {
+        "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_network_receive_bytes_total{namespace=\"praetor\", pod=~\"praetor-coder-worker.*\"}[5m])",
+          "legendFormat": "RX"
+        },
+        {
+          "expr": "rate(container_network_transmit_bytes_total{namespace=\"praetor\", pod=~\"praetor-coder-worker.*\"}[5m])",
+          "legendFormat": "TX"
+        }
+      ]
+    },
+    {
+      "id": 104,
+      "title": "Coder — Task Invocations",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 36 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(praetor_task_invocations_total{agent=\"coder\", status=\"success\"}[5m])",
+          "legendFormat": "Success/s"
+        },
+        {
+          "expr": "rate(praetor_task_invocations_total{agent=\"coder\", status=\"error\"}[5m])",
+          "legendFormat": "Error/s"
+        }
+      ]
+    },
+    {
+      "id": 105,
+      "title": "Coder — Task Duration",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 36 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(praetor_task_duration_seconds_bucket{agent=\"coder\"}[10m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(praetor_task_duration_seconds_bucket{agent=\"coder\"}[10m]))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "id": 106,
+      "title": "Coder — Pod Restarts",
+      "type": "stat",
+      "gridPos": { "h": 7, "w": 4, "x": 0, "y": 43 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [
+        {
+          "expr": "max(kube_pod_container_status_restarts_total{namespace=\"praetor\", container=\"coder-worker\"})",
+          "legendFormat": "Restarts"
+        }
+      ]
+    },
+    {
+      "id": 107,
+      "title": "Coder — Active Tasks",
+      "type": "stat",
+      "gridPos": { "h": 7, "w": 4, "x": 4, "y": 43 },
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "blue", "value": 1 }
+            ]
+          }
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] }, "colorMode": "background" },
+      "targets": [
+        {
+          "expr": "praetor_task_active{agent=\"coder\"} or vector(0)",
+          "legendFormat": "Active"
+        }
+      ]
+    },
+
+    { "id": 200, "title": "Research Agent", "type": "row", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 50 }, "collapsed": false },
+
+    {
+      "id": 201,
+      "title": "Research — Memory",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 51 },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "color": { "mode": "palette-classic" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Limit" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 4] } },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{namespace=\"praetor\", container=\"research-worker\"}",
+          "legendFormat": "Used"
+        },
+        {
+          "expr": "kube_pod_container_resource_limits{namespace=\"praetor\", resource=\"memory\", container=\"research-worker\"}",
+          "legendFormat": "Limit"
+        }
+      ]
+    },
+    {
+      "id": 202,
+      "title": "Research — CPU",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 51 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{namespace=\"praetor\", container=\"research-worker\"}[5m])",
+          "legendFormat": "CPU"
+        }
+      ]
+    },
+    {
+      "id": 203,
+      "title": "Research — Network I/O",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 51 },
+      "fieldConfig": {
+        "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_network_receive_bytes_total{namespace=\"praetor\", pod=~\"praetor-research-worker.*\"}[5m])",
+          "legendFormat": "RX"
+        },
+        {
+          "expr": "rate(container_network_transmit_bytes_total{namespace=\"praetor\", pod=~\"praetor-research-worker.*\"}[5m])",
+          "legendFormat": "TX"
+        }
+      ]
+    },
+    {
+      "id": 204,
+      "title": "Research — Task Invocations",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 58 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(praetor_task_invocations_total{agent=\"research\", status=\"success\"}[5m])",
+          "legendFormat": "Success/s"
+        },
+        {
+          "expr": "rate(praetor_task_invocations_total{agent=\"research\", status=\"error\"}[5m])",
+          "legendFormat": "Error/s"
+        }
+      ]
+    },
+    {
+      "id": 205,
+      "title": "Research — Task Duration",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 58 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(praetor_task_duration_seconds_bucket{agent=\"research\"}[10m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(praetor_task_duration_seconds_bucket{agent=\"research\"}[10m]))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+
+    { "id": 300, "title": "Reviewer Agent", "type": "row", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 65 }, "collapsed": false },
+
+    {
+      "id": 301,
+      "title": "Reviewer — Memory",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 66 },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "color": { "mode": "palette-classic" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Limit" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 4] } },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{namespace=\"praetor\", container=\"reviewer-worker\"}",
+          "legendFormat": "Used"
+        },
+        {
+          "expr": "kube_pod_container_resource_limits{namespace=\"praetor\", resource=\"memory\", container=\"reviewer-worker\"}",
+          "legendFormat": "Limit"
+        }
+      ]
+    },
+    {
+      "id": 302,
+      "title": "Reviewer — CPU",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 66 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{namespace=\"praetor\", container=\"reviewer-worker\"}[5m])",
+          "legendFormat": "CPU"
+        }
+      ]
+    },
+    {
+      "id": 303,
+      "title": "Reviewer — Network I/O",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 66 },
+      "fieldConfig": {
+        "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_network_receive_bytes_total{namespace=\"praetor\", pod=~\"praetor-reviewer-worker.*\"}[5m])",
+          "legendFormat": "RX"
+        },
+        {
+          "expr": "rate(container_network_transmit_bytes_total{namespace=\"praetor\", pod=~\"praetor-reviewer-worker.*\"}[5m])",
+          "legendFormat": "TX"
+        }
+      ]
+    },
+    {
+      "id": 304,
+      "title": "Reviewer — Task Invocations",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 73 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(praetor_task_invocations_total{agent=\"reviewer\", status=\"success\"}[5m])",
+          "legendFormat": "Success/s"
+        },
+        {
+          "expr": "rate(praetor_task_invocations_total{agent=\"reviewer\", status=\"error\"}[5m])",
+          "legendFormat": "Error/s"
+        }
+      ]
+    },
+    {
+      "id": 305,
+      "title": "Reviewer — Task Duration",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 12, "x": 12, "y": 73 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, rate(praetor_task_duration_seconds_bucket{agent=\"reviewer\"}[10m]))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(praetor_task_duration_seconds_bucket{agent=\"reviewer\"}[10m]))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+
+    { "id": 400, "title": "QA Agent", "type": "row", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 80 }, "collapsed": false },
+
+    {
+      "id": 401,
+      "title": "QA — Memory",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 81 },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "color": { "mode": "palette-classic" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Limit" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 4] } },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{namespace=\"praetor\", container=\"qa-worker\"}",
+          "legendFormat": "Used"
+        },
+        {
+          "expr": "kube_pod_container_resource_limits{namespace=\"praetor\", resource=\"memory\", container=\"qa-worker\"}",
+          "legendFormat": "Limit"
+        }
+      ]
+    },
+    {
+      "id": 402,
+      "title": "QA — CPU",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 81 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{namespace=\"praetor\", container=\"qa-worker\"}[5m])",
+          "legendFormat": "CPU"
+        }
+      ]
+    },
+    {
+      "id": 403,
+      "title": "QA — Network I/O",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 81 },
+      "fieldConfig": {
+        "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_network_receive_bytes_total{namespace=\"praetor\", pod=~\"praetor-qa-worker.*\"}[5m])",
+          "legendFormat": "RX"
+        },
+        {
+          "expr": "rate(container_network_transmit_bytes_total{namespace=\"praetor\", pod=~\"praetor-qa-worker.*\"}[5m])",
+          "legendFormat": "TX"
+        }
+      ]
+    },
+
+    { "id": 500, "title": "Benchmark Agent", "type": "row", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 88 }, "collapsed": false },
+
+    {
+      "id": 501,
+      "title": "Benchmark — Memory",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 89 },
+      "fieldConfig": {
+        "defaults": { "unit": "bytes", "color": { "mode": "palette-classic" } },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Limit" },
+            "properties": [
+              { "id": "custom.lineStyle", "value": { "fill": "dash", "dash": [8, 4] } },
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "expr": "container_memory_working_set_bytes{namespace=\"praetor\", container=\"benchmark-worker\"}",
+          "legendFormat": "Used"
+        },
+        {
+          "expr": "kube_pod_container_resource_limits{namespace=\"praetor\", resource=\"memory\", container=\"benchmark-worker\"}",
+          "legendFormat": "Limit"
+        }
+      ]
+    },
+    {
+      "id": 502,
+      "title": "Benchmark — CPU",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 89 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_cpu_usage_seconds_total{namespace=\"praetor\", container=\"benchmark-worker\"}[5m])",
+          "legendFormat": "CPU"
+        }
+      ]
+    },
+    {
+      "id": 503,
+      "title": "Benchmark — Network I/O",
+      "type": "timeseries",
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 89 },
+      "fieldConfig": {
+        "defaults": { "unit": "Bps", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(container_network_receive_bytes_total{namespace=\"praetor\", pod=~\"praetor-benchmark-worker.*\"}[5m])",
+          "legendFormat": "RX"
+        },
+        {
+          "expr": "rate(container_network_transmit_bytes_total{namespace=\"praetor\", pod=~\"praetor-benchmark-worker.*\"}[5m])",
+          "legendFormat": "TX"
+        }
+      ]
+    },
+
+    { "id": 600, "title": "LiteLLM — Inference Proxy", "type": "row", "gridPos": { "h": 1, "w": 24, "x": 0, "y": 96 }, "collapsed": false },
+
+    {
+      "id": 601,
+      "title": "LiteLLM — Request Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 97 },
+      "fieldConfig": {
+        "defaults": { "unit": "reqps", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(litellm_requests_metric_total[5m])",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "id": 602,
+      "title": "LiteLLM — Request Latency (p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 97 },
+      "fieldConfig": {
+        "defaults": { "unit": "s", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(litellm_request_total_latency_metric_bucket[5m]))",
+          "legendFormat": "p95 latency"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(litellm_request_total_latency_metric_bucket[5m]))",
+          "legendFormat": "p50 latency"
+        }
+      ]
+    },
+    {
+      "id": 603,
+      "title": "LiteLLM — Token Usage",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 105 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(litellm_prompt_tokens_metric_total[5m])",
+          "legendFormat": "Prompt tokens/s"
+        },
+        {
+          "expr": "rate(litellm_completion_tokens_metric_total[5m])",
+          "legendFormat": "Completion tokens/s"
+        }
+      ]
+    },
+    {
+      "id": 604,
+      "title": "LiteLLM — Errors",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 105 },
+      "fieldConfig": {
+        "defaults": { "unit": "short", "color": { "mode": "palette-classic" } }
+      },
+      "targets": [
+        {
+          "expr": "rate(litellm_llm_api_failed_requests_metric_total[5m])",
+          "legendFormat": "{{model}} errors/s"
+        }
+      ]
+    }
+  ]
+}

@@ -40,6 +40,7 @@ services:
       POSTGRES_PASSWORD: "${MINI_POSTGRES_PASSWORD}"
       MINI_POSTGRES_TODO_PASSWORD: "${MINI_POSTGRES_TODO_PASSWORD}"
       AGENT_KB_PASSWORD: "${AGENT_KB_PASSWORD}"
+      OPENWEBUI_DB_PASSWORD: "${OPENWEBUI_DB_PASSWORD}"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 30s
@@ -55,6 +56,9 @@ services:
     container_name: mongo
     restart: unless-stopped
     network_mode: host
+    # WiredTiger cache capped at 256MB — actual working set is ~65MB (UniFi only).
+    # Default would claim ~6GB on a 16GB host; this frees memory for HA and Ollama.
+    command: ["mongod", "--wiredTigerCacheSizeGB", "0.25"]
     volumes:
       - mongo-data:/data/db
       - ../mongo/init-unifi.sh:/docker-entrypoint-initdb.d/init-unifi.sh:ro
@@ -64,6 +68,25 @@ services:
       MONGO_INITDB_DATABASE: unifi
     healthcheck:
       test: ["CMD", "mongo", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ============================================================
+  # Qdrant — Vector store (REST :6333, gRPC :6334)
+  # network_mode: host — accessible at 0.0.0.0:6333 from LAN.
+  # ============================================================
+  qdrant:
+    image: qdrant/qdrant:v1.13.6
+    container_name: qdrant
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      QDRANT__SERVICE__API_KEY: "${QDRANT_API_KEY}"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/6333'"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -78,3 +101,4 @@ volumes:
   mongo-data:
     external: true
     name: services_mongo-data
+  qdrant-data:

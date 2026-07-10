@@ -1,0 +1,29 @@
+name: openwebui
+
+services:
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:v0.9.6
+    container_name: openwebui
+    restart: unless-stopped
+    ports:
+      - "3001:8080"
+    env_file:
+      - .env
+    environment:
+      WEBUI_URL: "https://bot.amer.dev"
+      DEFAULT_MODELS: "murderbot-v1-custom"  # display name: murderbot-v1
+      ENABLE_OLLAMA_API: "false"
+      WEBUI_AUTH: "true"
+      ENABLE_COMMUNITY_SHARING: "false"
+      DATABASE_URL: "${DATABASE_URL}"
+      ENABLE_MEMORY_TOOL: "true"
+      MEM0_BASE_URL: "https://mem0.amer.dev"
+      PRAETOR_API_KEY: "${PRAETOR_API_KEY}"
+    volumes:
+      - /Users/alex/komodo/openwebui/data:/app/backend/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s

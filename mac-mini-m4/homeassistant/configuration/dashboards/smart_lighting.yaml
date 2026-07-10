@@ -116,6 +116,14 @@ views:
           - entity: input_select.sl_room_selector
             name: Room
 
+      - type: button
+        name: Apply Changes (Push Config to Z2M)
+        icon: mdi:upload-network-outline
+        show_state: false
+        tap_action:
+          action: call-service
+          service: script.sl_push_config
+
       # ── Room Settings: Bathroom ────────────────────────────
       - type: conditional
         conditions:
@@ -126,61 +134,19 @@ views:
           show_header_toggle: false
           entities:
             - type: section
-              label: Motion Triggers
-            - entity: input_boolean.sl_bathroom_motion_morning
-              name: Morning
-            - entity: input_boolean.sl_bathroom_motion_day
-              name: Day
-            - entity: input_boolean.sl_bathroom_motion_evening
-              name: Evening
+              label: "Motion (Sleep Mode)"
             - entity: input_boolean.sl_bathroom_motion_night
-              name: Night
+              name: Allow wall-switch power-on at night
             - type: section
               label: Settings
             - entity: input_boolean.sl_bathroom_smart_power_on
               name: Smart Wall Switch
-            - entity: input_number.sl_bathroom_motion_timeout
-              name: Motion Timeout (min)
             - entity: input_boolean.sl_bathroom_auto_transition
               name: Auto Transition
             - entity: input_boolean.sl_bathroom_smooth_transition
               name: Smooth Transition
             - entity: input_number.sl_bathroom_smooth_transition_duration
               name: Transition Duration (min)
-            - entity: input_boolean.sl_bathroom_override
-              name: Override Active
-            - type: section
-              label: Scene Overrides
-            - entity: input_boolean.sl_bathroom_override_scenes
-              name: Override Window Scenes
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_bathroom_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_bathroom_morning_scene
-                name: Morning Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_bathroom_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_bathroom_day_scene
-                name: Day Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_bathroom_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_bathroom_evening_scene
-                name: Evening Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_bathroom_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_bathroom_night_scene
-                name: Night Scene
 
       # ── Room Settings: Bedroom ─────────────────────────────
       - type: conditional
@@ -192,61 +158,19 @@ views:
           show_header_toggle: false
           entities:
             - type: section
-              label: Motion Triggers
-            - entity: input_boolean.sl_bedroom_motion_morning
-              name: Morning
-            - entity: input_boolean.sl_bedroom_motion_day
-              name: Day
-            - entity: input_boolean.sl_bedroom_motion_evening
-              name: Evening
+              label: "Motion (Sleep Mode)"
             - entity: input_boolean.sl_bedroom_motion_night
-              name: Night
+              name: Allow wall-switch power-on at night
             - type: section
               label: Settings
             - entity: input_boolean.sl_bedroom_smart_power_on
               name: Smart Wall Switch
-            - entity: input_number.sl_bedroom_motion_timeout
-              name: Motion Timeout (min)
             - entity: input_boolean.sl_bedroom_auto_transition
               name: Auto Transition
             - entity: input_boolean.sl_bedroom_smooth_transition
               name: Smooth Transition
             - entity: input_number.sl_bedroom_smooth_transition_duration
               name: Transition Duration (min)
-            - entity: input_boolean.sl_bedroom_override
-              name: Override Active
-            - type: section
-              label: Scene Overrides
-            - entity: input_boolean.sl_bedroom_override_scenes
-              name: Override Window Scenes
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_bedroom_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_bedroom_morning_scene
-                name: Morning Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_bedroom_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_bedroom_day_scene
-                name: Day Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_bedroom_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_bedroom_evening_scene
-                name: Evening Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_bedroom_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_bedroom_night_scene
-                name: Night Scene
 
 
       # ── Room Settings: Hallway ─────────────────────────────
@@ -259,61 +183,19 @@ views:
           show_header_toggle: false
           entities:
             - type: section
-              label: Motion Triggers
-            - entity: input_boolean.sl_hallway_motion_morning
-              name: Morning
-            - entity: input_boolean.sl_hallway_motion_day
-              name: Day
-            - entity: input_boolean.sl_hallway_motion_evening
-              name: Evening
+              label: "Motion (Sleep Mode)"
             - entity: input_boolean.sl_hallway_motion_night
-              name: Night
+              name: Allow wall-switch power-on at night
             - type: section
               label: Settings
             - entity: input_boolean.sl_hallway_smart_power_on
               name: Smart Wall Switch
-            - entity: input_number.sl_hallway_motion_timeout
-              name: Motion Timeout (min)
             - entity: input_boolean.sl_hallway_auto_transition
               name: Auto Transition
             - entity: input_boolean.sl_hallway_smooth_transition
               name: Smooth Transition
             - entity: input_number.sl_hallway_smooth_transition_duration
               name: Transition Duration (min)
-            - entity: input_boolean.sl_hallway_override
-              name: Override Active
-            - type: section
-              label: Scene Overrides
-            - entity: input_boolean.sl_hallway_override_scenes
-              name: Override Window Scenes
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_hallway_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_hallway_morning_scene
-                name: Morning Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_hallway_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_hallway_day_scene
-                name: Day Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_hallway_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_hallway_evening_scene
-                name: Evening Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_hallway_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_hallway_night_scene
-                name: Night Scene
 
       # ── Room Settings: Kitchen ─────────────────────────────
       - type: conditional
@@ -325,61 +207,19 @@ views:
           show_header_toggle: false
           entities:
             - type: section
-              label: Motion Triggers
-            - entity: input_boolean.sl_kitchen_motion_morning
-              name: Morning
-            - entity: input_boolean.sl_kitchen_motion_day
-              name: Day
-            - entity: input_boolean.sl_kitchen_motion_evening
-              name: Evening
+              label: "Motion (Sleep Mode)"
             - entity: input_boolean.sl_kitchen_motion_night
-              name: Night
+              name: Allow wall-switch power-on at night
             - type: section
               label: Settings
             - entity: input_boolean.sl_kitchen_smart_power_on
               name: Smart Wall Switch
-            - entity: input_number.sl_kitchen_motion_timeout
-              name: Motion Timeout (min)
             - entity: input_boolean.sl_kitchen_auto_transition
               name: Auto Transition
             - entity: input_boolean.sl_kitchen_smooth_transition
               name: Smooth Transition
             - entity: input_number.sl_kitchen_smooth_transition_duration
               name: Transition Duration (min)
-            - entity: input_boolean.sl_kitchen_override
-              name: Override Active
-            - type: section
-              label: Scene Overrides
-            - entity: input_boolean.sl_kitchen_override_scenes
-              name: Override Window Scenes
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_kitchen_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_kitchen_morning_scene
-                name: Morning Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_kitchen_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_kitchen_day_scene
-                name: Day Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_kitchen_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_kitchen_evening_scene
-                name: Evening Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_kitchen_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_kitchen_night_scene
-                name: Night Scene
 
       # ── Room Settings: Living Room ─────────────────────────
       - type: conditional
@@ -391,61 +231,19 @@ views:
           show_header_toggle: false
           entities:
             - type: section
-              label: Motion Triggers
-            - entity: input_boolean.sl_living_room_motion_morning
-              name: Morning
-            - entity: input_boolean.sl_living_room_motion_day
-              name: Day
-            - entity: input_boolean.sl_living_room_motion_evening
-              name: Evening
+              label: "Motion (Sleep Mode)"
             - entity: input_boolean.sl_living_room_motion_night
-              name: Night
+              name: Allow wall-switch power-on at night
             - type: section
               label: Settings
             - entity: input_boolean.sl_living_room_smart_power_on
               name: Smart Wall Switch
-            - entity: input_number.sl_living_room_motion_timeout
-              name: Motion Timeout (min)
             - entity: input_boolean.sl_living_room_auto_transition
               name: Auto Transition
             - entity: input_boolean.sl_living_room_smooth_transition
               name: Smooth Transition
             - entity: input_number.sl_living_room_smooth_transition_duration
               name: Transition Duration (min)
-            - entity: input_boolean.sl_living_room_override
-              name: Override Active
-            - type: section
-              label: Scene Overrides
-            - entity: input_boolean.sl_living_room_override_scenes
-              name: Override Window Scenes
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_living_room_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_living_room_morning_scene
-                name: Morning Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_living_room_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_living_room_day_scene
-                name: Day Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_living_room_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_living_room_evening_scene
-                name: Evening Scene
-            - type: conditional
-              conditions:
-                - entity: input_boolean.sl_living_room_override_scenes
-                  state: "on"
-              row:
-                entity: input_select.sl_living_room_night_scene
-                name: Night Scene
 
   # ════════════════════════════════════════════════════════════
   # Scene Editor Tab
@@ -885,6 +683,9 @@ views:
               slider: default
               onClickAction: hue-screen
               offClickAction: hue-screen
+            - type: custom:mushroom-title-card
+              title: Load Stored Scene
+              subtitle: Applies stored values to lights as a starting point
             - type: horizontal-stack
               cards:
                 - type: button
@@ -1357,7 +1158,7 @@ views:
           **Button 1 (top):** Short = toggle on/off, Long = power off all
           **Button 2:** Short = brightness up, Long = brightness max
           **Button 3:** Short = brightness down, Long = brightness min
-          **Button 4 (bottom):** Short = cycle scenes, Long = custom scene
+          **Button 4 (bottom):** Short = cycle scenes, Long = custom action *(bedroom: activates custom scene; all other rooms: toggles all lights on/off)*
 
       # ── Living Room ─────────────────────────────────────────
       - type: conditional
@@ -1375,10 +1176,6 @@ views:
               name: Brightness Step (per press)
             - entity: input_number.sl_living_room_min_brightness
               name: Minimum Brightness (long dim)
-            - type: section
-              label: Button 4 Long Press
-            - entity: input_text.sl_living_room_b4_scene
-              name: Scene Entity ID
             - type: section
               label: Multi-Room
             - entity: input_boolean.sl_living_room_multi_living_room
@@ -1409,10 +1206,6 @@ views:
             - entity: input_number.sl_bedroom_min_brightness
               name: Minimum Brightness (long dim)
             - type: section
-              label: Button 4 Long Press
-            - entity: input_text.sl_bedroom_b4_scene
-              name: Scene Entity ID
-            - type: section
               label: Multi-Room
             - entity: input_boolean.sl_bedroom_multi_living_room
               name: Living Room
@@ -1442,10 +1235,6 @@ views:
             - entity: input_number.sl_bathroom_min_brightness
               name: Minimum Brightness (long dim)
             - type: section
-              label: Button 4 Long Press
-            - entity: input_text.sl_bathroom_b4_scene
-              name: Scene Entity ID
-            - type: section
               label: Multi-Room
             - entity: input_boolean.sl_bathroom_multi_living_room
               name: Living Room
@@ -1474,10 +1263,6 @@ views:
               name: Brightness Step (per press)
             - entity: input_number.sl_kitchen_min_brightness
               name: Minimum Brightness (long dim)
-            - type: section
-              label: Button 4 Long Press
-            - entity: input_text.sl_kitchen_b4_scene
-              name: Scene Entity ID
             - type: section
               label: Multi-Room
             - entity: input_boolean.sl_kitchen_multi_living_room
@@ -1522,10 +1307,6 @@ views:
             - entity: input_number.sl_hallway_min_brightness
               name: Minimum Brightness (long dim)
             - type: section
-              label: Button 4 Long Press
-            - entity: input_text.sl_hallway_b4_scene
-              name: Scene Entity ID
-            - type: section
               label: Multi-Room
             - entity: input_boolean.sl_hallway_multi_living_room
               name: Living Room
@@ -1556,10 +1337,6 @@ views:
               name: Brightness Step (per press)
             - entity: input_number.sl_hallway_s2_min_brightness
               name: Minimum Brightness (long dim)
-            - type: section
-              label: Button 4 Long Press
-            - entity: input_text.sl_hallway_s2_b4_scene
-              name: Scene Entity ID
             - type: section
               label: Multi-Room
             - entity: input_boolean.sl_hallway_s2_multi_living_room

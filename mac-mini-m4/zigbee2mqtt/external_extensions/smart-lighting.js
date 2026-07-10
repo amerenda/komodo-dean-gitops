@@ -18,6 +18,37 @@ const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'frid
 // Stagger delay between Zigbee commands (ms) to avoid flooding
 const CMD_STAGGER = 200;
 
+// Maps Zigbee action string → button config key in switchConfig
+const ACTION_TO_BTN = {
+    'on_press_release':  'b1_short',
+    'on_hold':           'b1_long',
+    'up_press_release':  'b2_short',
+    'up_hold':           'b2_long',
+    'down_press_release':'b3_short',
+    'down_hold':         'b3_long',
+    'off_press_release': 'b4_short',
+    'off_hold':          'b4_long',
+};
+
+// Default action per button when selector is 'Default' or unset
+const BTN_DEFAULTS = {
+    b1_short: 'Toggle Room',
+    b1_long:  'Power Off All',
+    b2_short: 'Brightness Up',
+    b2_long:  'Brightness Max',
+    b3_short: 'Brightness Down',
+    b3_long:  'Brightness Min',
+    b4_short: 'Cycle Scenes',
+    b4_long:  'Custom Scene',
+};
+
+// bedroom 'Custom Scene' — hardcoded SexySex colors
+const SEXYSEX_SCENE = [
+    { device: 'bedroom_1', cmd: { state: 'ON', brightness: 45, color: { x: 0.37, y: 0.20 }, transition: 1 } },
+    { device: 'bedroom_2', cmd: { state: 'ON', brightness: 45, color: { x: 0.26, y: 0.11 }, transition: 1 } },
+    { device: 'lamp_1',    cmd: { state: 'OFF' } },
+];
+
 class SmartLighting {
     constructor(zigbee, mqtt, state, publishEntityState, eventBus, enableDisableExtension, restartCallback, addExtension, settings, logger) {
         this.zigbee = zigbee;
@@ -32,16 +63,17 @@ class SmartLighting {
         this.currentWindow = null;
         this.checkInterval = null;
         this.cmdClient = null;
-        /** @type {Record<string, 'ON'|'OFF'>} Populated via cmdClient MQTT subscription */
+        /** @type {Record<string, 'ON'|'OFF'>} group/device state cache */
         this._deviceStateCache = Object.create(null);
-        /** Epoch ms before which device announces are ignored (avoids Z2M-restart flood) */
+        /** epoch ms before which device announces are ignored */
         this._smartPowerOnReadyAt = 0;
+        /** last window applied per room via btn4 cycle */
+        this._switchLastScene = Object.create(null);
     }
 
     async start() {
         this.logger.info('[SL] Smart Lighting extension starting');
 
-        // Separate MQTT client for commands (Z2M ignores its own messages)
         const mqttSettings = this.settings.get().mqtt;
         const brokerUrl = mqttSettings.server || 'mqtt://localhost:1883';
         this.cmdClient = mqtt.connect(brokerUrl, {
@@ -65,13 +97,21 @@ class SmartLighting {
                 return;
             }
 
-            // Cache group/device ON/OFF state for _roomAnyOn() checks during window transitions
             const m = topic.match(/^zigbee2mqtt\/([^/]+)$/);
             if (!m) return;
+            const deviceName = m[1];
+
             try {
                 const parsed = JSON.parse(msg.toString());
+
+                // Cache group/device ON/OFF state for _roomAnyOn() checks
                 if (parsed.state === 'ON' || parsed.state === 'OFF') {
-                    this._deviceStateCache[m[1]] = parsed.state;
+                    this._deviceStateCache[deviceName] = parsed.state;
+                }
+
+                // Handle switch button actions — no HA round-trip
+                if (parsed.action && this.config && this.config.switches && this.config.switches[deviceName]) {
+                    this._onSwitchAction(deviceName, this.config.switches[deviceName], parsed.action);
                 }
             } catch { /* ignore non-JSON */ }
         });
@@ -81,7 +121,7 @@ class SmartLighting {
                 this.logger.info('[SL] Command MQTT client connected');
                 this.cmdClient.subscribe('zigbee2mqtt/+', err => {
                     if (err) this.logger.warn(`[SL] state-cache subscribe: ${err.message}`);
-                    else this.logger.info('[SL] cmdClient subscribed for device/group state cache');
+                    else this.logger.info('[SL] cmdClient subscribed for device/group state cache + switch actions');
                 });
                 this.cmdClient.subscribe('zigbee2mqtt/bridge/+', err => {
                     if (err) this.logger.warn(`[SL] bridge subscribe: ${err.message}`);
@@ -107,37 +147,20 @@ class SmartLighting {
             this.logger.info('[SL] No cached config, waiting for HA');
         }
 
-        // Subscribe to HA config pushes
         await this.z2mMqtt.subscribe(CONFIG_TOPIC);
         this.logger.info(`[SL] Subscribed to ${CONFIG_TOPIC}`);
 
-        // Snap-on-edit: HA fires this after a per-room save so we can recall when
-        // the saved window matches the current window.
         await this.z2mMqtt.subscribe(SNAP_TOPIC);
         this.logger.info(`[SL] Subscribed to ${SNAP_TOPIC}`);
 
         this.eventBus.onMQTTMessage(this, this._onMQTTMessage.bind(this));
 
-        // Ignore device announces during the first 60 s so that Z2M-restart
-        // re-joins don't trigger smart_power_on for every bulb simultaneously.
+        // Ignore device announces during the first 60 s
         this._smartPowerOnReadyAt = Date.now() + 60000;
 
-        // Check window transitions every 30s
         this.checkInterval = setInterval(() => this._checkWindowTransition(), 30000);
 
-        // Bootstrap pushed hash so HA's startup config push (same config, same hash)
-        // is treated as "no change" and does not trigger an unnecessary scene push.
-        if (this.config && this.currentWindow) {
-            const pushedHash = this._loadPushedHash();
-            if (pushedHash === null) {
-                this.logger.info(`[SL] Bootstrapping pushed hash (${this.configHash}) — scenes assumed current on bulbs`);
-                this._savePushedHash(this.configHash);
-            } else if (this.configHash !== pushedHash) {
-                this.logger.info(`[SL] Config hash changed since last push (${pushedHash} → ${this.configHash}) — will push on next config update from HA`);
-            } else {
-                this.logger.info(`[SL] Scenes up to date on bulbs (hash=${this.configHash})`);
-            }
-        }
+        this._handleStartupPush();
 
         this._publishStatus('started');
     }
@@ -243,9 +266,21 @@ class SmartLighting {
         this._recallSceneIfOn(displayName, roomConfig, window);
     }
 
+    // ── Startup scene push ───────────────────────────────────
+    // Always called at startup regardless of hash. The config hash reflects HA
+    // helper values only — a code change to scene_add format (e.g., adding
+    // state: 'ON') doesn't change the hash, so skipping on hash-match would
+    // leave bulbs with stale scenes that cannot turn lights on via scene_recall.
+    _handleStartupPush() {
+        if (!this.config || !this.currentWindow) return;
+        this.logger.info(`[SL] Startup scene push — refreshing all scenes on bulbs (hash=${this.configHash})`);
+        this._fullScenePush();
+    }
+
     // ── Full scene push (config change) ─────────────────────
     // Stores ALL 4 scenes on every group so scene_recall works for any window.
-    // Does NOT touch hue_power_on_* — script.set_bulb_defaults in HA owns those.
+    // Also updates hue_power_on_* on each bulb to the current-window scene values
+    // so bulbs power on correctly even when the extension hasn't responded yet.
     // Does NOT scene_recall here (avoids visible snap-back after config push).
 
     async _fullScenePush() {
@@ -264,6 +299,7 @@ class SmartLighting {
                 const sceneAdd = {
                     ID: WINDOW_SCENE_ID[window],
                     name: window,
+                    state: 'ON',
                     transition: 2,
                     brightness: scene.brightness,
                 };
@@ -273,6 +309,27 @@ class SmartLighting {
                     sceneAdd.color_temp = scene.color_temp;
                 }
                 commands.push({ topic: `${roomName}/set`, payload: { scene_add: sceneAdd } });
+            }
+
+            // For smart_power_on rooms: boot LED-off so the extension can turn it on
+            // at exactly the right scene — zero flash. Non-smart rooms boot directly
+            // at scene values since the extension won't fire for them on announce.
+            const effectiveWindow = this._getEffectiveWindow(roomName);
+            const currentScene = roomConfig.scenes && roomConfig.scenes[effectiveWindow];
+            const smartPowerOn = roomConfig.smart_power_on !== false;
+            if (currentScene) {
+                for (const light of (roomConfig.lights || [])) {
+                    commands.push({
+                        topic: `${light}/set`,
+                        payload: smartPowerOn
+                            ? { hue_power_on_behavior: 'off' }
+                            : {
+                                hue_power_on_behavior: 'on',
+                                hue_power_on_brightness: currentScene.brightness,
+                                hue_power_on_color_temperature: currentScene.color_temp || 370,
+                              }
+                    });
+                }
             }
         }
 
@@ -342,15 +399,169 @@ class SmartLighting {
             const scene = roomConfig.scenes && roomConfig.scenes[effectiveWindow];
             if (!scene) return;
 
-            const cmd = { state: 'ON', brightness: scene.brightness };
+            // hue_power_on_behavior is 'off' so the LED is dark until this fires.
+            // transition:1 gives a clean 1 s fade-in — no flash, no pop.
+            const cmd = { state: 'ON', brightness: scene.brightness, transition: 1 };
             if (scene.color) cmd.color = scene.color;
             else if (scene.color_temp !== undefined) cmd.color_temp = scene.color_temp;
 
             this.logger.info(`[SL] smart_power_on: ${friendlyName} announced → ${effectiveWindow} (${roomName})`);
-            // 2 s delay: let the bulb finish its rejoin handshake before commanding it.
-            setTimeout(() => this._sendCommand(`${friendlyName}/set`, cmd), 2000);
+            // 300 ms is enough for the Zigbee rejoin handshake; LED is dark the whole time.
+            setTimeout(() => this._sendCommand(`${friendlyName}/set`, cmd), 300);
             return;
         }
+    }
+
+    // ── Button handling — replaces HA sl_switch_*.yaml automations ──
+
+    _onSwitchAction(switchName, switchConfig, action) {
+        if (!this.config) return;
+        if (this.config.sl_enabled === false) return;
+
+        const btnKey = ACTION_TO_BTN[action];
+        if (!btnKey) {
+            this.logger.debug(`[SL] switch ${switchName}: unhandled action ${action}`);
+            return;
+        }
+
+        const configured = switchConfig[btnKey];
+        const actionName = (!configured || configured === 'Default')
+            ? BTN_DEFAULTS[btnKey]
+            : configured;
+
+        this.logger.info(`[SL] switch ${switchName}: ${action} → ${actionName} (room=${switchConfig.room_group})`);
+        this._executeAction(actionName, switchConfig);
+    }
+
+    _executeAction(actionName, switchConfig) {
+        const roomName = switchConfig.room_group;
+        const brightStepPct = Number(switchConfig.brightness_step_pct) || 5;
+        const minBrightPct = Number(switchConfig.min_brightness_pct) || 5;
+        const brightStep = Math.round(brightStepPct / 100 * 254);
+        const minBright = Math.max(1, Math.round(minBrightPct / 100 * 254));
+
+        switch (actionName) {
+            case 'Toggle Room':
+                if (this._roomAnyOn(roomName)) {
+                    this._sendCommand(`${roomName}/set`, { state: 'OFF' });
+                    this._switchLastScene[roomName] = null;
+                } else {
+                    this._switchTurnRoomOn(roomName);
+                }
+                break;
+            case 'Power Off Room':
+                this._sendCommand(`${roomName}/set`, { state: 'OFF' });
+                this._switchLastScene[roomName] = null;
+                break;
+            case 'Power Off All':
+                this._allRoomsOff();
+                break;
+            case 'Brightness Up':
+                this._sendCommand(`${roomName}/set`, { brightness_step: brightStep });
+                break;
+            case 'Brightness Max':
+                this._sendCommand(`${roomName}/set`, { brightness: 254 });
+                break;
+            case 'Brightness Down':
+                this._sendCommand(`${roomName}/set`, { brightness_step: -brightStep });
+                break;
+            case 'Brightness Min':
+                this._sendCommand(`${roomName}/set`, { brightness: minBright });
+                break;
+            case 'Cycle Scenes':
+                this._cycleScenesForRoom(roomName);
+                break;
+            case 'Custom Scene':
+                this._customAction(switchConfig);
+                break;
+            case 'Multi-Room Scene':
+                this._multiRoomOn(switchConfig);
+                break;
+            case 'Do Nothing':
+                break;
+            default:
+                this.logger.warn(`[SL] unknown action name: ${actionName}`);
+        }
+    }
+
+    _switchTurnRoomOn(roomName) {
+        if (!this.config || !this.config.rooms) return;
+        const hm = this.config.house_mode || 'Home';
+        if (hm === 'Away') return;
+
+        const roomConfig = this.config.rooms[roomName];
+        if (!roomConfig) return;
+
+        if (hm === 'Sleep' && !roomConfig.motion_night) return;
+
+        const effectiveWindow = this._getEffectiveWindow(roomName);
+        if (!roomConfig.scenes || !roomConfig.scenes[effectiveWindow]) return;
+
+        // scene_recall is atomic — bulb transitions directly from off to the stored scene
+        // without briefly flashing at its previous state (the direct-command path did: turn ON
+        // at last state, then set color, causing a visible flicker on power-on).
+        const sceneId = WINDOW_SCENE_ID[effectiveWindow];
+        this._sendCommand(`${roomName}/set`, { scene_recall: sceneId });
+        this._switchLastScene[roomName] = effectiveWindow;
+    }
+
+    _allRoomsOff() {
+        if (!this.config || !this.config.rooms) return;
+        for (const roomName of Object.keys(this.config.rooms)) {
+            this._sendCommand(`${roomName}/set`, { state: 'OFF' });
+            this._switchLastScene[roomName] = null;
+        }
+        this.logger.info('[SL] All rooms off');
+    }
+
+    _cycleScenesForRoom(roomName) {
+        if (!this.config || !this.config.rooms) return;
+        const roomConfig = this.config.rooms[roomName];
+        if (!roomConfig) return;
+
+        const last = this._switchLastScene[roomName];
+        const current = this.currentWindow || 'morning';
+        const targetWindow = (!last || !WINDOWS.includes(last))
+            ? (WINDOWS.includes(current) ? current : 'morning')
+            : WINDOWS[(WINDOWS.indexOf(last) + 1) % WINDOWS.length];
+
+        if (!roomConfig.scenes || !roomConfig.scenes[targetWindow]) return;
+
+        const sceneId = WINDOW_SCENE_ID[targetWindow];
+        this._sendCommand(`${roomName}/set`, { scene_recall: sceneId });
+        this._switchLastScene[roomName] = targetWindow;
+        this.logger.info(`[SL] cycle scene: ${roomName} → ${targetWindow}`);
+    }
+
+    _customAction(switchConfig) {
+        // bedroom → SexySex scene
+        if (switchConfig.room_key === 'bedroom') {
+            this.logger.info('[SL] SexySex scene activated');
+            for (const { device, cmd } of SEXYSEX_SCENE) {
+                this._sendCommand(`${device}/set`, cmd);
+            }
+            return;
+        }
+
+        // Other rooms → toggle all rooms
+        if (!this.config || !this.config.rooms) return;
+        const anyOn = Object.keys(this.config.rooms).some(r => this._roomAnyOn(r));
+        if (anyOn) {
+            this._allRoomsOff();
+        } else {
+            for (const roomName of Object.keys(this.config.rooms)) {
+                this._switchTurnRoomOn(roomName);
+            }
+        }
+    }
+
+    _multiRoomOn(switchConfig) {
+        const groups = switchConfig.multi_room_groups || [];
+        if (!groups.length) return;
+        for (const roomName of groups) {
+            this._switchTurnRoomOn(roomName);
+        }
+        this.logger.info(`[SL] multi-room on: [${groups.join(', ')}]`);
     }
 
     // ── Schedule calculation ─────────────────────────────────

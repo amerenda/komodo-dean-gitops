@@ -27,22 +27,6 @@ services:
       RUNNER_NAME: mini-ecdysis
       LABELS: self-hosted,linux,arm64,docker,mac-mini
 
-  runner-llm-manager:
-    <<: *runner-common
-    container_name: runner-llm-manager
-    environment:
-      REPO_URL: https://github.com/amerenda/llm-manager
-      RUNNER_NAME: mini-llm-manager
-      LABELS: self-hosted,linux,arm64,docker,mac-mini
-
-  runner-mycroft:
-    <<: *runner-common
-    container_name: runner-mycroft
-    environment:
-      REPO_URL: https://github.com/amerenda/mycroft
-      RUNNER_NAME: mini-mycroft
-      LABELS: self-hosted,linux,arm64,docker,mac-mini
-
   runner-wikimedia:
     <<: *runner-common
     container_name: runner-wikimedia
@@ -59,3 +43,58 @@ services:
       RUNNER_NAME: mini-photos
       LABELS: self-hosted,linux,arm64,docker,mac-mini
 
+  runner-dean-mcp:
+    <<: *runner-common
+    container_name: runner-dean-mcp
+    environment:
+      REPO_URL: https://github.com/amerenda/dean-mcp
+      RUNNER_NAME: mini-dean-mcp
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
+
+  runner-praetor:
+    <<: *runner-common
+    container_name: runner-praetor
+    environment:
+      REPO_URL: https://github.com/amerenda/praetor
+      RUNNER_NAME: mini-praetor
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
+
+  runner-quiz:
+    <<: *runner-common
+    container_name: runner-quiz
+    environment:
+      REPO_URL: https://github.com/amerenda/quiz
+      RUNNER_NAME: mini-quiz
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
+
+  runner-schoolmode:
+    <<: *runner-common
+    container_name: runner-schoolmode
+    environment:
+      REPO_URL: https://github.com/amerenda/schoolmode
+      RUNNER_NAME: mini-schoolmode
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
+
+  runner-phase16-test:
+    <<: *runner-common
+    container_name: runner-phase16-test
+    environment:
+      REPO_URL: https://github.com/amerenda/phase16-test
+      RUNNER_NAME: mini-phase16-test
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
+
+  runner-phase16-e2e:
+    <<: *runner-common
+    container_name: runner-phase16-e2e
+    environment:
+      REPO_URL: https://github.com/amerenda/phase16-e2e
+      RUNNER_NAME: mini-phase16-e2e
+      LABELS: self-hosted,linux,arm64,docker,mac-mini
+
+  runner-komodo-dean-gitops:
+    <<: *runner-common
+    container_name: runner-komodo-dean-gitops
+    environment:
+      REPO_URL: https://github.com/amerenda/komodo-dean-gitops
+      RUNNER_NAME: mini-komodo-dean-gitops
+      LABELS: self-hosted,linux,arm64,docker,mac-mini

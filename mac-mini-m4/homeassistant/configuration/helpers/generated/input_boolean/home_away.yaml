@@ -1,0 +1,46 @@
+# Home/Away automation — feature toggles
+
+ha_automation_enabled:
+  name: "HA: Automation Enabled"
+  icon: mdi:home-automation
+  initial: true
+
+ha_arrive_hallway:
+  name: "HA: Arrive — Hallway"
+  icon: mdi:lightbulb-on
+  initial: true
+
+ha_arrive_living_room:
+  name: "HA: Arrive — Living Room"
+  icon: mdi:lightbulb-on
+  initial: true
+
+ha_arrive_kitchen:
+  name: "HA: Arrive — Kitchen"
+  icon: mdi:lightbulb-on
+  initial: true
+
+ha_arrive_bedroom:
+  name: "HA: Arrive — Bedroom"
+  icon: mdi:lightbulb-on
+  initial: false
+
+ha_arrive_bathroom:
+  name: "HA: Arrive — Bathroom"
+  icon: mdi:lightbulb-on
+  initial: false
+
+ha_leave_lights_off:
+  name: "HA: Leave — All Lights Off"
+  icon: mdi:lightbulb-off-outline
+  initial: true
+
+ha_ac_away:
+  name: "HA: Leave — AC Away Temp"
+  icon: mdi:thermometer-chevron-down
+  initial: true
+
+ha_ac_home:
+  name: "HA: Approach — AC Home Temp"
+  icon: mdi:thermometer-chevron-up
+  initial: true

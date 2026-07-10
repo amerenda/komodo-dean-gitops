@@ -2,6 +2,8 @@
 # Keeps GitOps checkouts fresh on the Mac Mini host (no manual git pull / inject).
 #
 # 1) Komodo stack clones under ~/komodo/stacks/* (PERIPHERY_ROOT_DIRECTORY).
+#    ALL git repos under stacks/ are pulled to origin/main automatically — no
+#    hardcoded list. Adding a new Komodo stack never requires touching this script.
 # 2) The host working copy KOMODO_HOST_REPO (default ~/komodo-dean-gitops): fast-
 #    forward to match origin. After any FF update, re-runs inject-secrets via
 #    `sudo launchctl kickstart` so new inject-secrets.sh + BWS values apply
@@ -14,8 +16,8 @@ set -euo pipefail
 HOST_REPO="${KOMODO_HOST_REPO:-$HOME/komodo-dean-gitops}"
 # Komodo Periphery stack checkouts (same remote as HOST_REPO, usually main)
 KOMODO_PERIPHERY_ROOT="${KOMODO_PERIPHERY_ROOT:-$HOME/komodo}"
-STACK_SERVICES="$KOMODO_PERIPHERY_ROOT/stacks/services"
-STACK_AUTOMATION="$KOMODO_PERIPHERY_ROOT/stacks/automation"
+STACKS_ROOT="$KOMODO_PERIPHERY_ROOT/stacks"
+STACK_SERVICES="$STACKS_ROOT/services"
 DOCKER="$HOME/.orbstack/bin/docker"
 LOG="/tmp/komodo-stack-sync.log"
 
@@ -83,17 +85,17 @@ sync_one() {
 
 sync_host_gitops
 
-if [ -d "$STACK_SERVICES/.git" ] || [ -d "$STACK_AUTOMATION/.git" ]; then
-    if [ -d "$STACK_SERVICES/.git" ]; then
-        cd "$STACK_SERVICES"
-        DIRS_BEFORE=$(find . -type d | sort | /sbin/md5 -q)
-    else
-        DIRS_BEFORE=""
-    fi
-
-    sync_one "$STACK_SERVICES"
-    sync_one "$STACK_AUTOMATION"
+# Snapshot services dir structure before sync (used to detect periphery config additions)
+if [ -d "$STACK_SERVICES/.git" ]; then
+    cd "$STACK_SERVICES"
+    DIRS_BEFORE=$(find . -type d | sort | /sbin/md5 -q)
 fi
+
+# Sync ALL Komodo-managed stack git checkouts — new stacks are picked up automatically
+for stack_dir in "$STACKS_ROOT"/*/; do
+    [ -d "$stack_dir/.git" ] || continue
+    sync_one "$stack_dir"
+done
 
 if [ "$SYNCED" != true ]; then
     exit 0
@@ -111,9 +113,13 @@ fi
 # Paths are repo-root-relative (e.g. mac-mini-m4/homeassistant/...) after the
 # komodo-dean-gitops layout move; older ^homeassistant/ patterns never matched.
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/monitoring/'; then
-    echo "$(date): monitoring stack files changed, restarting grafana (and prometheus)" >> "$LOG"
-    "$DOCKER" restart grafana 2>/dev/null || true
-    "$DOCKER" restart prometheus 2>/dev/null || true
+    echo "$(date): monitoring stack files changed — reloading prometheus, restarting grafana" >> "$LOG"
+    # Prometheus supports live config reload via HTTP (--web.enable-lifecycle); no restart needed.
+    curl -sf -X POST http://localhost:9090/-/reload >> "$LOG" 2>&1 \
+        || "$DOCKER" restart prometheus >> "$LOG" 2>&1 || true
+    # Grafana auto-detects dashboard JSON changes via provisioning but needs a restart
+    # to pick up datasource or env changes.
+    "$DOCKER" restart grafana >> "$LOG" 2>&1 || true
 fi
 
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/homeassistant/'; then
@@ -128,10 +134,32 @@ fi
 
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/komodo/'; then
     echo "$(date): komodo stack files changed, redeploying" >> "$LOG"
-    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/komodo/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+    # Always use compose down+up (not restart/rm) so network endpoints are
+    # cleaned up properly. docker rm -f without compose down leaves stale
+    # libnetwork endpoints that block future deploys.
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/komodo/compose.yaml" down --remove-orphans >> "$LOG" 2>&1 || true
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/komodo/compose.yaml" up -d >> "$LOG" 2>&1 || true
 fi
 
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/core/'; then
     echo "$(date): core stack files changed, redeploying" >> "$LOG"
     "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+fi
+
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/runners/'; then
+    echo "$(date): runners stack files changed, redeploying" >> "$LOG"
+    "$DOCKER" compose -p runners -f "$HOST_REPO/mac-mini-m4/runners/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+fi
+
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/llm/'; then
+    echo "$(date): llm stack files changed, redeploying" >> "$LOG"
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/llm/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+fi
+
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/openwebui/'; then
+    echo "$(date): openwebui stack files changed, redeploying" >> "$LOG"
+    # openwebui compose uses env_file (.env written by inject-secrets) so we run
+    # compose from the Komodo stacks checkout (already pulled by the sync loop above).
+    OWUI_STACKS_DIR="$STACKS_ROOT/openwebui"
+    "$DOCKER" compose -f "$OWUI_STACKS_DIR/mac-mini-m4/openwebui/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
 fi

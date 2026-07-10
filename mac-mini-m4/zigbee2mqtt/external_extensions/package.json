@@ -1,0 +1,12 @@
+{
+  "name": "z2m-smart-lighting",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "test": "jest --no-coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "mqtt": "^5.15.1"
+  }
+}

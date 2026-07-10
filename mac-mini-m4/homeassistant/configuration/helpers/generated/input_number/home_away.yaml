@@ -1,0 +1,21 @@
+# Home/Away automation — AC temperature targets
+
+ha_ac_away_temp:
+  name: "HA: AC Away Temperature"
+  min: 60
+  max: 90
+  step: 1
+  initial: 78
+  unit_of_measurement: "°F"
+  icon: mdi:thermometer-chevron-down
+  mode: box
+
+ha_ac_home_temp:
+  name: "HA: AC Home Temperature"
+  min: 60
+  max: 90
+  step: 1
+  initial: 72
+  unit_of_measurement: "°F"
+  icon: mdi:thermometer-chevron-up
+  mode: box

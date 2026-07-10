@@ -7,8 +7,9 @@ name = "komodo-dean-gitops"
 description = "GitOps sync for komodo-dean-gitops stacks (mac-mini-m4 + murderbot + archlinux)"
 tags = ["mac-mini", "murderbot", "archlinux"]
 [resource_sync.config]
+managed = true
 webhook_enabled = true
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
-resource_path = ["resource-sync/stacks.toml"]
+resource_path = ["resource-sync/stacks.toml", "resource-sync/sync.toml"]
 git_account = "amerenda"

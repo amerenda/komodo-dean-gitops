@@ -1,0 +1,45 @@
+alias: "HA: Everyone Left"
+id: ha_everyone_left
+description: >
+  When all tracked members leave home: turn off all lights and set AC to away
+  temp. Fires after a 1-minute hold so a quick trip to the mailbox doesn't
+  trigger it.
+mode: single
+trigger:
+  - platform: state
+    entity_id: group.members
+    from: "home"
+    to: "not_home"
+    for: "00:01:00"
+condition:
+  - condition: state
+    entity_id: input_boolean.ha_automation_enabled
+    state: "on"
+  # Block if either tracker is unavailable — prevents false triggers on HA restart
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: device_tracker.pixel_9_pro_xl_2
+        state: "unavailable"
+  - condition: not
+    conditions:
+      - condition: state
+        entity_id: device_tracker.eirill_iphone
+        state: "unavailable"
+action:
+  - if:
+      - condition: state
+        entity_id: input_boolean.ha_leave_lights_off
+        state: "on"
+    then:
+      - service: script.sl_all_rooms_off
+  - if:
+      - condition: state
+        entity_id: input_boolean.ha_ac_away
+        state: "on"
+    then:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.151732605151026_climate
+        data:
+          temperature: "{{ states('input_number.ha_ac_away_temp') | float }}"

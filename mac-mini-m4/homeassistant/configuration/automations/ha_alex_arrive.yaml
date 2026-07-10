@@ -1,0 +1,75 @@
+alias: "HA: Alex Arrived Home"
+id: ha_alex_arrive
+description: >
+  When Alex arrives home: turn on welcome lights (only if Eirill is not already
+  home) and ensure AC is at home temp (backup in case nearby zone didn't fire).
+mode: single
+trigger:
+  - platform: zone
+    entity_id: person.alex_merenda
+    zone: zone.home
+    event: enter
+condition:
+  - condition: state
+    entity_id: input_boolean.ha_automation_enabled
+    state: "on"
+action:
+  # Welcome lights — skip if Eirill is already home
+  - if:
+      - condition: not
+        conditions:
+          - condition: zone
+            entity_id: person.eirill
+            zone: zone.home
+    then:
+      - if:
+          - condition: state
+            entity_id: input_boolean.ha_arrive_hallway
+            state: "on"
+        then:
+          - service: script.sl_room_on
+            data:
+              room: hallway
+      - if:
+          - condition: state
+            entity_id: input_boolean.ha_arrive_living_room
+            state: "on"
+        then:
+          - service: script.sl_room_on
+            data:
+              room: living_room
+      - if:
+          - condition: state
+            entity_id: input_boolean.ha_arrive_kitchen
+            state: "on"
+        then:
+          - service: script.sl_room_on
+            data:
+              room: kitchen
+      - if:
+          - condition: state
+            entity_id: input_boolean.ha_arrive_bedroom
+            state: "on"
+        then:
+          - service: script.sl_room_on
+            data:
+              room: bedroom
+      - if:
+          - condition: state
+            entity_id: input_boolean.ha_arrive_bathroom
+            state: "on"
+        then:
+          - service: script.sl_room_on
+            data:
+              room: bathroom
+  # AC home temp — always, if enabled (covers case where nearby zone didn't fire)
+  - if:
+      - condition: state
+        entity_id: input_boolean.ha_ac_home
+        state: "on"
+    then:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.151732605151026_climate
+        data:
+          temperature: "{{ states('input_number.ha_ac_home_temp') | float }}"

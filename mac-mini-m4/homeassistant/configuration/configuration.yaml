@@ -66,6 +66,14 @@ template:
             {% set upcoming = times | dictsort(by='value') | selectattr('1', 'gt', t) | first | default(none) %}
             {{ upcoming[1] if upcoming else times.values() | sort | first }}
 
+zone:
+  - name: Nearby
+    latitude: 40.6834109
+    longitude: -73.980568
+    radius: 800
+    icon: mdi:map-marker-radius
+    passive: true
+
 homeassistant:
   media_dirs:
     pets: /config/www/pets
@@ -128,6 +136,12 @@ lovelace:
       icon: mdi:lightbulb-auto
       show_in_sidebar: true
       filename: dashboards/views/smart_lighting.yaml
+    home-away-dashboard:
+      mode: yaml
+      title: Home & Away
+      icon: mdi:home-account
+      show_in_sidebar: true
+      filename: dashboards/views/home_away.yaml
 
 # MQTT — configured via HA UI (Settings > Integrations > MQTT)
 # Broker: 127.0.0.1:1883 (Mosquitto on host network)
@@ -164,6 +178,13 @@ prometheus:
 
 # Media sources - expose local media folders to Media dashboard
 media_source: {}
+
+# Logger — suppress known-noisy integration spam
+logger:
+  default: warning
+  logs:
+    pychromecast.socket_client: critical
+    custom_components.gtfs_realtime.coordinator: critical
 
 # Shell commands
 shell_command:

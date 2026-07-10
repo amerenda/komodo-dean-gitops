@@ -41,9 +41,13 @@ sl_room_on:
             entity_id: "{{ room_override }}"
         - stop: "Override active — skipping scene selection"
 
-    # If override flag is already set for this room, skip
-    - condition: template
-      value_template: "{{ not is_state(room_override, 'on') }}"
+    # Clear any stale override — a manual sl_room_on call always applies the scene.
+    # Override gets stuck ON when set via the SL dashboard but cleared only by sl_room_off.
+    # Turning lights off via the HA area card skips sl_room_off, leaving override ON and
+    # blocking the next switch press. Always clear here so switches reliably turn lights on.
+    - service: input_boolean.turn_off
+      target:
+        entity_id: "{{ room_override }}"
 
     # Determine scene to activate
     - variables:

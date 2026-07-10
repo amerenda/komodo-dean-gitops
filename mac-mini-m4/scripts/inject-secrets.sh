@@ -198,6 +198,8 @@ CORE_BACKUP_SECRET=$("$BWS_BIN" secret get "d2d87681-b2e3-4a3e-b821-b37300df7ce5
 CORE_BACKUP_SECRET=$(printf '%s' "$CORE_BACKUP_SECRET" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 CORE_BACKUP_ENDPOINT=$("$BWS_BIN" secret get "2c95ebd0-9330-455b-abbd-b37300e580b0" 2>/dev/null | /opt/homebrew/bin/jq -r .value)
 CORE_BACKUP_ENDPOINT=$(printf '%s' "$CORE_BACKUP_ENDPOINT" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+CORE_QDRANT_KEY=$("$BWS_BIN" secret get "d134c7a7-de93-46d5-8e77-b46501500d97" 2>/dev/null | /opt/homebrew/bin/jq -r .value)
+CORE_QDRANT_KEY=$(printf '%s' "$CORE_QDRANT_KEY" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
 CORE_ENV="$COMPOSE_DIR/core/.env"
 mkdir -p "$COMPOSE_DIR/core"
@@ -248,6 +250,12 @@ mkdir -p "$COMPOSE_DIR/core"
         printf 'BACKUP_ENDPOINT=%s\n' "$CORE_BACKUP_ENDPOINT"
     else
         log "WARN: failed to fetch BACKUP_ENDPOINT for core/.env"
+        ERRORS=$((ERRORS + 1))
+    fi
+    if [[ -n "$CORE_QDRANT_KEY" ]] && [[ "$CORE_QDRANT_KEY" != "null" ]]; then
+        printf 'QDRANT_API_KEY=%s\n' "$CORE_QDRANT_KEY"
+    else
+        log "WARN: failed to fetch QDRANT_API_KEY for core/.env"
         ERRORS=$((ERRORS + 1))
     fi
 } > "$CORE_ENV"
