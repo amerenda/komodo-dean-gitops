@@ -45,6 +45,32 @@ services:
       retries: 30
       start_period: 15s
 
+  # Smoke test — runs once after ollama is healthy, validates the deployment.
+  # Checks: Ollama health, model loaded, AMD GPU sysfs (VRAM), tool calling JSON format,
+  #         SearXNG search execution, synthesis after tool turn, token throughput.
+  # Logs: docker logs llm-archlinux-smoke-test
+  # Exit code: docker inspect llm-archlinux-smoke-test --format='{{.State.ExitCode}}'
+  smoke-test:
+    image: python:3.12-alpine
+    container_name: llm-archlinux-smoke-test
+    restart: "no"
+    labels:
+      komodo.skip:
+    depends_on:
+      ollama:
+        condition: service_healthy
+    dns:
+      - ${DOCKER_DNS_1:-1.1.1.1}
+      - ${DOCKER_DNS_2:-8.8.8.8}
+    environment:
+      OLLAMA_URL: "http://ollama:11434"
+      SEARXNG_URL: "https://searxng.amer.dev"
+      EXPECTED_MODEL: "${OLLAMA_DEFAULT_MODEL:-qwen3:14b}"
+    volumes:
+      - ./smoke-test.py:/smoke-test.py:ro
+      - /sys/class/drm:/sys/class/drm:ro
+    command: ["python3", "/smoke-test.py"]
+
   # Init-container: pulls the default model after ollama is healthy.
   # restart: "no" means it exits cleanly after pulling; Komodo ignores it via komodo.skip.
   ollama-init:
