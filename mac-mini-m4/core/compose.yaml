@@ -31,8 +31,8 @@ services:
     container_name: postgres
     restart: unless-stopped
     network_mode: host
-    # 30s grace: gives postgres time to flush WAL on controlled shutdown (default 10s is tight).
-    stop_grace_period: 30s
+    # 60s grace: gives postgres time to flush WAL on controlled shutdown (default 10s is too tight).
+    stop_grace_period: 60s
     volumes:
       - postgres-data:/var/lib/postgresql/data
       - ../postgres/init.sh:/docker-entrypoint-initdb.d/init.sh:ro

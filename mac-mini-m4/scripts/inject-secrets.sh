@@ -200,6 +200,8 @@ CORE_BACKUP_ENDPOINT=$("$BWS_BIN" secret get "2c95ebd0-9330-455b-abbd-b37300e580
 CORE_BACKUP_ENDPOINT=$(printf '%s' "$CORE_BACKUP_ENDPOINT" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 CORE_QDRANT_KEY=$("$BWS_BIN" secret get "d134c7a7-de93-46d5-8e77-b46501500d97" 2>/dev/null | /opt/homebrew/bin/jq -r .value)
 CORE_QDRANT_KEY=$(printf '%s' "$CORE_QDRANT_KEY" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+CORE_OWUI_DB=$("$BWS_BIN" secret get "ba388db7-ff49-4c2f-a019-b46b003c2581" 2>/dev/null | /opt/homebrew/bin/jq -r .value)
+CORE_OWUI_DB=$(printf '%s' "$CORE_OWUI_DB" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
 CORE_ENV="$COMPOSE_DIR/core/.env"
 mkdir -p "$COMPOSE_DIR/core"
@@ -256,6 +258,12 @@ mkdir -p "$COMPOSE_DIR/core"
         printf 'QDRANT_API_KEY=%s\n' "$CORE_QDRANT_KEY"
     else
         log "WARN: failed to fetch QDRANT_API_KEY for core/.env"
+        ERRORS=$((ERRORS + 1))
+    fi
+    if [[ -n "$CORE_OWUI_DB" ]] && [[ "$CORE_OWUI_DB" != "null" ]]; then
+        printf 'OPENWEBUI_DB_PASSWORD=%s\n' "$CORE_OWUI_DB"
+    else
+        log "WARN: failed to fetch OPENWEBUI_DB_PASSWORD for core/.env"
         ERRORS=$((ERRORS + 1))
     fi
 } > "$CORE_ENV"

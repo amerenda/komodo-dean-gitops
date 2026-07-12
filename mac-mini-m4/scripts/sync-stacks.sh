@@ -147,7 +147,11 @@ fi
 
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/core/'; then
     echo "$(date): core stack files changed, redeploying" >> "$LOG"
-    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+    # Must use down+up (not just up -d): host-network containers leave stale
+    # "endpoint already exists in network host" errors if the container is
+    # recreated without first removing it via compose down.
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" down --remove-orphans >> "$LOG" 2>&1 || true
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" up -d >> "$LOG" 2>&1 || true
 fi
 
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/runners/'; then
