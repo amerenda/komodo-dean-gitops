@@ -159,6 +159,8 @@ try:
             "tools": MOCK_TOOL,
             "tool_choice": "required",
             "max_tokens": 256,
+            # Disable extended thinking — thinking tokens consume all max_tokens before tool call is emitted
+            "chat_template_kwargs": {"enable_thinking": False},
         },
         timeout=120,
     )
