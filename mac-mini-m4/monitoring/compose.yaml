@@ -19,6 +19,9 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=30d'
+      # Hard cap: prevents disk-fill outages (root cause of 2026-07-12 postgres crash).
+      # Prometheus deletes oldest TSDB blocks once total exceeds this limit.
+      - '--storage.tsdb.retention.size=40GB'
       - '--web.enable-remote-write-receiver'
       - '--web.enable-lifecycle'
     healthcheck:

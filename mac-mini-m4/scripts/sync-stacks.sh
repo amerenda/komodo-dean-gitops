@@ -112,8 +112,12 @@ fi
 
 # Paths are repo-root-relative (e.g. mac-mini-m4/homeassistant/...) after the
 # komodo-dean-gitops layout move; older ^homeassistant/ patterns never matched.
-if echo "$CHANGED" | grep -qE '^mac-mini-m4/monitoring/'; then
-    echo "$(date): monitoring stack files changed — reloading prometheus, restarting grafana" >> "$LOG"
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/monitoring/compose\.yaml'; then
+    # compose.yaml changed — command-line flags don't take effect on reload; need full compose up.
+    echo "$(date): monitoring compose.yaml changed — running compose up" >> "$LOG"
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/monitoring/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
+elif echo "$CHANGED" | grep -qE '^mac-mini-m4/monitoring/'; then
+    echo "$(date): monitoring config/rules changed — reloading prometheus, restarting grafana" >> "$LOG"
     # Prometheus supports live config reload via HTTP (--web.enable-lifecycle); no restart needed.
     curl -sf -X POST http://localhost:9090/-/reload >> "$LOG" 2>&1 \
         || "$DOCKER" restart prometheus >> "$LOG" 2>&1 || true

@@ -208,3 +208,39 @@ scrape_configs:
         target_label: instance
       - replacement: localhost:9115
         target_label: __address__
+
+  # LiteLLM readiness probe — 503 when its postgres DB is unreachable (models disappear from OWU)
+  - job_name: https-probes-litellm
+    metrics_path: /probe
+    params:
+      module: [https_2xx]
+    static_configs:
+      - targets: ["litellm.amer.dev/health/readiness"]
+        labels:
+          stack: llm
+          service: litellm
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - replacement: localhost:9115
+        target_label: __address__
+
+  # OpenWebUI probe — primary chat interface (zoidberg.amer.dev)
+  - job_name: https-probes-owui
+    metrics_path: /probe
+    params:
+      module: [https_2xx]
+    static_configs:
+      - targets: ["zoidberg.amer.dev"]
+        labels:
+          stack: llm
+          service: openwebui
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - replacement: localhost:9115
+        target_label: __address__

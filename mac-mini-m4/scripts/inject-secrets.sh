@@ -330,6 +330,53 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
+# ── alertmanager.yml — written with real Telegram credentials (overwrites git template) ─
+# alertmanager.yml in git is a no-op placeholder; this writes the live config with secrets.
+# Alertmanager is reloaded immediately after so alerts can be delivered via Telegram.
+
+log "Writing alertmanager.yml with Telegram receiver..."
+TELE_TOKEN=$("$BWS_BIN" secret get "19b403db-11cf-4bf4-a441-b41c00f04eaa" 2>/dev/null | /opt/homebrew/bin/jq -r .value)
+TELE_TOKEN=$(printf '%s' "$TELE_TOKEN" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+TELE_CHAT=$("$BWS_BIN" secret get "09b43d81-36d3-464d-ae02-b41c00e63805" 2>/dev/null | /opt/homebrew/bin/jq -r .value)
+TELE_CHAT=$(printf '%s' "$TELE_CHAT" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+
+if [[ -n "$TELE_TOKEN" ]] && [[ "$TELE_TOKEN" != "null" ]] && \
+   [[ -n "$TELE_CHAT" ]]  && [[ "$TELE_CHAT"  != "null" ]]; then
+    cat > "$MON_DIR/alertmanager.yml" << ALERTMANAGER_EOF
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: 'telegram'
+  group_by: ['alertname', 'stack']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  routes:
+    - matchers:
+        - severity = "info"
+      receiver: 'no-op'
+
+receivers:
+  - name: 'telegram'
+    telegram_configs:
+      - bot_token: '${TELE_TOKEN}'
+        chat_id: ${TELE_CHAT}
+        parse_mode: 'HTML'
+
+  - name: 'no-op'
+ALERTMANAGER_EOF
+    chmod 0600 "$MON_DIR/alertmanager.yml"
+    chown "$OWNER" "$MON_DIR/alertmanager.yml" 2>/dev/null || true
+    # Reload alertmanager so it picks up the new receiver immediately.
+    curl -sf -X POST http://localhost:9093/-/reload >/dev/null 2>&1 \
+        && log "alertmanager reloaded with Telegram receiver" \
+        || log "WARN: alertmanager reload failed (may not be running yet)"
+else
+    log "WARN: failed to fetch Telegram credentials — alertmanager.yml left as no-op"
+    ERRORS=$((ERRORS + 1))
+fi
+
 # ── Update Komodo git provider PAT ──────────────────────────────────────────
 
 log "Updating Komodo git provider PAT..."
