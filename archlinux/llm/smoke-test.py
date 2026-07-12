@@ -145,7 +145,9 @@ try:
             ],
             "tools": MOCK_TOOLS,
             "stream": False,
-            "options": {"num_ctx": 4096, "think": False},
+            # think: false must be top-level (not inside options) per Ollama API spec
+            "think": False,
+            "options": {"num_ctx": 4096},
         },
         timeout=120,
     )
@@ -234,7 +236,9 @@ try:
             "model": EXPECTED_MODEL,
             "messages": synthesis_messages,
             "stream": False,
-            "options": {"num_ctx": 4096, "think": False},
+            # think: false must be top-level (not inside options) per Ollama API spec
+            "think": False,
+            "options": {"num_ctx": 4096},
             # No "tools" — strips tools entirely so model must write prose
         },
         timeout=120,
@@ -280,7 +284,9 @@ try:
             "model": EXPECTED_MODEL,
             "messages": [{"role": "user", "content": bench_prompt}],
             "stream": False,
-            "options": {"num_ctx": 4096, "num_predict": 256, "think": False},
+            # think: false must be top-level (not inside options) per Ollama API spec
+            "think": False,
+            "options": {"num_ctx": 4096, "num_predict": 512},
         },
         timeout=180,
     )
