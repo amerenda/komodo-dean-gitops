@@ -17,7 +17,6 @@ If asked to "update" or "upgrade" a service, confirm the target version explicit
 | `core/` | Technitium DNS, pgvector, MongoDB | |
 | `docker-maintenance/` | docker-prune cron | Weekly build cache cleanup — see CLAUDE.md |
 | `komodo/` | Komodo Core, FerretDB, PostgreSQL DocumentDB | Core uses env-driven tag |
-| `llm/` | Ollama, LLM Manager agent | |
 | `monitoring/` | Prometheus, Grafana, exporters | |
 | `mosquitto/` | Standalone Mosquitto (legacy) | |
 | `runners/` | GitHub Actions self-hosted runner | |

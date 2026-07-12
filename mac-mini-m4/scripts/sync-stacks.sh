@@ -151,11 +151,6 @@ if echo "$CHANGED" | grep -qE '^mac-mini-m4/runners/'; then
     "$DOCKER" compose -p runners -f "$HOST_REPO/mac-mini-m4/runners/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
 fi
 
-if echo "$CHANGED" | grep -qE '^mac-mini-m4/llm/'; then
-    echo "$(date): llm stack files changed, redeploying" >> "$LOG"
-    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/llm/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
-fi
-
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/openwebui/'; then
     echo "$(date): openwebui stack files changed, redeploying" >> "$LOG"
     # openwebui compose uses env_file (.env written by inject-secrets) so we run

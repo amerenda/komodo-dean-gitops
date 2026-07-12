@@ -172,28 +172,20 @@ cp mac-mini-m4/runners/entrypoint-wrapper.sh /Users/alex/komodo/runner-secrets/e
 chmod +x /Users/alex/komodo/runner-secrets/entrypoint-wrapper.sh
 """
 
-# ── LLM: llm-manager agent + compose Ollama (Mac Mini) ─────────────────────
+# ── Docker Maintenance: weekly build cache prune ──────────────────────────────
 
 [[stack]]
-name = "llm-mac-mini-m4"
-description = "Ollama on Mac Mini — LiteLLM routes directly to :11434 (llm-agent removed 2026-06-29)"
+name = "docker-maintenance"
+description = "Weekly Docker build cache prune — prevents disk-full incidents from CI build cache accumulation"
 tags = ["mac-mini"]
 deploy = true
-ignore_services = ["ollama-init"]
 [stack.config]
 server = "mac-mini-m4"
 repo = "amerenda/komodo-dean-gitops"
 branch = "main"
-file_paths = ["mac-mini-m4/llm/compose.yaml"]
+file_paths = ["mac-mini-m4/docker-maintenance/compose.yaml"]
 git_account = "amerenda"
-# Komodo passes this as docker compose -p … (overrides checkout dir name "llm").
-project_name = "llm-mac-mini-m4"
-ignore_services = ["ollama-init"]
-[stack.config.pre_deploy]
-command = """
-export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
-bash mac-mini-m4/llm/pre-deploy.sh
-"""
+project_name = "docker-maintenance"
 
 # ── LLM: llm-manager agent + compose Ollama (Arch Linux, AMD ROCm) ──────────
 
