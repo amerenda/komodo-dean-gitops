@@ -148,11 +148,18 @@ fi
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/core/'; then
     echo "$(date): core stack files changed, redeploying" >> "$LOG"
     "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" down --remove-orphans >> "$LOG" 2>&1 || true
-    # OrbStack leaves stale named endpoints in the host network after container removal.
-    # Forcefully disconnect them so the next compose up can re-register each container.
+    # OrbStack leaves stale host-network endpoint registrations behind even after container
+    # removal. The endpoint is registered when the container is Created (not Started), so
+    # compose down's removal of running containers doesn't always clear it.
+    # Fix: disconnect the endpoint by container ID, then force-remove Created containers.
     for _svc in postgres mongo qdrant technitium; do
-        "$DOCKER" network disconnect --force host "$_svc" >> "$LOG" 2>&1 || true
+        _cid=$("$DOCKER" ps -a --filter "name=^${_svc}$" --format "{{.ID}}" 2>/dev/null | head -1)
+        if [[ -n "$_cid" ]]; then
+            "$DOCKER" network disconnect --force host "$_cid" >> "$LOG" 2>&1 || true
+        fi
     done
+    # Remove any containers that survived compose down (e.g. Created state from prior failed up)
+    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" rm -sf >> "$LOG" 2>&1 || true
     "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" up -d >> "$LOG" 2>&1 || true
 fi
 
