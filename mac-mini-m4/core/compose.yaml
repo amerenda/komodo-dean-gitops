@@ -31,7 +31,7 @@ services:
     container_name: postgres
     restart: unless-stopped
     network_mode: host
-    # 60s grace: gives postgres time to flush WAL on shutdown (default 10s is too tight for large DBs).
+    # 60s grace: gives postgres time to flush WAL cleanly on shutdown.
     stop_grace_period: 60s
     volumes:
       - postgres-data:/var/lib/postgresql/data

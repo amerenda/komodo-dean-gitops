@@ -147,10 +147,12 @@ fi
 
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/core/'; then
     echo "$(date): core stack files changed, redeploying" >> "$LOG"
-    # Must use down+up (not just up -d): host-network containers leave stale
-    # "endpoint already exists in network host" errors if the container is
-    # recreated without first removing it via compose down.
     "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" down --remove-orphans >> "$LOG" 2>&1 || true
+    # OrbStack leaves stale named endpoints in the host network after container removal.
+    # Forcefully disconnect them so the next compose up can re-register each container.
+    for _svc in postgres mongo qdrant technitium; do
+        "$DOCKER" network disconnect --force host "$_svc" >> "$LOG" 2>&1 || true
+    done
     "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" up -d >> "$LOG" 2>&1 || true
 fi
 
