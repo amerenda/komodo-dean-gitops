@@ -39,7 +39,7 @@ services:
       - "${VIDEO_GID:-985}"
       - "${RENDER_GID:-989}"
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/version"]
+      test: ["CMD", "ollama", "list"]
       interval: 5s
       timeout: 5s
       retries: 30
