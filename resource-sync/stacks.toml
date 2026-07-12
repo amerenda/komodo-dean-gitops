@@ -203,6 +203,7 @@ branch = "main"
 git_account = "amerenda"
 file_paths = ["archlinux/llm/compose.yaml"]
 project_name = "llm-archlinux"
+ignore_services = ["ollama-init"]
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
