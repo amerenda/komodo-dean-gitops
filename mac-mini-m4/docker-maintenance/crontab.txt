@@ -1,0 +1,4 @@
+# Weekly Sunday 03:00 — prune unused Docker build cache.
+# Build cache grows unboundedly from CI runner image builds.
+# docker:27-cli image + docker socket mount gives access to the host engine.
+0 3 * * 0 docker builder prune -a -f >> /var/log/docker-prune.log 2>&1
