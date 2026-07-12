@@ -1,0 +1,16 @@
+services:
+  docker-prune:
+    # Uses docker:cli so the docker binary is available without mounting the macOS host binary.
+    # Mounts the Docker socket to run prune commands against the host Docker engine.
+    image: docker:27-cli
+    container_name: docker-prune
+    restart: unless-stopped
+    command: ["sh", "-c", "crond -f -l 8"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./crontab.txt:/etc/crontabs/root:ro
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "3"

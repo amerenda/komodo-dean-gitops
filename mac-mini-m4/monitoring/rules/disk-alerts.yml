@@ -1,0 +1,38 @@
+groups:
+  - name: disk-space-alerts
+    rules:
+
+      # Warning: < 20% free — early heads-up before things break.
+      # Excludes tmpfs, overlay (container layers), and squashfs (snap/flatpak).
+      - alert: DiskSpaceLow
+        expr: >
+          (
+            node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs"}
+          ) * 100 < 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: >
+            {{ $labels.mountpoint }} on {{ $labels.instance }} has
+            {{ $value | printf "%.1f" }}% free ({{ $labels.fstype }}).
+            Warning threshold: 20%.
+
+      # Critical: < 10% free — mirrors the level that caused the 2026-07-12 outage.
+      - alert: DiskSpaceCritical
+        expr: >
+          (
+            node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs"}
+          ) * 100 < 10
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: disk nearly full on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: >
+            {{ $labels.mountpoint }} on {{ $labels.instance }} has only
+            {{ $value | printf "%.1f" }}% free ({{ $labels.fstype }}).
+            Run: docker builder prune -a -f

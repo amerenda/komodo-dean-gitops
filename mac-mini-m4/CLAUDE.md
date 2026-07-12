@@ -15,6 +15,7 @@ If asked to "update" or "upgrade" a service, confirm the target version explicit
 |-----------|----------|-------|
 | `automation/` | Home Assistant, Mosquitto, Zigbee2MQTT | Z2M pinned to 2.9.1 — see CLAUDE.md |
 | `core/` | Technitium DNS, pgvector, MongoDB | |
+| `docker-maintenance/` | docker-prune cron | Weekly build cache cleanup — see CLAUDE.md |
 | `komodo/` | Komodo Core, FerretDB, PostgreSQL DocumentDB | Core uses env-driven tag |
 | `llm/` | Ollama, LLM Manager agent | |
 | `monitoring/` | Prometheus, Grafana, exporters | |
