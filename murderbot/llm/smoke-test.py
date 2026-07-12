@@ -279,7 +279,9 @@ print("\n[7] Uncensored benchmark model cache")
 # Derive expected cache directory from HF hub layout
 # HF Hub stores models at: HF_HOME/hub/models--<org>--<name>/snapshots/
 hf_model_dir = UNCENSORED_MODEL_ID.replace("/", "--")
-hf_cache_path = os.path.join(HF_HOME, "hub", f"models--{hf_model_dir}")
+# snapshot_download(cache_dir=HF_HOME) stores directly in HF_HOME, not HF_HOME/hub/
+# (vLLM's own downloads go to HF_HOME/hub/ because they use the default HF cache path)
+hf_cache_path = os.path.join(HF_HOME, f"models--{hf_model_dir}")
 try:
     check(
         "uncensored_model_cached",
