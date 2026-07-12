@@ -68,3 +68,61 @@ services:
       timeout: 10s
       retries: 5
       start_period: 1200s
+
+  # Pre-downloads the uncensored NVFP4 benchmark model to HF cache.
+  # Runs once after deploy (restart: "no"). Does NOT replace the production model.
+  # Model: AEON-7/Qwen3.6-27B-AEON-Ultimate-Uncensored-Multimodal-NVFP4-MTP
+  #   - modelopt NVFP4 (same --quantization flag as production)
+  #   - Abliterated, uncensored
+  #   - Native MTP speculative decoding (qwen3_5_mtp head)
+  # To benchmark: start a second vLLM on port 8089 with this model and
+  #   --speculative-config '{"method":"qwen3_5_mtp","num_speculative_tokens":3}'
+  uncensored-model-init:
+    image: vllm/vllm-openai:v0.24.0-cu129
+    container_name: llm-murderbot-uncensored-init
+    restart: "no"
+    labels:
+      komodo.skip:
+    environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN}
+      HF_HOME: /mnt/models/hf-cache
+    volumes:
+      - /mnt/storage/models:/mnt/models
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        python3 -c "
+        from huggingface_hub import snapshot_download
+        import os
+        print('Downloading AEON uncensored NVFP4-MTP model...')
+        snapshot_download(
+            'AEON-7/Qwen3.6-27B-AEON-Ultimate-Uncensored-Multimodal-NVFP4-MTP',
+            cache_dir=os.environ['HF_HOME'],
+        )
+        print('Download complete.')
+        "
+
+  # Smoke test — runs once after vllm-server is healthy, validates the deployment.
+  # Checks: model loaded, GPU KV cache, tool calling (JSON not XML), SearXNG search,
+  #         synthesis after tool turn, token throughput.
+  # Logs: docker logs llm-murderbot-smoke-test
+  # Exit code: docker inspect llm-murderbot-smoke-test --format='{{.State.ExitCode}}'
+  smoke-test:
+    image: python:3.12-alpine
+    container_name: llm-murderbot-smoke-test
+    restart: "no"
+    labels:
+      komodo.skip:
+    depends_on:
+      vllm-server:
+        condition: service_healthy
+    environment:
+      VLLM_URL: "http://vllm-server:8088"
+      SEARXNG_URL: "https://searxng.amer.dev"
+      EXPECTED_MODEL: "qwen36-27b"
+      HF_HOME: /mnt/models/hf-cache
+      UNCENSORED_MODEL_ID: "AEON-7/Qwen3.6-27B-AEON-Ultimate-Uncensored-Multimodal-NVFP4-MTP"
+    volumes:
+      - ./smoke-test.py:/smoke-test.py:ro
+      - /mnt/storage/models:/mnt/models:ro
+    command: ["python3", "/smoke-test.py"]
