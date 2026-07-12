@@ -1,7 +1,8 @@
 # llm-manager stack on Arch Linux — agent + compose-managed Ollama (AMD / ROCm).
 # Top-level name fixes the Docker Compose project name; matches Komodo stack id.
 #
-# Mount the full host Ollama data dir to /root/.ollama (not .../models → /root/.ollama).
+# ollama-init is the "init container" pattern for Docker Compose: it starts after ollama
+# is healthy and pulls the default model so LiteLLM never hits a cold 404 on first request.
 name: llm-archlinux
 
 services:
@@ -37,4 +38,28 @@ services:
     group_add:
       - "${VIDEO_GID:-985}"
       - "${RENDER_GID:-989}"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:11434/api/version"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 15s
+
+  # Init-container: pulls the default model after ollama is healthy.
+  # restart: "no" means it exits cleanly after pulling; Komodo ignores it via komodo.skip.
+  ollama-init:
+    image: ollama/ollama:${OLLAMA_AMD_IMAGE_TAG:-0.21.0-rocm}
+    pull_policy: always
+    container_name: ollama-init
+    restart: "no"
+    labels:
+      komodo.skip:
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    command: ["pull", "${OLLAMA_DEFAULT_MODEL:-qwen3:14b}"]
+    volumes:
+      - ${OLLAMA_MODELS_HOST_PATH:-/mnt/storage/models}:/mnt/models
 

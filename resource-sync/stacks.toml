@@ -224,8 +224,8 @@ bash archlinux/llm/pre-deploy.sh
 [stack.config.post_deploy]
 command = """
 OLLAMA_DEFAULT_MODEL=$(grep -E '^OLLAMA_DEFAULT_MODEL=' archlinux/llm/gitops.env 2>/dev/null | cut -d= -f2 | tr -d '"')
-OLLAMA_DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-qwen3:8b-q4_K_M}"
-echo "Pulling default Ollama model: ${OLLAMA_DEFAULT_MODEL}"
+OLLAMA_DEFAULT_MODEL="${OLLAMA_DEFAULT_MODEL:-qwen3:14b}"
+echo "Confirming Ollama model is pulled: ${OLLAMA_DEFAULT_MODEL}"
 docker exec ollama ollama pull "${OLLAMA_DEFAULT_MODEL}"
 """
 
@@ -253,6 +253,7 @@ tags = ["archlinux"]
 [server.config]
 address = "https://10.100.20.25:8120"
 enabled = true
+insecure_tls = true
 passkey = ""
 
 # ── LLM: vLLM inference (murderbot) ─────────────────────────────────────────
