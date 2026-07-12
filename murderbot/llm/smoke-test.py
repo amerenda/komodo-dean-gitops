@@ -101,21 +101,32 @@ except Exception as e:
 print("\n[3] GPU KV cache")
 try:
     metrics_text = get_text(f"{VLLM_URL}/metrics", timeout=10)
-    gpu_cache = None
+    kv_cache_usage = None
+    num_gpu_blocks = 0
     for line in metrics_text.splitlines():
-        if line.startswith("vllm:gpu_cache_usage_perc") and not line.startswith("#"):
+        # kv_cache_usage_perc is 0.0 when idle — that's correct; metric existing proves GPU KV is set up
+        if line.startswith("vllm:kv_cache_usage_perc") and not line.startswith("#"):
             try:
-                gpu_cache = float(line.split()[-1])
-                break
+                kv_cache_usage = float(line.split()[-1])
             except (ValueError, IndexError):
+                pass
+        # cache_config_info has num_gpu_blocks label — positive value = model loaded, VRAM reserved
+        if "num_gpu_blocks=" in line and not line.startswith("#"):
+            try:
+                import re
+                m = re.search(r'num_gpu_blocks="(\d+)"', line)
+                if m:
+                    num_gpu_blocks = int(m.group(1))
+            except Exception:
                 pass
     check(
         "gpu_kv_cache_loaded",
-        gpu_cache is not None and gpu_cache > 0.5,
-        f"gpu_cache_usage={gpu_cache} (expected >0.5 — model loaded in VRAM)",
+        kv_cache_usage is not None and num_gpu_blocks > 0,
+        f"kv_cache_usage={kv_cache_usage} num_gpu_blocks={num_gpu_blocks} "
+        f"(metric missing or no GPU blocks — model may not be loaded in VRAM)",
     )
-    if gpu_cache is not None:
-        print(f"         GPU KV cache usage: {gpu_cache:.1%}")
+    if kv_cache_usage is not None:
+        print(f"         KV cache usage: {kv_cache_usage:.1%}  GPU blocks: {num_gpu_blocks}")
 except Exception as e:
     check("gpu_kv_cache_loaded", False, str(e), warn_only=True)
 
@@ -230,6 +241,8 @@ try:
             "model": EXPECTED_MODEL,
             "messages": synthesis_messages,
             "max_tokens": 256,
+            # Disable extended thinking — thinking tokens consume all max_tokens, leaving 0 visible output
+            "chat_template_kwargs": {"enable_thinking": False},
         },
         timeout=120,
     )
@@ -290,6 +303,8 @@ try:
             "model": EXPECTED_MODEL,
             "messages": [{"role": "user", "content": bench_prompt}],
             "max_tokens": 512,
+            # Disable extended thinking — thinking tokens consume all max_tokens, leaving 0 visible output
+            "chat_template_kwargs": {"enable_thinking": False},
         },
         timeout=180,
     )
