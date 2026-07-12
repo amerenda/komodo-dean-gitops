@@ -187,22 +187,9 @@ file_paths = ["mac-mini-m4/docker-maintenance/compose.yaml"]
 git_account = "amerenda"
 project_name = "docker-maintenance"
 
-# ── LLM: llm-manager agent + compose Ollama (Arch Linux, AMD ROCm) ──────────
-
-# ── GPU Exporter: AMD GPU metrics (archlinux) ────────────────────────────────
-
-[[stack]]
-name = "gpu-exporter-archlinux"
-description = "AMD GPU Prometheus exporter (amdgpu-exporter) for RX 9070 XT — exposes amdgpu_* metrics on port 9101"
-tags = ["archlinux"]
-deploy = true
-[stack.config]
-server = "archlinux"
-repo = "amerenda/komodo-dean-gitops"
-branch = "main"
-file_paths = ["archlinux/gpu-exporter/compose.yaml"]
-git_account = "amerenda"
-project_name = "gpu-exporter-archlinux"
+# ── LLM + GPU Exporter: Ollama + AMD GPU metrics (Arch Linux) ────────────────
+# GPU exporter (amdgpu-collector + amdgpu-exporter) is co-located in the
+# llm-archlinux compose so both Ollama and GPU metrics share one Komodo stack.
 
 [[stack]]
 name = "llm-archlinux"
