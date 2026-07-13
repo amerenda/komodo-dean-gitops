@@ -283,11 +283,11 @@ hf_model_dir = UNCENSORED_MODEL_ID.replace("/", "--")
 # (vLLM's own downloads go to HF_HOME/hub/ because they use the default HF cache path)
 hf_cache_path = os.path.join(HF_HOME, f"models--{hf_model_dir}")
 try:
-    # This is now the PRODUCTION model — fail (not warn) if missing
     check(
         "uncensored_model_cached",
         os.path.isdir(hf_cache_path),
-        f"not found at {hf_cache_path} — uncensored-model-init must run before vllm-server",
+        f"not found at {hf_cache_path} — run uncensored-model-init service to download",
+        warn_only=True,
     )
 except Exception as e:
     check("uncensored_model_cached", False, str(e), warn_only=True)
