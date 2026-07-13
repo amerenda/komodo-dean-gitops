@@ -20,6 +20,9 @@
 #   --kv-cache-dtype fp8         : 2x KV capacity vs bf16; valid on SM120 Blackwell
 #   --gpu-memory-utilization 0.97: 23.28 GB budget → ~3 GiB KV after ~20 GB profiling peak
 #   --max-model-len 16384        : conservative; ~3 GiB KV headroom allows up to ~24K if needed
+#   --default-chat-template-kwargs: disables Qwen3 thinking by default (enable_thinking=false);
+#                                   prevents infinite thinking loops on direct API access;
+#                                   LiteLLM overrides per-request — behavior unchanged in prod
 name: llm-murderbot
 
 services:
@@ -68,6 +71,8 @@ services:
       - "--kv-cache-dtype"
       - "fp8"
       - "--enforce-eager"
+      - "--default-chat-template-kwargs"
+      - '{"enable_thinking": false}'
       - "--no-enable-log-requests"
     ports:
       - "8088:8088"
