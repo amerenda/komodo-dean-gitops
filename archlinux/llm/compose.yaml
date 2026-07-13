@@ -22,12 +22,13 @@ services:
     environment:
       OLLAMA_HOST: 0.0.0.0:11434
       OLLAMA_MODELS: /mnt/models
-      # RX 9070 XT (Navi 48, gfx1201 / RDNA 4): ROCm 7.2 in the `rocm` image recognizes the
-      # card for memory allocation but gfx1201 compute kernels are not yet stable under all
-      # workloads. Overriding to gfx1100 (RDNA 3) uses proven Navi 31 kernels and restores
-      # full GPU inference. Remove once upstream ROCm ships stable gfx1201 compute support.
-      HSA_OVERRIDE_GFX_VERSION: "11.0.0"
-      # Flash attention hangs on some AMD RDNA4 cards; disable until upstream fix lands.
+      # RX 9070 XT (Navi 48, gfx1201 / RDNA 4): SDMA (System DMA) engine can deadlock during
+      # compute kernel dispatch on some ROCm 7.x builds, causing inference requests to hang
+      # indefinitely at 3% GPU utilization. Disabling SDMA forces ROCm to use CP DMA instead
+      # (slower transfers but no deadlock). HSA_OVERRIDE_GFX_VERSION=11.0.0 is NOT used here —
+      # gfx1100 kernel ABI causes core dumps on gfx1201 hardware.
+      HSA_ENABLE_SDMA: "0"
+      # Flash attention can hang on RDNA4 under some attention patterns; disable until stable.
       OLLAMA_FLASH_ATTENTION: "0"
       # Always-on serving config — single model loaded at a time for max speed and lowest latency
       OLLAMA_NUM_PARALLEL: "1"
