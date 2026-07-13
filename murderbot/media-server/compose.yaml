@@ -137,6 +137,7 @@ services:
     gpus: all
     devices:
       - /dev/dri:/dev/dri
+    mem_swappiness: 0
     restart: unless-stopped
 
   seerr:

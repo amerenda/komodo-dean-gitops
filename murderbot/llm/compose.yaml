@@ -21,6 +21,7 @@ services:
     image: vllm/vllm-openai:v0.24.0-cu129
     container_name: vllm-server
     restart: unless-stopped
+    mem_swappiness: 0
     ipc: host
     deploy:
       resources:
