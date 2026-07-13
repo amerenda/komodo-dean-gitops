@@ -22,14 +22,12 @@ services:
     environment:
       OLLAMA_HOST: 0.0.0.0:11434
       OLLAMA_MODELS: /mnt/models
-      # RX 9070 XT (Navi 48, gfx1201 / RDNA 4): SDMA (System DMA) engine can deadlock during
-      # compute kernel dispatch on some ROCm 7.x builds, causing inference requests to hang
-      # indefinitely at 3% GPU utilization. Disabling SDMA forces ROCm to use CP DMA instead
-      # (slower transfers but no deadlock). HSA_OVERRIDE_GFX_VERSION=11.0.0 is NOT used here —
-      # gfx1100 kernel ABI causes core dumps on gfx1201 hardware.
-      HSA_ENABLE_SDMA: "0"
-      # Flash attention can hang on RDNA4 under some attention patterns; disable until stable.
-      OLLAMA_FLASH_ATTENTION: "0"
+      # RX 9070 XT (Navi 48, gfx1201 / RDNA 4): ROCm 7.x inference stalls in decode phase
+      # regardless of SDMA/flash-attention flags (brief 33% spike during prefill then hang).
+      # HSA_OVERRIDE_GFX_VERSION=11.0.0 causes llama-server core dump (gfx1100 ABI mismatch).
+      # CPU-only mode (OLLAMA_NUM_GPU=0) gives ~6-7 tok/s on Ryzen 9 9950X — functional until
+      # RDNA4 compute kernels stabilize in a future ROCm + Ollama release.
+      OLLAMA_NUM_GPU: "0"
       # Always-on serving config — single model loaded at a time for max speed and lowest latency
       OLLAMA_NUM_PARALLEL: "1"
       OLLAMA_MAX_LOADED_MODELS: "1"
