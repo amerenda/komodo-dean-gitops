@@ -19,7 +19,10 @@
 #   --enforce-eager              : required — CUDA graph capture exhausts VRAM after model load
 #   --kv-cache-dtype fp8         : 2x KV capacity vs bf16; valid on SM120 Blackwell
 #   --gpu-memory-utilization 0.97: 23.28 GB budget → ~3 GiB KV after ~20 GB profiling peak
-#   --max-model-len 16384        : conservative; ~3 GiB KV headroom allows up to ~24K if needed
+#   --max-model-len 24576        : 24K ctx; ~1.09 GiB KV per session; 2 concurrent sessions
+#                                   fit without preemption (vs 0.73 GiB/16K on prior model)
+#   --enable-chunked-prefill     : interleaves long prefill with decode; reduces TTFT for all
+#                                   concurrent users when one request has a large tool-injected prompt
 #   --default-chat-template-kwargs: disables Qwen3 thinking by default (enable_thinking=false);
 #                                   prevents infinite thinking loops on direct API access;
 #                                   LiteLLM overrides per-request — behavior unchanged in prod
@@ -63,7 +66,7 @@ services:
       - "--served-model-name"
       - "qwen36-27b"
       - "--max-model-len"
-      - "16384"
+      - "24576"
       - "--max-num-seqs"
       - "4"
       - "--gpu-memory-utilization"
@@ -71,6 +74,7 @@ services:
       - "--kv-cache-dtype"
       - "fp8"
       - "--enforce-eager"
+      - "--enable-chunked-prefill"
       - "--default-chat-template-kwargs"
       - '{"enable_thinking": false}'
       - "--no-enable-log-requests"
