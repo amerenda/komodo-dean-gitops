@@ -1,19 +1,25 @@
 # vLLM inference stack on murderbot — NVIDIA RTX PRO 4000 Blackwell (SM_120a)
-# Serves nvidia/Qwen3.6-27B-NVFP4 on port 8088; LiteLLM routes to http://10.100.20.19:8088
+# Serves sakamakismile/Huihui-Qwen3.6-27B-abliterated-NVFP4-TEXT-MTP on port 8088
+# LiteLLM routes to http://10.100.20.19:8088 as model alias "qwen36-27b"
 #
 # Model is loaded from HF Hub on first start (cached at HF_HOME=/mnt/models/hf-cache/hub).
 # start_period=1200s covers cold start (model load + profiling pass ~3-4 min).
 #
+# Why this model:
+#   - Text-only NVFP4: 19.64 GB on disk vs 21.94 GB for nvidia/Qwen3.6-27B-NVFP4
+#   - Abliterated (huihui-ai): refusal circuitry removed; polite behavior controlled via system prompt
+#   - Both "polished assistant" (murderbot-v2-custom) and "unrestricted" (murderbot-v2-uncensored-custom)
+#     OWU presets run on the same model with different system prompts
+#   - modelopt NVFP4 + Blackwell tags: same quantization format as nvidia official model
+#   - Prior attempts with AEON-7 (27 GB) OOMed at 0.97 GPU util — text-only variant resolves this
+#
 # Key flags:
 #   --quantization modelopt      : ModelOpt NVFP4 checkpoint format
-#   --enforce-eager              : required — CUDA graph capture exhausts VRAM after 20 GB model load
+#   --trust-remote-code          : required for sakamakismile model config loading
+#   --enforce-eager              : required — CUDA graph capture exhausts VRAM after model load
 #   --kv-cache-dtype fp8         : 2x KV capacity vs bf16; valid on SM120 Blackwell
-#   --gpu-memory-utilization 0.97: 23.28 GB budget → 0.73 GiB KV after 22.55 GB profiling peak
-#   --max-model-len 16384        : 0.73 GiB KV fits 16K ctx; 32K needs 1.15 GiB (insufficient)
-#
-# NOTE: AEON-7/Qwen3.6-27B-AEON-Ultimate-Uncensored-Multimodal-NVFP4-MTP (uncensored) does NOT fit.
-# That model is 27 GB on disk (includes vision encoder + MTP head) vs 21 GB for this text-only model.
-# OOMs at 97% GPU utilization (23.42 GiB). Requires a text-only uncensored NVFP4 variant.
+#   --gpu-memory-utilization 0.97: 23.28 GB budget → ~3 GiB KV after ~20 GB profiling peak
+#   --max-model-len 16384        : conservative; ~3 GiB KV headroom allows up to ~24K if needed
 name: llm-murderbot
 
 services:
@@ -38,13 +44,14 @@ services:
     entrypoint: ["python3", "-m", "vllm.entrypoints.openai.api_server"]
     command:
       - "--model"
-      - "nvidia/Qwen3.6-27B-NVFP4"
+      - "sakamakismile/Huihui-Qwen3.6-27B-abliterated-NVFP4-TEXT-MTP"
       - "--host"
       - "0.0.0.0"
       - "--port"
       - "8088"
       - "--quantization"
       - "modelopt"
+      - "--trust-remote-code"
       - "--reasoning-parser"
       - "qwen3"
       - "--enable-auto-tool-choice"
@@ -73,37 +80,6 @@ services:
       retries: 5
       start_period: 1200s
 
-  # Pre-downloads the uncensored NVFP4 benchmark model to HF cache.
-  # Runs once after deploy (restart: "no"). Does NOT replace the production model.
-  # Model: AEON-7/Qwen3.6-27B-AEON-Ultimate-Uncensored-Multimodal-NVFP4-MTP
-  #   - 27 GB on disk (vision encoder + MTP head + base) — does NOT fit in 24 GB VRAM alone
-  #   - modelopt NVFP4 format; available for offline benchmarking on a second GPU
-  #   - Abliterated, uncensored
-  uncensored-model-init:
-    image: vllm/vllm-openai:v0.24.0-cu129
-    container_name: llm-murderbot-uncensored-init
-    restart: "no"
-    labels:
-      komodo.skip:
-    environment:
-      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN}
-      HF_HOME: /mnt/models/hf-cache
-    volumes:
-      - /mnt/storage/models:/mnt/models
-    entrypoint: ["/bin/bash", "-c"]
-    command:
-      - |
-        python3 -c "
-        from huggingface_hub import snapshot_download
-        import os
-        print('Downloading AEON uncensored NVFP4-MTP model...')
-        snapshot_download(
-            'AEON-7/Qwen3.6-27B-AEON-Ultimate-Uncensored-Multimodal-NVFP4-MTP',
-            cache_dir=os.environ['HF_HOME'],
-        )
-        print('Download complete.')
-        "
-
   # Smoke test — runs once after vllm-server is healthy, validates the deployment.
   # Checks: model loaded, GPU KV cache, tool calling (JSON not XML), SearXNG search,
   #         synthesis after tool turn, token throughput.
@@ -123,7 +99,7 @@ services:
       SEARXNG_URL: "https://searxng.amer.dev"
       EXPECTED_MODEL: "qwen36-27b"
       HF_HOME: /mnt/models/hf-cache
-      UNCENSORED_MODEL_ID: "AEON-7/Qwen3.6-27B-AEON-Ultimate-Uncensored-Multimodal-NVFP4-MTP"
+      UNCENSORED_MODEL_ID: "sakamakismile/Huihui-Qwen3.6-27B-abliterated-NVFP4-TEXT-MTP"
     volumes:
       - ./smoke-test.py:/smoke-test.py:ro
       - /mnt/storage/models:/mnt/models:ro

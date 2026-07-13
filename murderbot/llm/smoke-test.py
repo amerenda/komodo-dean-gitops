@@ -24,10 +24,10 @@ import urllib.error
 VLLM_URL = os.environ.get("VLLM_URL", "http://vllm-server:8088")
 SEARXNG_URL = os.environ.get("SEARXNG_URL", "https://searxng.amer.dev")
 EXPECTED_MODEL = os.environ.get("EXPECTED_MODEL", "qwen36-27b")
-# Uncensored benchmark model — downloaded by uncensored-model-init service
+# Production model (abliterated text-only, same as vllm-server primary)
 UNCENSORED_MODEL_ID = os.environ.get(
     "UNCENSORED_MODEL_ID",
-    "AEON-7/Qwen3.6-27B-AEON-Ultimate-Uncensored-Multimodal-NVFP4-MTP",
+    "sakamakismile/Huihui-Qwen3.6-27B-abliterated-NVFP4-TEXT-MTP",
 )
 HF_HOME = os.environ.get("HF_HOME", "/mnt/models/hf-cache")
 
