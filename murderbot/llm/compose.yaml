@@ -1,11 +1,12 @@
 # vLLM inference stack on murderbot — NVIDIA RTX PRO 4000 Blackwell (SM_120a)
-# Serves nvidia/Qwen3.6-27B-NVFP4 on port 8088; LiteLLM routes to http://10.100.20.19:8088
+# Serves AEON-7/Qwen3.6-27B-AEON-Ultimate-Uncensored-Multimodal-NVFP4-MTP on port 8088
+# LiteLLM routes to http://10.100.20.19:8088 as served name "qwen36-27b"
 #
-# Model is loaded from HF Hub on first start (cached at HF_HOME=/mnt/models/hf-cache).
+# Model loaded from local HF cache (pre-downloaded by uncensored-model-init).
 # start_period=1200s covers cold start (model load + profiling pass ~3-4 min).
 #
 # Key flags:
-#   --quantization modelopt      : ModelOpt NVFP4 checkpoint format
+#   --quantization modelopt      : ModelOpt NVFP4 checkpoint — same format as nvidia/Qwen3.6-27B-NVFP4
 #   --enforce-eager              : required — CUDA graph capture exhausts VRAM after 20 GB model load
 #   --kv-cache-dtype fp8         : 2x KV capacity vs bf16; valid on SM120 Blackwell
 #   --gpu-memory-utilization 0.97: 23.28 GB budget → 0.73 GiB KV after 22.55 GB profiling peak
@@ -34,7 +35,7 @@ services:
     entrypoint: ["python3", "-m", "vllm.entrypoints.openai.api_server"]
     command:
       - "--model"
-      - "nvidia/Qwen3.6-27B-NVFP4"
+      - "/mnt/models/hf-cache/models--AEON-7--Qwen3.6-27B-AEON-Ultimate-Uncensored-Multimodal-NVFP4-MTP/snapshots/581fa3739e6dbb2ee295be737ad6c5867f4d5f2d"
       - "--host"
       - "0.0.0.0"
       - "--port"
@@ -69,14 +70,13 @@ services:
       retries: 5
       start_period: 1200s
 
-  # Pre-downloads the uncensored NVFP4 benchmark model to HF cache.
-  # Runs once after deploy (restart: "no"). Does NOT replace the production model.
+  # Ensures the AEON uncensored NVFP4-MTP model is in HF cache before vllm-server starts.
+  # This IS the production model — vllm-server loads it from the local snapshot path.
   # Model: AEON-7/Qwen3.6-27B-AEON-Ultimate-Uncensored-Multimodal-NVFP4-MTP
-  #   - modelopt NVFP4 (same --quantization flag as production)
-  #   - Abliterated, uncensored
-  #   - Native MTP speculative decoding (qwen3_5_mtp head)
-  # To benchmark: start a second vLLM on port 8089 with this model and
-  #   --speculative-config '{"method":"qwen3_5_mtp","num_speculative_tokens":3}'
+  #   - modelopt NVFP4 (same --quantization modelopt flag)
+  #   - Abliterated, uncensored (abliteration-trained, no refusals)
+  #   - Native MTP speculative decoding head (qwen3_5_mtp)
+  # Runs once per deploy (restart: "no"); no-op if model already cached.
   uncensored-model-init:
     image: vllm/vllm-openai:v0.24.0-cu129
     container_name: llm-murderbot-uncensored-init
