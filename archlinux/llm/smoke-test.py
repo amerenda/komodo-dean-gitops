@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Smoke test for llm-archlinux (Ollama on AMD RX 9070 XT / ROCm).
+Smoke test for llm-archlinux (Ollama on AMD RX 9070 XT / Vulkan backend).
 Runs once after Komodo deploy (restart: "no"). Exit 0 = all critical checks passed.
 
 Tests:
@@ -60,7 +60,7 @@ def get_json(url: str, timeout: int = 10) -> dict:
 
 
 print("=" * 60)
-print("llm-archlinux smoke test (AMD RX 9070 XT)")
+print("llm-archlinux smoke test (AMD RX 9070 XT / Vulkan)")
 print(f"  Ollama URL : {OLLAMA_URL}")
 print(f"  Model      : {EXPECTED_MODEL}")
 print(f"  SearXNG    : {SEARXNG_URL}")
@@ -301,7 +301,7 @@ try:
         check(
             "benchmark_throughput_min",
             tok_per_sec >= 5.0,
-            f"{tok_per_sec:.1f} tok/s < 5 tok/s — AMD ROCm may not be active",
+            f"{tok_per_sec:.1f} tok/s < 5 tok/s — AMD Vulkan GPU acceleration may not be active",
             warn_only=True,
         )
     check(
