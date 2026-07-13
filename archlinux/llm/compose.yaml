@@ -22,8 +22,13 @@ services:
     environment:
       OLLAMA_HOST: 0.0.0.0:11434
       OLLAMA_MODELS: /mnt/models
-      # HSA_OVERRIDE_GFX_VERSION must NOT be set to empty string — ROCm silently fails GPU
-      # detection if this var is present with an empty value. Only set via ollama.env if needed.
+      # RX 9070 XT (Navi 48, gfx1201 / RDNA 4): ROCm 7.2 in the `rocm` image recognizes the
+      # card for memory allocation but gfx1201 compute kernels are not yet stable under all
+      # workloads. Overriding to gfx1100 (RDNA 3) uses proven Navi 31 kernels and restores
+      # full GPU inference. Remove once upstream ROCm ships stable gfx1201 compute support.
+      HSA_OVERRIDE_GFX_VERSION: "11.0.0"
+      # Flash attention hangs on some AMD RDNA4 cards; disable until upstream fix lands.
+      OLLAMA_FLASH_ATTENTION: "0"
       # Always-on serving config — single model loaded at a time for max speed and lowest latency
       OLLAMA_NUM_PARALLEL: "1"
       OLLAMA_MAX_LOADED_MODELS: "1"
