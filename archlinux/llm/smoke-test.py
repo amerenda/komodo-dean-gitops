@@ -292,7 +292,10 @@ try:
             "stream": False,
             # think: false must be top-level (not inside options) per Ollama API spec
             "think": False,
-            "options": {"num_ctx": 4096, "num_predict": 512},
+            # num_predict intentionally omitted: qwen3:14b thinking tokens count toward
+            # num_predict budget; on a cold model, thinking can exhaust 512 tokens leaving
+            # no room for visible content. Let the model run to EOS within num_ctx.
+            "options": {"num_ctx": 4096},
         },
         timeout=180,
     )
