@@ -21,13 +21,14 @@ action:
             entity_id: group.members
             state: "home"
         sequence:
-          # Check if privacy is already correct
+          # Only act if something is out of sync
           - condition: template
             value_template: >
               {{ is_state('switch.bedroom_privacy_mode', 'off')
                  or is_state('switch.living_room_privacy_mode', 'off')
                  or is_state('light.bedroom_status_led', 'on')
                  or is_state('light.living_room_status_led', 'on') }}
+          # script.camera_privacy_on confirms LED off before enabling privacy
           - service: script.camera_privacy_on
 
       # Nobody home → privacy off, LEDs on (skip if trackers unavailable — HA restart)
@@ -46,7 +47,7 @@ action:
                 entity_id: device_tracker.eirill_iphone
                 state: "unavailable"
         sequence:
-          # Check if privacy is already correct
+          # Only act if something is out of sync
           - condition: template
             value_template: >
               {{ is_state('switch.bedroom_privacy_mode', 'on')

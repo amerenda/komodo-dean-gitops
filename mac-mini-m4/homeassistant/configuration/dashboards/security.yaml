@@ -6,9 +6,36 @@ views:
       - type: grid
         cards:
           - type: heading
-            heading: Privacy Mode
+            heading: Camera Feeds
+            heading_style: title
+            icon: mdi:camera
+          - type: grid
+            square: false
+            columns: 1
+            cards:
+              - type: picture-entity
+                entity: camera.living_room_fluent
+              - type: picture-entity
+                entity: camera.bedroom_fluent
+
+      - type: grid
+        cards:
+          - type: heading
+            heading: Privacy
             heading_style: title
             icon: mdi:camera-lock
+          - type: tile
+            entity: switch.living_room_privacy_mode
+            name: Living Room Privacy
+          - type: tile
+            entity: switch.bedroom_privacy_mode
+            name: Bedroom Privacy
+          - type: tile
+            entity: light.living_room_status_led
+            name: Living Room LED
+          - type: tile
+            entity: light.bedroom_status_led
+            name: Bedroom LED
           - type: horizontal-stack
             cards:
               - type: button
@@ -27,59 +54,69 @@ views:
                   service: script.camera_privacy_off
           - type: button
             name: Drift Correction
-            entity: automation.security_privacy_monitor
+            entity: automation.security_privacy_monitor_drift_correction
             show_state: true
             tap_action:
               action: toggle
             icon: mdi:sync-alert
-      - type: grid
-        cards:
-          - type: heading
-            heading: Camera Feeds
-            heading_style: title
-            icon: mdi:camera
-          - type: grid
-            square: false
-            columns: 1
-            cards:
-              - type: picture-entity
-                entity: camera.bedroom_fluent
-              - type: picture-entity
-                entity: camera.living_room_fluent
 
       - type: grid
+        columns: 2
         cards:
           - type: heading
-            heading: Latest Human Detection
+            heading: Last Human Detected
             heading_style: title
             icon: mdi:account-alert
+          - type: heading
+            heading: Last Pet Detected
+            heading_style: title
+            icon: mdi:paw
           - type: markdown
             content: >
               {% set loc = states('input_text.intruder_image_location') %}
               {% set ts = states('input_text.intruder_image_timestamp') %}
               {% if loc and loc not in ['unknown', 'unavailable', ''] %}
-                ![Intruder](/local/intruders/{{ loc }}_{{ ts }}.jpg)
+                ![Human](/local/intruders/{{ loc }}_{{ ts }}.jpg)
 
-                **Location:** {{ loc | replace('_', ' ') | title }}
-                **Time:** {{ strptime(ts, '%Y%m%d_%H%M%S').strftime('%-I:%M %p on %b %d') if ts and ts not in ['unknown', 'unavailable'] else 'Unknown' }}
+                **{{ loc | replace('_', ' ') | title }}** —
+                {{ strptime(ts, '%Y%m%d_%H%M%S').strftime('%-I:%M %p, %b %-d') if ts and ts not in ['unknown', 'unavailable'] else 'Unknown time' }}
               {% else %}
-                No intruder detected.
+                *No human detected while away.*
+              {% endif %}
+          - type: markdown
+            content: >
+              {% set loc = states('input_text.event_image_location') %}
+              {% set ts = states('input_text.event_image_timestamp') %}
+              {% if loc and loc not in ['unknown', 'unavailable', ''] %}
+                ![Pet](/local/pets/{{ loc }}_{{ ts }}.jpg)
+
+                **{{ loc | replace('_', ' ') | title }}** —
+                {{ strptime(ts, '%Y%m%d_%H%M%S').strftime('%-I:%M %p, %b %-d') if ts and ts not in ['unknown', 'unavailable'] else 'Unknown time' }}
+              {% else %}
+                *No pet detected while away.*
               {% endif %}
 
       - type: grid
         cards:
           - type: heading
-            heading: Events
+            heading: Detection Sensors
             heading_style: title
-            icon: mdi:walk
+            icon: mdi:motion-sensor
           - type: entities
+            title: Living Room
             entities:
-              - binary_sensor.bedroom_animal
-              - binary_sensor.living_room_animal
+              - entity: binary_sensor.living_room_person
+                name: Person
+              - entity: binary_sensor.living_room_animal
+                name: Pet
           - type: entities
+            title: Bedroom
             entities:
-              - binary_sensor.bedroom_person
-              - binary_sensor.living_room_person
+              - entity: binary_sensor.bedroom_person
+                name: Person
+              - entity: binary_sensor.bedroom_animal
+                name: Pet
+
     header:
       card:
         type: markdown

@@ -1,0 +1,51 @@
+alias: "Alex - Reolink Human Snapshot (Away)"
+mode: "queued"
+triggers:
+  - trigger: "state"
+    entity_id:
+      - "binary_sensor.living_room_person"
+      - "binary_sensor.bedroom_person"
+    from: "off"
+    to: "on"
+conditions:
+  - condition: "not"
+    conditions:
+      - condition: "state"
+        entity_id: "person.alex_merenda"
+        state: "home"
+variables:
+  CAM_MAP: >
+    {{
+      {
+        'binary_sensor.living_room_person':
+          {'camera': 'camera.living_room_fluent', 'room':'Living Room','slug':'living_room'},
+        'binary_sensor.bedroom_person':
+          {'camera': 'camera.bedroom_fluent',     'room':'Bedroom',    'slug':'bedroom'}
+      }
+    }}
+  cam: "{{ CAM_MAP[trigger.entity_id]['camera'] }}"
+  room: "{{ CAM_MAP[trigger.entity_id]['room'] }}"
+  slug: "{{ CAM_MAP[trigger.entity_id]['slug'] }}"
+  timestamp: "{{ now().strftime('%Y%m%d_%H%M%S') }}"
+  path: "/config/www/intruders/{{ slug }}_{{ timestamp }}.jpg"
+  url: "/local/intruders/{{ slug }}_{{ timestamp }}.jpg"
+actions:
+  - action: "camera.snapshot"
+    target: { entity_id: "{{ cam }}" }
+    data:
+      filename: "{{ path }}"
+  - action: "input_text.set_value"
+    target: { entity_id: "input_text.intruder_image_location" }
+    data: { value: "{{ slug }}" }
+  - action: "input_text.set_value"
+    target: { entity_id: "input_text.intruder_image_timestamp" }
+    data: { value: "{{ timestamp }}" }
+  - action: "notify.mobile_app_pixel_9_pro_xl"
+    data:
+      title: "Human detected - {{ room }}"
+      message: "{{ now().strftime('%-I:%M %p on %b %-d') }}"
+      data:
+        image: "{{ url }}"
+        tag: "human-{{ slug }}"
+        importance: "high"
+        sticky: true
