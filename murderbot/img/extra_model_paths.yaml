@@ -1,0 +1,19 @@
+# ComfyUI extra model paths — maps /mnt/models (Docker bind-mount of /mnt/storage/models)
+# to ComfyUI's expected model type directories.
+#
+# FLUX FP8 stack:
+#   checkpoint:  fluxedUpFluxNSFW_90FP8.safetensors  (UNET only — loaded via UNETLoader)
+#   clip_l:      clip_l.safetensors                   (CLIP text encoder L)
+#   t5xxl:       t5xxl_fp8_e4m3fn.safetensors         (T5-XXL text encoder FP8)
+#   vae:         ae.safetensors                        (FLUX VAE)
+#   loras:       klein_anatomy_fixer, Flux_Skin_Texture_V2, Flux_Portrait_Realism, etc.
+murderbot_models:
+  base_path: /mnt/models
+  checkpoints: image/flux-nsfw/
+  diffusion_models: image/flux-nsfw/
+  unet: image/flux-nsfw/
+  clip: image/flux1-dev-gguf/
+  vae: vae/
+  loras: image/loras/flux/
+  controlnet: image/controlnet/
+  upscale_models: upscale/

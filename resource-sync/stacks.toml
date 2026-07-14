@@ -265,6 +265,24 @@ export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
 bash murderbot/llm/pre-deploy.sh
 """
 
+# ── Image generation: ComfyUI (murderbot) ────────────────────────────────────
+# MUTUALLY EXCLUSIVE with llm-murderbot — both cannot run simultaneously (VRAM limit).
+# deploy = false: managed manually via mode switch scripts, not auto-deployed.
+# Switch: manual_runs/switch-llm-to-image.sh / switch-image-to-llm.sh
+
+[[stack]]
+name = "img-murderbot"
+description = "ComfyUI image generation — FLUX FP8 NSFW + LoRA stack on RTX PRO 4000. Mutually exclusive with llm-murderbot."
+tags = ["murderbot", "image"]
+deploy = false
+[stack.config]
+server = "murderbot"
+repo = "amerenda/komodo-dean-gitops"
+branch = "main"
+file_paths = ["murderbot/img/compose.yaml"]
+git_account = "amerenda"
+project_name = "img-murderbot"
+
 # ── Media server (murderbot only) ───────────────────────────────────────────
 
 [[stack]]
