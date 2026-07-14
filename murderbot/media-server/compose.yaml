@@ -113,7 +113,7 @@ services:
     restart: unless-stopped
 
   jellyfin:
-    image: linuxserver/jellyfin:10.11.8
+    image: linuxserver/jellyfin:10.11.11
     container_name: jellyfin
     networks:
       servarr:
