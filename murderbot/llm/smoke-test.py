@@ -266,8 +266,8 @@ try:
         print(f"         Throughput: {tok_per_sec:.1f} tok/s ({tokens_out} tokens in {elapsed:.1f}s)")
         check(
             "throughput_acceptable",
-            tok_per_sec >= 5.0,
-            f"{tok_per_sec:.1f} tok/s — GPU may not be active (expected ≥5 tok/s)",
+            tok_per_sec >= 20.0,
+            f"{tok_per_sec:.1f} tok/s — CUDA graphs may be disabled (expected ≥20 tok/s with graph capture)",
             warn_only=True,
         )
 except Exception as e:
@@ -323,8 +323,8 @@ try:
         print(f"         Tokens: {tokens_in} in / {tokens_out} out / {elapsed:.1f}s")
         check(
             "benchmark_throughput_min",
-            tok_per_sec >= 5.0,
-            f"{tok_per_sec:.1f} tok/s is below minimum (5 tok/s) — GPU acceleration may be broken",
+            tok_per_sec >= 20.0,
+            f"{tok_per_sec:.1f} tok/s is below minimum (20 tok/s) — CUDA graph capture may be broken",
             warn_only=True,
         )
     check(
