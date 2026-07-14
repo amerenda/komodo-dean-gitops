@@ -172,9 +172,11 @@ try:
             if title or snippet:
                 parts.append(f"{title}: {snippet}")
         search_result = " | ".join(parts)
-    check("searxng_returns_results", len(results) > 0, f"got {len(results)} results")
-    check("searxng_result_content", len(search_result) > 50, f"short: {search_result[:60]}")
-    check("searxng_result_relevant", "python" in search_result.lower(), "no 'python' in results")
+    # warn_only: SearXNG depends on upstream search engines that can rate-limit or time out
+    # transiently. A 0-result response does not indicate a deployment problem.
+    check("searxng_returns_results", len(results) > 0, f"got {len(results)} results", warn_only=True)
+    check("searxng_result_content", len(search_result) > 50, f"short: {search_result[:60]}", warn_only=True)
+    check("searxng_result_relevant", "python" in search_result.lower(), "no 'python' in results", warn_only=True)
 except urllib.error.URLError as e:
     check("searxng_returns_results", False, str(e), warn_only=True)
     check("searxng_result_content", False, "skipped", warn_only=True)
