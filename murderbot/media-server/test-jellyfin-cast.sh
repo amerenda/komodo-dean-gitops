@@ -105,13 +105,17 @@ else
     fail "Could not determine LocalAddress from Jellyfin API"
 fi
 
-# 8. Port 8096 is listening on all interfaces (Cast device connects directly to host)
+# 8. Port 8096 is accessible on the host's LAN IP (Cast device connects directly)
+# Use TCP connect rather than ss — ss -tlnp can produce false negatives when
+# Docker's userland proxy isn't used (iptables-only mode) or when called without
+# sufficient privileges to enumerate processes.
 echo ""
-echo "[8] Jellyfin port 8096 listening on all interfaces"
-if ss -tlnp 2>/dev/null | grep -q ":8096"; then
-    ok "Port 8096 is listening"
+echo "[8] Jellyfin port 8096 accessible on LAN IP"
+HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+if timeout 3 bash -c ">/dev/tcp/${HOST_IP}/8096" 2>/dev/null; then
+    ok "Port 8096 is accessible on LAN IP ${HOST_IP} (TCP connect ok)"
 else
-    fail "Port 8096 not listening — Check docker port mapping"
+    fail "Port 8096 not reachable on ${HOST_IP} — Cast device won't be able to connect directly"
 fi
 
 echo ""
