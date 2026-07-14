@@ -6,10 +6,10 @@ Runs once after Komodo deploy (restart: "no"). Exit 0 = all critical checks pass
 Tests:
   1. Ollama server health
   2. Expected model loaded (qwen3:14b)
-  3. AMD GPU active via sysfs (VRAM usage after model load)
-  4. Tool calling returns JSON format (not XML)
-  5. Real web search via SearXNG (tool execution)
-  6. Synthesis after tool turn (no tools on synthesis — qwen3:14b ignores tool_choice=none)
+  3. Tool calling returns JSON format (not XML)  [loads model into VRAM]
+  4. Real web search via SearXNG (tool execution)
+  5. Synthesis after tool turn (no tools on synthesis — qwen3:14b ignores tool_choice=none)
+  6. AMD GPU active via sysfs (VRAM usage — checked after inference warms up the model)
   7. Token throughput benchmark (tokens/s)
 """
 import glob
@@ -88,35 +88,11 @@ try:
 except Exception as e:
     check("model_loaded", False, str(e))
 
-# ── 3. AMD GPU via sysfs ──────────────────────────────────────────────────────
-print("\n[3] AMD GPU (sysfs)")
-try:
-    gpu_paths = sorted(glob.glob(f"{GPU_SYSFS}/card*/device/gpu_busy_percent"))
-    if gpu_paths:
-        busy = int(open(gpu_paths[0]).read().strip())
-        d = os.path.dirname(gpu_paths[0])
-        vram_used_bytes = int(open(f"{d}/mem_info_vram_used").read().strip())
-        vram_total_bytes = int(open(f"{d}/mem_info_vram_total").read().strip())
-        vram_used_mb = vram_used_bytes // (1024 * 1024)
-        vram_total_mb = vram_total_bytes // (1024 * 1024)
-        check("amd_gpu_visible", True)
-        print(f"         GPU util : {busy}%")
-        print(f"         VRAM     : {vram_used_mb:,}/{vram_total_mb:,} MB")
-        # qwen3:14b in Q4 occupies ~8GB; full precision ~28GB — expect at least 5GB
-        check(
-            "gpu_model_in_vram",
-            vram_used_mb > 5000,
-            f"{vram_used_mb} MB used — model may not be GPU-accelerated (expected >5000 MB)",
-        )
-    else:
-        check("amd_gpu_visible", False, f"no card* entries under {GPU_SYSFS}")
-        check("gpu_model_in_vram", False, "skipped — no GPU paths found")
-except Exception as e:
-    check("amd_gpu_visible", False, str(e), warn_only=True)
-    check("gpu_model_in_vram", False, "skipped", warn_only=True)
-
-# ── 4. Tool calling — JSON format ─────────────────────────────────────────────
-print("\n[4] Tool calling format")
+# ── 3. Tool calling — JSON format ─────────────────────────────────────────────
+# NOTE: tool calling runs before the GPU VRAM check (test 6) so the model is loaded
+# into VRAM by the time we sample sysfs. On a cold Komodo deploy, Ollama has not yet
+# served any requests so VRAM is near-zero even though the model is on disk.
+print("\n[3] Tool calling format")
 MOCK_TOOLS = [
     {
         "type": "function",
@@ -181,8 +157,8 @@ except Exception as e:
     check("tool_call_no_xml", False, "skipped")
     check("tool_call_args_valid", False, "skipped")
 
-# ── 5. Real web search via SearXNG ────────────────────────────────────────────
-print("\n[5] SearXNG web search (tool execution)")
+# ── 4. Real web search via SearXNG ────────────────────────────────────────────
+print("\n[4] SearXNG web search (tool execution)")
 search_result = ""
 try:
     params = urllib.parse.urlencode({"q": "Python programming language", "format": "json"})
@@ -208,8 +184,8 @@ except Exception as e:
     check("searxng_returns_results", False, str(e), warn_only=True)
     search_result = "Python is a high-level interpreted programming language."
 
-# ── 6. Synthesis after tool turn ─────────────────────────────────────────────
-print("\n[6] Synthesis after tool turn")
+# ── 5. Synthesis after tool turn ─────────────────────────────────────────────
+print("\n[5] Synthesis after tool turn")
 # qwen3:14b via Ollama ignores tool_choice=none and hallucinates tool calls.
 # Strip tools entirely on the synthesis turn to force text output.
 try:
@@ -268,6 +244,36 @@ try:
 except Exception as e:
     check("synthesis_non_empty", False, str(e))
     check("synthesis_mentions_python", False, "skipped")
+
+# ── 6. AMD GPU via sysfs ──────────────────────────────────────────────────────
+# Runs after tool calling and synthesis so the model is already in VRAM.
+# On a cold deploy, Ollama hasn't served any requests, so VRAM is near-zero
+# even though the model is on disk — checking too early would always fail.
+print("\n[6] AMD GPU (sysfs)")
+try:
+    gpu_paths = sorted(glob.glob(f"{GPU_SYSFS}/card*/device/gpu_busy_percent"))
+    if gpu_paths:
+        busy = int(open(gpu_paths[0]).read().strip())
+        d = os.path.dirname(gpu_paths[0])
+        vram_used_bytes = int(open(f"{d}/mem_info_vram_used").read().strip())
+        vram_total_bytes = int(open(f"{d}/mem_info_vram_total").read().strip())
+        vram_used_mb = vram_used_bytes // (1024 * 1024)
+        vram_total_mb = vram_total_bytes // (1024 * 1024)
+        check("amd_gpu_visible", True)
+        print(f"         GPU util : {busy}%")
+        print(f"         VRAM     : {vram_used_mb:,}/{vram_total_mb:,} MB")
+        # qwen3:14b in Q4 occupies ~8GB; expect at least 5GB after inference warm-up
+        check(
+            "gpu_model_in_vram",
+            vram_used_mb > 5000,
+            f"{vram_used_mb} MB used — model may not be GPU-accelerated (expected >5000 MB)",
+        )
+    else:
+        check("amd_gpu_visible", False, f"no card* entries under {GPU_SYSFS}")
+        check("gpu_model_in_vram", False, "skipped — no GPU paths found")
+except Exception as e:
+    check("amd_gpu_visible", False, str(e), warn_only=True)
+    check("gpu_model_in_vram", False, "skipped", warn_only=True)
 
 # ── 7. Token throughput benchmark ────────────────────────────────────────────
 print("\n[7] Token throughput benchmark")
