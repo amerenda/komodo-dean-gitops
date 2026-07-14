@@ -1,0 +1,50 @@
+# ComfyUI image generation stack on murderbot — NVIDIA RTX PRO 4000 Blackwell (SM_120a)
+#
+# Model: fluxedUpFluxNSFW_90FP8.safetensors (FLUX.1-dev NSFW fine-tune, FP8, ~12GB VRAM)
+# CLIPs: clip_l.safetensors + t5xxl_fp8_e4m3fn.safetensors (from flux1-dev-gguf dir)
+# VAE:   ae.safetensors (standard FLUX VAE)
+# LoRAs: klein_anatomy_fixer (0.7), Flux_Skin_Texture_V2 (0.6), Flux_Portrait_Realism (0.5)
+#
+# MUTUALLY EXCLUSIVE with llm-murderbot:
+#   Running both would OOM the 24GB VRAM (vLLM uses ~23.5GB, FLUX uses ~16-18GB w/ LoRAs).
+#   Switch via: manual_runs/switch-llm-to-image.sh / switch-image-to-llm.sh
+#   Or: Komodo → DestroyStack llm-murderbot → DeployStack img-murderbot
+#
+# Port 8188 is exposed on the host so the imggen k3s service can reach ComfyUI
+# at http://10.100.20.19:8188 regardless of whether imggen runs in k3s or on-host.
+#
+# extra_model_paths.yaml maps /mnt/models → ComfyUI model type directories.
+# No secrets needed — ComfyUI has no auth by default.
+#
+# start_period=180s: first run downloads ComfyUI packages (yanwk/comfyui-boot auto-installs).
+# Subsequent starts load FP8 model in ~60-90s.
+
+name: img-murderbot
+
+services:
+  comfyui:
+    image: yanwk/comfyui-boot:cu128
+    container_name: comfyui
+    restart: unless-stopped
+    ports:
+      - "8188:8188"
+    volumes:
+      - /mnt/storage/models:/mnt/models:ro
+      - ./extra_model_paths.yaml:/root/ComfyUI/extra_model_paths.yaml:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      CLI_ARGS: "--listen 0.0.0.0 --port 8188 --disable-auto-launch --preview-method none"
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8188/system_stats"]
+      interval: 15s
+      timeout: 10s
+      retries: 24
+      start_period: 180s
