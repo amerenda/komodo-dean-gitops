@@ -1,0 +1,21 @@
+name: Jellyfin Cast Config
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'murderbot/media-server/**'
+  pull_request:
+    paths:
+      - 'murderbot/media-server/**'
+
+jobs:
+  validate-cast-config:
+    name: Static validation — Jellyfin Cast settings
+    runs-on: [self-hosted, mac-mini]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate Jellyfin Cast configuration
+        run: python3 scripts/validate_jellyfin_cast.py
