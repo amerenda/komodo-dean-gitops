@@ -13,14 +13,23 @@
 #   - modelopt NVFP4 + Blackwell tags: same quantization format as nvidia official model
 #   - Prior attempts with AEON-7 (27 GB) OOMed at 0.97 GPU util — text-only variant resolves this
 #
+# Architecture note — Qwen3.5 hybrid (linear + full attention):
+#   The model is Qwen3_5ForConditionalGeneration: 48/64 layers are linear recurrent attention
+#   (DeltaNet/GLA style, uses causal conv1d + gated delta-rule SSM), 16/64 are standard
+#   full attention. Recurrent layers are 5-10x slower without CUDA graph capture due to
+#   Python kernel-dispatch overhead per decode step. CUDA graphs are essential here.
+#
 # Key flags:
 #   --quantization modelopt      : ModelOpt NVFP4 checkpoint format
 #   --trust-remote-code          : required for sakamakismile model config loading
-#   --enforce-eager              : required — CUDA graph capture exhausts VRAM after model load
 #   --kv-cache-dtype fp8         : 2x KV capacity vs bf16; valid on SM120 Blackwell
 #   --gpu-memory-utilization 0.97: 23.28 GB budget → ~3 GiB KV after ~20 GB profiling peak
 #   --max-model-len 24576        : 24K ctx; ~1.09 GiB KV per session; 2 concurrent sessions
 #                                   fit without preemption (vs 0.73 GiB/16K on prior model)
+#   --compilation-config         : limits CUDA graph capture to batch sizes [1, 2, 4] only.
+#                                   Default capture range goes up to 2048, exhausting VRAM.
+#                                   Capturing only decode batch sizes we actually use prevents
+#                                   OOM while enabling the graph capture that makes SSM fast.
 #   --enable-chunked-prefill     : interleaves long prefill with decode; reduces TTFT for all
 #                                   concurrent users when one request has a large tool-injected prompt
 #   --default-chat-template-kwargs: disables Qwen3 thinking by default (enable_thinking=false);
@@ -74,7 +83,8 @@ services:
       - "0.97"
       - "--kv-cache-dtype"
       - "fp8"
-      - "--enforce-eager"
+      - "--compilation-config"
+      - '{"cudagraph_capture_sizes": [1, 2, 4]}'
       - "--enable-chunked-prefill"
       - "--default-chat-template-kwargs"
       - '{"enable_thinking": false}'
