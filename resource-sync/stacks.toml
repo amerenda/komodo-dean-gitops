@@ -203,7 +203,7 @@ branch = "main"
 git_account = "amerenda"
 file_paths = ["archlinux/llm/compose.yaml"]
 project_name = "llm-archlinux"
-ignore_services = ["ollama-init"]
+ignore_services = ["ollama-init", "smoke-test"]
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
@@ -258,6 +258,7 @@ branch = "main"
 file_paths = ["murderbot/llm/compose.yaml"]
 git_account = "amerenda"
 project_name = "llm-murderbot"
+ignore_services = ["smoke-test"]
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
