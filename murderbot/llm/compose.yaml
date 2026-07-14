@@ -34,9 +34,6 @@
 #                                   KV budget when util=0.97; 0.9884 is the compensated value
 #                                   vLLM recommended to restore the same KV capacity as eager mode.
 #                                   (40,097 KV tokens at 0.97 → ~51,856 at 0.9884)
-#   --enable-prefix-caching      : caches the attention KV for common prefixes (system prompt).
-#                                   OWU always sends a system prompt; after turn 1 it's a cache hit,
-#                                   cutting TTFT for every subsequent turn significantly.
 #   --enable-chunked-prefill     : interleaves long prefill with decode; reduces TTFT for all
 #                                   concurrent users when one request has a large tool-injected prompt
 #   --default-chat-template-kwargs: disables Qwen3 thinking by default (enable_thinking=false);
@@ -92,7 +89,6 @@ services:
       - "fp8"
       - "--compilation-config"
       - '{"cudagraph_capture_sizes": [1, 2, 4]}'
-      - "--enable-prefix-caching"
       - "--enable-chunked-prefill"
       - "--default-chat-template-kwargs"
       - '{"enable_thinking": false}'
