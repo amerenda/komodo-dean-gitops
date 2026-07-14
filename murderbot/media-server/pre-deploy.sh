@@ -79,6 +79,17 @@ for _plugin in AniDB AniList AniSearch; do
   fi
 done
 
+# Enforce versioned Jellyfin network config.
+# KnownProxies must NOT include 10.100.20.0/24 — listing the whole LAN as a
+# trusted proxy causes Jellyfin to treat the Google Home Display / Chromecast
+# as a proxy, breaking PublishedServerUri selection for Cast devices.
+JELLYFIN_NET_CONF="${CONFIG_ROOT}/jellyfin/config"
+_net_src="murderbot/media-server/config/jellyfin-config/network.xml"
+if [[ -f "$_net_src" ]]; then
+  cp "$_net_src" "${JELLYFIN_NET_CONF}/network.xml"
+  echo "media-server pre-deploy: applied network.xml"
+fi
+
 # Sanity check: assert media-server compose file is at the expected path so
 # Komodo's `docker compose up` doesn't silently use the wrong cwd.
 test -f murderbot/media-server/compose.yaml \
