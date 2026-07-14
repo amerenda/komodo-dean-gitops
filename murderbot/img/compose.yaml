@@ -23,7 +23,7 @@ name: img-murderbot
 
 services:
   comfyui:
-    image: yanwk/comfyui-boot:cu128
+    image: yanwk/comfyui-boot:cu130-slim
     container_name: comfyui
     restart: unless-stopped
     ports:
