@@ -31,6 +31,8 @@ services:
     volumes:
       - /mnt/storage/models:/mnt/models:ro
       - ./extra_model_paths.yaml:/root/ComfyUI/extra_model_paths.yaml:ro
+    tmpfs:
+      - /root/ComfyUI/output:size=512m,mode=700
     deploy:
       resources:
         reservations:
