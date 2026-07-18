@@ -32,10 +32,12 @@ action:
           - service: script.camera_privacy_on
 
       # Nobody home → privacy off, LEDs on (skip if trackers unavailable — HA restart)
+      # for: 5m guards against GPS jitter briefly flipping someone to not_home
       - conditions:
           - condition: state
             entity_id: group.members
             state: "not_home"
+            for: "00:05:00"
           - condition: not
             conditions:
               - condition: state

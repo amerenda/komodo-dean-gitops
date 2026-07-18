@@ -2,15 +2,15 @@ alias: "HA: Everyone Left"
 id: ha_everyone_left
 description: >
   When all tracked members leave home: turn off all lights and set AC to away
-  temp. Fires after a 1-minute hold so a quick trip to the mailbox doesn't
-  trigger it.
+  temp. Fires after a 5-minute hold so GPS jitter (bad accuracy fixes near the
+  zone boundary) or a quick trip to the mailbox doesn't trigger it.
 mode: single
 trigger:
   - platform: state
     entity_id: group.members
     from: "home"
     to: "not_home"
-    for: "00:01:00"
+    for: "00:05:00"
 condition:
   - condition: state
     entity_id: input_boolean.ha_automation_enabled
@@ -19,7 +19,7 @@ condition:
   - condition: not
     conditions:
       - condition: state
-        entity_id: device_tracker.pixel_9_pro_xl_2
+        entity_id: device_tracker.pixel_9_pro_xl
         state: "unavailable"
   - condition: not
     conditions:

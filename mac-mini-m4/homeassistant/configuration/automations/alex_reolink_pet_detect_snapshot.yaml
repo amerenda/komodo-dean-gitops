@@ -8,11 +8,10 @@ triggers:
     from: "off"
     to: "on"
 conditions:
-  - condition: "not"
-    conditions:
-      - condition: "state"
-        entity_id: "person.alex_merenda"
-        state: "home"
+  # for: 5m guards against GPS jitter briefly flipping the person to not_home
+  - condition: "template"
+    value_template: "{{ not is_state('person.alex_merenda', 'home') }}"
+    for: "00:05:00"
 variables:
   CAM_MAP: >
     {{
