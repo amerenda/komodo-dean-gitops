@@ -165,7 +165,11 @@ If the counter grows large again and crashes resume, repeat this step.
 
 Deployed: `~/docker/zigbee2mqtt/slzb-proxy.py` on mac-mini-m4.
 Log: `~/docker/zigbee2mqtt/slzb-proxy.log`.
-Autostart via launchd: TODO (see `launchd/` directory).
+Autostart via launchd: `launchd/com.local.slzb-proxy.plist` (LaunchDaemon,
+`RunAtLoad` + `KeepAlive`, installed 2026-07-19). Without this the proxy only
+ran until the next host reboot, silently losing the crash-loop mitigation —
+this happened at least once (2026-07-19) and the crash loop reappeared within
+minutes of the coordinator reconnecting directly.
 
 ---
 
