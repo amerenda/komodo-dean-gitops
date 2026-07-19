@@ -444,6 +444,7 @@ class SmartLighting {
             case 'Toggle Room':
                 if (this._roomAnyOn(roomName)) {
                     this._sendCommand(`${roomName}/set`, { state: 'OFF' });
+                    this._deviceStateCache[roomName] = 'OFF';
                     this._switchLastScene[roomName] = null;
                 } else {
                     this._switchTurnRoomOn(roomName);
@@ -451,6 +452,7 @@ class SmartLighting {
                 break;
             case 'Power Off Room':
                 this._sendCommand(`${roomName}/set`, { state: 'OFF' });
+                this._deviceStateCache[roomName] = 'OFF';
                 this._switchLastScene[roomName] = null;
                 break;
             case 'Power Off All':
@@ -502,6 +504,7 @@ class SmartLighting {
         // at last state, then set color, causing a visible flicker on power-on).
         const sceneId = WINDOW_SCENE_ID[effectiveWindow];
         this._sendCommand(`${roomName}/set`, { scene_recall: sceneId });
+        this._deviceStateCache[roomName] = 'ON';
         this._switchLastScene[roomName] = effectiveWindow;
     }
 
@@ -509,6 +512,7 @@ class SmartLighting {
         if (!this.config || !this.config.rooms) return;
         for (const roomName of Object.keys(this.config.rooms)) {
             this._sendCommand(`${roomName}/set`, { state: 'OFF' });
+            this._deviceStateCache[roomName] = 'OFF';
             this._switchLastScene[roomName] = null;
         }
         this.logger.info('[SL] All rooms off');
@@ -529,6 +533,7 @@ class SmartLighting {
 
         const sceneId = WINDOW_SCENE_ID[targetWindow];
         this._sendCommand(`${roomName}/set`, { scene_recall: sceneId });
+        this._deviceStateCache[roomName] = 'ON';
         this._switchLastScene[roomName] = targetWindow;
         this.logger.info(`[SL] cycle scene: ${roomName} → ${targetWindow}`);
     }
@@ -616,6 +621,13 @@ class SmartLighting {
     }
 
     _roomAnyOn(roomDisplayName) {
+        // The room-level cache entry is set optimistically the instant a command is
+        // sent (see _switchTurnRoomOn / Toggle Room / _allRoomsOff / _cycleScenesForRoom)
+        // rather than waiting for the bulbs to echo their new state back over Zigbee+MQTT.
+        // That round trip takes 200ms-1s; without the optimistic write, two button
+        // presses inside that window both read the stale pre-command state and send
+        // the same command twice instead of alternating (observed 2026-07-18: rapid
+        // presses produced state:OFF three times in a row instead of toggling).
         if (this._deviceStateCache[roomDisplayName] !== undefined) {
             return this._deviceStateCache[roomDisplayName] === 'ON';
         }

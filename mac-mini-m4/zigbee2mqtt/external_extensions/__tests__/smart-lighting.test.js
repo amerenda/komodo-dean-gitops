@@ -235,6 +235,93 @@ describe('_switchTurnRoomOn — uses scene_recall, not direct command', () => {
     });
 });
 
+// ── Toggle Room regression — rapid repeated presses race the state echo ──────
+//
+// Real incident, 2026-07-18 21:19:58-21:20:00 (kitchen_s_1): a human pressed
+// the switch 6 times in ~2 seconds while troubleshooting. Zigbee2MQTT log
+// showed the sent commands as: scene_recall, OFF, OFF, OFF, scene_recall,
+// scene_recall — three duplicate OFFs in a row instead of alternating, because
+// _roomAnyOn() read _deviceStateCache, which only updates when the bulb echoes
+// its new state back over Zigbee+MQTT (200ms-1s later). A second press inside
+// that window sees the stale pre-command state and repeats the last command
+// instead of flipping it. To the person at the switch this looks exactly like
+// "the switch stopped responding" — it has nothing to do with HA or internet.
+//
+// Fix: _deviceStateCache[roomName] is now set optimistically the instant a
+// command is sent, so a same-tick second press reads the intended state.
+
+describe('Toggle Room — rapid repeated presses alternate instead of racing the echo', () => {
+    function makeConfiguredInstance() {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        config.switches = {
+            kitchen_s_1: { room_group: 'Kitchen', room_key: 'kitchen', b1_short: 'Default' },
+        };
+        config.rooms['Kitchen'] = {
+            lights: ['kitchen_1', 'kitchen_2'],
+            auto_transition: true,
+            transition_secs: 0,
+            motion_night: false,
+            scenes: BASE_CONFIG.rooms['Living Room'].scenes,
+        };
+        const sl = makeInstance(config);
+        sl.currentWindow = 'evening';
+        sl._switchLastScene = {};
+        // Room starts OFF, same as the real incident's first press.
+        sl._deviceStateCache['Kitchen'] = 'OFF';
+        return sl;
+    }
+
+    test('reproduces the 2026-07-18 incident: without the bulb echo, presses still alternate', () => {
+        const sl = makeConfiguredInstance();
+        const sentStates = []; // 'ON' | 'OFF' derived from each command sent
+
+        // Note: _deviceStateCache is NOT updated here to simulate the bulb echo —
+        // this is the worst case, where every press lands before any echo arrives,
+        // exactly like the 6 presses in ~2 seconds from the real log.
+        sl._sendCommand = (topic, payload) => {
+            if (payload.state === 'OFF') sentStates.push('OFF');
+            else if (typeof payload.scene_recall === 'number') sentStates.push('ON');
+        };
+
+        for (let i = 0; i < 6; i++) {
+            sl._executeAction('Toggle Room', sl.config.switches['kitchen_s_1']);
+        }
+
+        // Must strictly alternate ON, OFF, ON, OFF, ON, OFF — never two of the
+        // same state back-to-back, regardless of how fast the presses arrive.
+        expect(sentStates).toEqual(['ON', 'OFF', 'ON', 'OFF', 'ON', 'OFF']);
+    });
+
+    test('optimistic cache write happens synchronously within the same press', () => {
+        const sl = makeConfiguredInstance();
+        sl._sendCommand = jest.fn();
+
+        sl._executeAction('Toggle Room', sl.config.switches['kitchen_s_1']); // OFF → ON
+        expect(sl._deviceStateCache['Kitchen']).toBe('ON');
+
+        sl._executeAction('Toggle Room', sl.config.switches['kitchen_s_1']); // ON → OFF
+        expect(sl._deviceStateCache['Kitchen']).toBe('OFF');
+    });
+
+    test('a late bulb echo confirming the latest command does not disturb the next press', () => {
+        // Once presses stop, the real echo for the *last* command eventually
+        // arrives on the room-level topic and should simply confirm the
+        // optimistic value already there — not flip it.
+        const sl = makeConfiguredInstance();
+        const sentStates = [];
+        sl._sendCommand = (topic, payload) => {
+            if (payload.state === 'OFF') sentStates.push('OFF');
+            else if (typeof payload.scene_recall === 'number') sentStates.push('ON');
+        };
+
+        sl._executeAction('Toggle Room', sl.config.switches['kitchen_s_1']); // → ON (optimistic)
+        sl._deviceStateCache['Kitchen'] = 'ON'; // real echo confirms it, in-order
+        sl._executeAction('Toggle Room', sl.config.switches['kitchen_s_1']); // → OFF (optimistic)
+
+        expect(sentStates).toEqual(['ON', 'OFF']);
+    });
+});
+
 // ── Toggle Room regression — the exact "off works, on doesn't" failure ────────
 //
 // When lights are OFF and the toggle action fires, _executeAction('Toggle Room')
