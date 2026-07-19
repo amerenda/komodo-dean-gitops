@@ -562,6 +562,157 @@ describe('Startup scene push — scene_recall correctness', () => {
     });
 });
 
+// ── HA critical-path guard ────────────────────────────────────────────────────
+//
+// Design intent (homeassistant/README.md "Runtime split (HA = config, Z2M =
+// runtime)"): every physical button press — power on/off, brightness, cycle
+// scenes — must resolve using only this extension + MQTT + the Zigbee
+// coordinator. HA may be completely offline; the extension must still act on
+// whatever config it last cached to disk. These tests fail loudly if a future
+// change reintroduces an HA dependency (an HTTP call to HA's REST API, a wait
+// on a fresh zigbee2mqtt/sl/config push, etc.) into that path.
+
+describe('HA critical-path guard', () => {
+    test('extension source never calls out to Home Assistant or an HTTP client', () => {
+        // jest.mock('fs', ...) above only fakes the module's *internal* fs usage;
+        // requireActual bypasses that mock to read the real file for a static scan.
+        const realFs = jest.requireActual('fs');
+        const src = realFs.readFileSync(require.resolve('../smart-lighting.js'), 'utf8');
+        expect(src).not.toMatch(/homeassistant\.local/i);
+        expect(src).not.toMatch(/\/api\/services/);
+        expect(src).not.toMatch(/:8123/); // HA's default port
+        expect(src).not.toMatch(/\bfetch\(/);
+        expect(src).not.toMatch(/\baxios\b/);
+        expect(src).not.toMatch(/\brequire\(['"]http['"]\)/);
+    });
+
+    // The 8 physical Hue-dimmer actions this extension is responsible for.
+    const ALL_ACTIONS = [
+        'on_press_release', 'on_hold',
+        'up_press_release', 'up_hold',
+        'down_press_release', 'down_hold',
+        'off_press_release', 'off_hold',
+    ];
+
+    function coldStartInstance() {
+        // Simulates the worst case: Z2M restarts while HA/internet are both
+        // unreachable. Config comes only from what start() loaded via
+        // _loadCache() (disk) — never from a fresh HA MQTT config push.
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        config.switches = {
+            living_room_s_1: {
+                room_group: 'Living Room',
+                room_key: 'living_room',
+                brightness_step_pct: 20,
+                min_brightness_pct: 5,
+                // all buttons left as 'Default'
+            },
+        };
+        const sl = makeInstance(config);
+        sl._switchLastScene = {};
+        sl._deviceStateCache['Living Room'] = 'OFF';
+        return sl;
+    }
+
+    test.each(ALL_ACTIONS)('action "%s" is fully handled via _sendCommand, no external dependency', (action) => {
+        const sl = coldStartInstance();
+        sl._sendCommand = jest.fn();
+        sl._sendCommandsStaggered = jest.fn(async () => {});
+
+        expect(() =>
+            sl._onSwitchAction('living_room_s_1', sl.config.switches['living_room_s_1'], action)
+        ).not.toThrow();
+    });
+
+    test('Toggle Room (button 1) powers on from a cold cache with zero HA round-trip', () => {
+        const sl = coldStartInstance();
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._onSwitchAction('living_room_s_1', sl.config.switches['living_room_s_1'], 'on_press_release');
+
+        expect(sent).toHaveLength(1);
+        expect(sent[0].topic).toBe('Living Room/set');
+        expect(typeof sent[0].payload.scene_recall).toBe('number');
+    });
+
+    test('Cycle Scenes (button 4 short) touches only the target room — never another room', () => {
+        const sl = coldStartInstance();
+        sl.config.rooms['Kitchen'] = { ...BASE_CONFIG.rooms['Living Room'], lights: ['kitchen_1'] };
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._onSwitchAction('living_room_s_1', sl.config.switches['living_room_s_1'], 'off_press_release');
+
+        expect(sent.length).toBeGreaterThan(0);
+        for (const { topic } of sent) {
+            expect(topic).toBe('Living Room/set');
+        }
+    });
+
+    test('Cycle Scenes never sends a Multi-Room Scene action, even if the switch has multi_room_groups configured', () => {
+        // A switch can be configured with multi_room_groups for its OWN 'Multi-Room
+        // Scene' button action, but button 4's Cycle Scenes must never fan out to
+        // those groups — cycling is single-room only, regardless of switch config.
+        const sl = coldStartInstance();
+        sl.config.rooms['Bathroom'] = { ...BASE_CONFIG.rooms['Living Room'], lights: ['bathroom_1'] };
+        sl.config.switches['living_room_s_1'].multi_room_groups = ['Bathroom'];
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._onSwitchAction('living_room_s_1', sl.config.switches['living_room_s_1'], 'off_press_release');
+
+        expect(sent.every(({ topic }) => topic === 'Living Room/set')).toBe(true);
+    });
+
+    test('button actions work when config was loaded only from the on-disk cache, never a live HA push', () => {
+        // _loadCache() is the disk-only path start() uses before the
+        // zigbee2mqtt/sl/config subscription ever resolves. Confirms the
+        // cold-start ordering: the cache alone is enough to serve a button press.
+        const cached = JSON.parse(JSON.stringify(BASE_CONFIG));
+        cached.switches = {
+            living_room_s_1: { room_group: 'Living Room', room_key: 'living_room' },
+        };
+        require('fs').readFileSync.mockReturnValueOnce(JSON.stringify(cached));
+
+        const noop = () => {};
+        const logger = { info: noop, warn: noop, error: noop, debug: noop };
+        const eventBus = { onMQTTMessage: noop, removeListeners: noop };
+        const settings = { get: () => ({ mqtt: { server: 'mqtt://localhost:1883' } }) };
+        const sl = new SmartLighting(null, null, null, null, eventBus, null, null, null, settings, logger);
+        sl.config = sl._loadCache(); // disk only — no HA, no MQTT config message involved
+        sl.currentWindow = 'evening';
+        sl._switchLastScene = {};
+        sl._deviceStateCache['Living Room'] = 'OFF';
+
+        expect(sl.config).not.toBeNull(); // sanity: cache actually loaded
+
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+        sl._onSwitchAction('living_room_s_1', sl.config.switches['living_room_s_1'], 'on_press_release');
+
+        expect(sent).toHaveLength(1);
+        expect(typeof sent[0].payload.scene_recall).toBe('number');
+    });
+
+    test('_onSwitchAction and _executeAction never touch config.house_mode via anything but the cached config object', () => {
+        // Guards against a future regression where house_mode (or any gating
+        // value) is fetched live from HA (e.g. states('input_select...')) instead
+        // of read from this.config, which is the only thing guaranteed available
+        // when HA is offline.
+        const sl = coldStartInstance();
+        sl.config.house_mode = 'Sleep';
+        sl.config.rooms['Living Room'].motion_night = false;
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._onSwitchAction('living_room_s_1', sl.config.switches['living_room_s_1'], 'on_press_release');
+
+        // Sleep mode + motion_night off → correctly suppressed using only cached config
+        expect(sent).toHaveLength(0);
+    });
+});
+
 // ── smart_power_on: _onDeviceAnnounce still uses direct command ──────────────
 
 describe('_onDeviceAnnounce — direct command (individual bulb, not group)', () => {
