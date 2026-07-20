@@ -38,6 +38,15 @@ services:
       - ferretdb
     networks:
       - komodo-net
+    # Bridge-network containers resolve via Docker's embedded DNS -> host
+    # resolv.conf -> OrbStack VM forwarder, which has been observed dropping
+    # external resolution (see fix/komodo-core-dns) while Technitium itself
+    # stays healthy. Pin public resolvers so ResourceSync's git fetch to
+    # GitHub doesn't depend on that chain. Docker's embedded DNS still
+    # resolves in-network service names (ferretdb, postgres) locally first.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     ports:
       - "9120:9120"
     env_file: ./compose.env
@@ -58,6 +67,10 @@ services:
     restart: unless-stopped
     networks:
       - komodo-net
+    # Same DNS pin as core — pre_deploy commands call out to bws.com etc.
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
     env_file: ./compose.env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
