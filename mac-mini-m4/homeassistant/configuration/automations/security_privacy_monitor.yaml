@@ -3,7 +3,7 @@ id: security_privacy_monitor
 mode: single
 trigger:
   - platform: time_pattern
-    minutes: "/1"
+    minutes: "/5"
 condition: []
 action:
   # Skip if cameras are disabled/unavailable
