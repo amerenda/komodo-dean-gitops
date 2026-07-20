@@ -2,7 +2,7 @@ mqtt:
   base_topic: zigbee2mqtt
   server: mqtt://10.100.20.18:1883
 serial:
-  port: tcp://10.100.20.179:6638
+  port: tcp://127.0.0.1:6639  # proxied via slzb-proxy.py (keeps SLZB TCP connection alive across Z2M restarts)
   adapter: ember
 frontend:
   enabled: true
