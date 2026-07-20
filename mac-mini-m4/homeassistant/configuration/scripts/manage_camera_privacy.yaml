@@ -16,6 +16,7 @@ camera_privacy_on:
           state: "off"
       then:
         - service: switch.turn_on
+          continue_on_error: true
           target:
             entity_id: switch.bedroom_privacy_mode
         - wait_template: "{{ is_state('switch.bedroom_privacy_mode', 'on') }}"
@@ -40,6 +41,7 @@ camera_privacy_on:
           state: "off"
       then:
         - service: switch.turn_on
+          continue_on_error: true
           target:
             entity_id: switch.living_room_privacy_mode
         - wait_template: "{{ is_state('switch.living_room_privacy_mode', 'on') }}"
@@ -58,22 +60,26 @@ camera_privacy_off:
   sequence:
     # ── Bedroom Camera ──
     - service: switch.turn_off
+      continue_on_error: true
       target:
         entity_id: switch.bedroom_privacy_mode
     - wait_template: "{{ is_state('switch.bedroom_privacy_mode', 'off') }}"
       timeout: "00:00:15"
       continue_on_timeout: true
     - service: light.turn_on
+      continue_on_error: true
       target:
         entity_id: light.bedroom_status_led
 
     # ── Living Room Camera ──
     - service: switch.turn_off
+      continue_on_error: true
       target:
         entity_id: switch.living_room_privacy_mode
     - wait_template: "{{ is_state('switch.living_room_privacy_mode', 'off') }}"
       timeout: "00:00:15"
       continue_on_timeout: true
     - service: light.turn_on
+      continue_on_error: true
       target:
         entity_id: light.living_room_status_led
