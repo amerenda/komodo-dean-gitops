@@ -17,7 +17,13 @@ services:
     volumes:
       - technitium-data:/etc/dns
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/127.0.0.1/5380'"]
+      # Must actually resolve a query on the DNS port (5354), not just check
+      # that the admin UI (5380) accepts a TCP connection. On 2026-07-19 the
+      # DNS listener silently stopped answering while the admin port kept
+      # responding fine — Docker reported "healthy" for 35+ hours while every
+      # client using this resolver (including Tailscale's pushed DNS at
+      # 10.100.20.240, proxied here via dns-udp-proxy.py) got query timeouts.
+      test: ["CMD-SHELL", "dig @127.0.0.1 -p 5354 ha.amer.dev +time=3 +tries=1 +short | grep -q ."]
       interval: 30s
       timeout: 5s
       retries: 3
