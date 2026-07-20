@@ -1,0 +1,29 @@
+name: couchdb
+
+services:
+  # ============================================================
+  # CouchDB — single-node, backs the Obsidian Self-hosted LiveSync
+  # community plugin. Data dir is a host bind mount (see pre_deploy
+  # in resource-sync/stacks.toml, which creates it).
+  # local.d/livesync.ini enables CORS for the Obsidian app origins.
+  # Exposed publicly at couchdb.amer.dev via k3s Traefik ingress
+  # (k3s-dean-gitops/infra/ingresses) — no state lives on k3s.
+  # ============================================================
+  couchdb:
+    image: couchdb:3.4.2
+    container_name: couchdb
+    restart: unless-stopped
+    ports:
+      - "5984:5984"
+    environment:
+      COUCHDB_USER: "admin"
+      COUCHDB_PASSWORD: "${COUCHDB_ADMIN_PASSWORD}"
+      COUCHDB_SECRET: "${COUCHDB_SECRET}"
+    volumes:
+      - /Users/alex/komodo/couchdb/data:/opt/couchdb/data
+      - ./local.d/livesync.ini:/opt/couchdb/etc/local.d/livesync.ini:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://admin:${COUCHDB_ADMIN_PASSWORD}@localhost:5984/_up || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
