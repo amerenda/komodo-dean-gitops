@@ -21,7 +21,11 @@ services:
       COUCHDB_SECRET: "${COUCHDB_SECRET}"
     volumes:
       - /Users/alex/komodo/couchdb/data:/opt/couchdb/data
-      - ./local.d/livesync.ini:/opt/couchdb/etc/local.d/livesync.ini:ro
+      # NOT :ro — the official image's entrypoint chowns /opt/couchdb/etc
+      # recursively to the couchdb user at startup; a read-only mount here
+      # made that chown fail and the container exit instantly (code 1,
+      # ~170ms, no logs) on every restart.
+      - ./local.d/livesync.ini:/opt/couchdb/etc/local.d/livesync.ini
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://admin:${COUCHDB_ADMIN_PASSWORD}@localhost:5984/_up || exit 1"]
       interval: 30s
