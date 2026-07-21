@@ -77,6 +77,16 @@ POST_DISCONNECT_DELAY = 45  # seconds to drain/hold after each Z2M disconnect
 # shorter than this are stale sockets (Z2M crashed before the proxy accepted them)
 # and should not trigger a SLZB drain cycle.
 MIN_REAL_SESSION_DURATION = 5.0  # seconds
+# A tight Z2M crash loop (Docker restarts near-instantly, no backoff) produces
+# a run of stale (<5s) sessions with zero cooldown between them today, which
+# means the protective drain/pause cycle below — the thing that actually
+# recovers the EFR32 from a bad state — never gets a chance to run. Observed
+# 2026-07-20: proxy cycled correctly on every real (>=5s) session and Z2M
+# still failed every time; only a fully-stopped Z2M (no reconnect attempts at
+# all) for 45-60s let the coordinator recover. After this many consecutive
+# stale sessions, force a full recovery cycle anyway to get the same effect
+# without requiring a manual `docker stop`.
+MAX_CONSECUTIVE_STALE = 3
 SLZB_SELECT_TIMEOUT  = 1.0  # select() timeout in _slzb_to_client (lets _stop be checked)
 # After each Z2M disconnect, close and reconnect the SLZB TCP connection.
 # The 20s quiet period (SLZB_RECONNECT_PAUSE) gives EFR32 time to complete
@@ -320,6 +330,7 @@ def serve(slzb: SlzbConnection) -> None:
         f"(post-disconnect drain: {POST_DISCONNECT_DELAY}s)")
 
     last_disconnect = None  # None = first run, no hold needed
+    consecutive_stale = 0   # tight-loop detector — see MAX_CONSECUTIVE_STALE
 
     while True:
         # Hold and drain after each real Z2M disconnect.
@@ -359,16 +370,24 @@ def serve(slzb: SlzbConnection) -> None:
         session_duration = time.monotonic() - session_start
 
         if session_duration < MIN_REAL_SESSION_DURATION:
-            # Very short session = stale socket (Z2M crashed before proxy accepted it,
-            # leaving a CLOSE_WAIT connection in the OS backlog). The EFR32 state
-            # has not been disturbed — skip the SLZB drain cycle and just try the
-            # next accept() to get a fresh connection from Docker's restarted Z2M.
-            # last_disconnect is already None at this point (cleared above), so the
-            # next loop iteration will skip the drain check and go straight to accept().
-            log(f"Short session ({session_duration:.1f}s) — stale connection, "
-                "skipping SLZB cycle")
+            # Very short session = usually a stale socket (Z2M crashed before proxy
+            # accepted it, leaving a CLOSE_WAIT connection in the OS backlog) — the
+            # EFR32 state has not been disturbed, so a single one is safe to skip.
+            # But a *run* of these means Z2M is tight-crash-looping and genuinely
+            # failing its handshake every time — skipping forever starves the one
+            # thing that actually recovers the coordinator. Force a cycle anyway
+            # once that pattern is clear.
+            consecutive_stale += 1
+            log(f"Short session ({session_duration:.1f}s) — stale connection "
+                f"(consecutive={consecutive_stale}), skipping SLZB cycle")
+            if consecutive_stale >= MAX_CONSECUTIVE_STALE:
+                log(f"{consecutive_stale} consecutive stale sessions — Z2M is tight-"
+                    "crash-looping, forcing a full recovery cycle instead of spinning")
+                last_disconnect = time.monotonic()
+                consecutive_stale = 0
             continue
 
+        consecutive_stale = 0
         last_disconnect = time.monotonic()
 
 
