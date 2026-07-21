@@ -136,6 +136,21 @@ if echo "$CHANGED" | grep -qE '^mac-mini-m4/zigbee2mqtt/'; then
     "$DOCKER" restart zigbee2mqtt 2>/dev/null || true
 fi
 
+# slzb-proxy.py runs natively on the host (not in a container) via the
+# com.local.slzb-proxy LaunchDaemon. Docker restart above doesn't touch it —
+# without this, code fixes to the proxy sit on disk until someone manually
+# SSHes in and restarts the process, which is exactly what we're trying to
+# never need. Requires the NOPASSWD sudoers rule from setup-macmini.yml
+# (mini-slzb-proxy tag).
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/zigbee2mqtt/slzb-proxy\.py'; then
+    echo "$(date): slzb-proxy.py changed, kicking com.local.slzb-proxy" >> "$LOG"
+    if sudo -n /bin/launchctl kickstart -k system/com.local.slzb-proxy >>"$LOG" 2>&1; then
+        echo "$(date): kicked slzb-proxy after code change" >> "$LOG"
+    else
+        echo "$(date): WARN: sudo launchctl kickstart slzb-proxy failed (install NOPASSWD via setup-macmini mini-slzb-proxy tag, or restart manually once)" >> "$LOG"
+    fi
+fi
+
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/komodo/'; then
     echo "$(date): komodo stack files changed, redeploying" >> "$LOG"
     # Always use compose down+up (not restart/rm) so network endpoints are
