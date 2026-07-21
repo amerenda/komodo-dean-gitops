@@ -24,12 +24,22 @@
 #   --trust-remote-code          : required for sakamakismile model config loading
 #   --kv-cache-dtype fp8         : 2x KV capacity vs bf16; valid on SM120 Blackwell
 #   --gpu-memory-utilization 0.97: 23.28 GB budget → ~3 GiB KV after ~20 GB profiling peak
-#   --max-model-len 24576        : 24K ctx; ~1.09 GiB KV per session; 2 concurrent sessions
-#                                   fit without preemption (vs 0.73 GiB/16K on prior model)
-#   --compilation-config         : limits CUDA graph capture to batch sizes [1, 2, 4] only.
+#   --max-num-seqs 1              : single-user personal box, not a shared multi-tenant server.
+#                                   Trades concurrency for context: the whole ~51,856-token KV
+#                                   pool goes to one sequence instead of being split for
+#                                   multiple simultaneous callers to queue behind each other.
+#   --max-model-len 49152         : 48K ctx (2x the old 24K) for a single session; stays under
+#                                   the ~51,856-token KV pool measured at util=0.9884 with a
+#                                   ~2.7K token safety margin. Was 24576/max-num-seqs=4 (2
+#                                   concurrent sessions without preemption) — changed because
+#                                   this box now only ever serves one caller at a time
+#                                   (OpenHands, praetor workers, OWU, opencode all queue
+#                                   through the same vllm-server; that's fine for background/
+#                                   personal use).
+#   --compilation-config         : limits CUDA graph capture to batch size [1] only — with
+#                                   max-num-seqs=1, batch size never exceeds 1, so capturing
+#                                   larger shapes would just waste VRAM that KV cache needs.
 #                                   Default capture range goes up to 2048, exhausting VRAM.
-#                                   Capturing only decode batch sizes we actually use prevents
-#                                   OOM while enabling the graph capture that makes SSM fast.
 #   --gpu-memory-utilization 0.9884: vLLM's CUDA graph memory profiling reduces the effective
 #                                   KV budget when util=0.97; 0.9884 is the compensated value
 #                                   vLLM recommended to restore the same KV capacity as eager mode.
@@ -80,15 +90,15 @@ services:
       - "--served-model-name"
       - "qwen36-27b"
       - "--max-model-len"
-      - "24576"
+      - "49152"
       - "--max-num-seqs"
-      - "4"
+      - "1"
       - "--gpu-memory-utilization"
       - "0.9884"
       - "--kv-cache-dtype"
       - "fp8"
       - "--compilation-config"
-      - '{"cudagraph_capture_sizes": [1, 2, 4]}'
+      - '{"cudagraph_capture_sizes": [1]}'
       - "--enable-chunked-prefill"
       - "--default-chat-template-kwargs"
       - '{"enable_thinking": false}'
