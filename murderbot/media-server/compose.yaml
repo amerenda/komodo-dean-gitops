@@ -175,6 +175,85 @@ services:
     dns: *dns-servers
     restart: unless-stopped
 
+  # ── Book acquisition/library stack ────────────────────────────────────────
+  # calibre owns the canonical library (metadata.db, Author/Title/ tree,
+  # calibredb) at CALIBRE_LIBRARY_FOLDER. lazylibrarian searches/acquires via
+  # the existing prowlarr/sabnzbd and imports straight into that library via
+  # calibredb (see Config -> Processing in the LazyLibrarian UI). calibre-web
+  # is the read-facing OPDS/browsing frontend over the same library. All
+  # three complementary, not redundant — see murderbot/media-server/README.md.
+
+  calibre:
+    container_name: calibre
+    image: lscr.io/linuxserver/calibre:9.11.0
+    networks:
+      servarr:
+    dns: *dns-servers
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+    volumes:
+      - ${CALIBRE_CONFIG}:/config
+      - ${CALIBRE_LIBRARY_FOLDER}:/books
+    ports:
+      - 8080:8080 # noVNC desktop GUI, HTTP — LAN-only, no public ingress
+    shm_size: "1gb"
+    security_opt:
+      - seccomp:unconfined
+    restart: unless-stopped
+
+  calibre-web:
+    container_name: calibre-web
+    image: lscr.io/linuxserver/calibre-web:0.6.26
+    networks:
+      servarr:
+    dns: *dns-servers
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+      # No DOCKER_MODS here on purpose — calibre already owns calibredb and
+      # is the one writer to the library; calibre-web only reads metadata.db
+      # natively, no mod needed. Fewer moving parts, fewer things to break.
+    volumes:
+      - ${CALIBREWEB_CONFIG}:/config
+      - ${CALIBRE_LIBRARY_FOLDER}:/books
+    ports:
+      - 8083:8083
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/"]
+      start_period: 20s
+      timeout: 5s
+      interval: 30s
+      retries: 3
+    restart: unless-stopped
+
+  lazylibrarian:
+    container_name: lazylibrarian
+    image: lscr.io/linuxserver/lazylibrarian:f4110fff-ls314
+    networks:
+      servarr:
+    dns: *dns-servers
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+      - DOCKER_MODS=linuxserver/mods:universal-calibre
+    volumes:
+      - ${LAZYLIBRARIAN_CONFIG}:/config
+      - ${CALIBRE_LIBRARY_FOLDER}:/calibre-library
+      - ${USENET_DOWNLOADS}:/downloads
+    ports:
+      - 5299:5299
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5299/"]
+      start_period: 30s
+      timeout: 5s
+      interval: 30s
+      retries: 3
+    restart: unless-stopped
+
 
 networks:
    servarr:
