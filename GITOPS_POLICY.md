@@ -27,6 +27,14 @@ described in git and applied through automation.
    - Emergency manual intervention is allowed only to restore service; it must
      be followed by a same-day PR that makes the fix reproducible.
 
+4. **Komodo Periphery is the sole deployer of stacks it declares**
+   - Any stack declared in `resource-sync/stacks.toml` may only be deployed by
+     Komodo Periphery. Scripts on the host (e.g. `sync-stacks.sh`) must never
+     run `docker compose up`/`down` against a Komodo-managed stack's compose
+     file — two uncoordinated deployers racing on the same containers leaves
+     zombie `Created` containers that never start (see 2026-07-22 runners
+     incident).
+
 ## Scope Boundary: Where Changes Belong
 
 - **Host-level concerns** (Docker daemon config, systemd units, package manager
