@@ -227,7 +227,7 @@ services:
     ports:
       - 8083:8083
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8083/"]
+      test: ["CMD", "curl", "-sf", "-o", "/dev/null", "http://localhost:8083/"]
       start_period: 20s
       timeout: 5s
       interval: 30s
@@ -252,7 +252,7 @@ services:
     ports:
       - 5299:5299
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5299/"]
+      test: ["CMD", "curl", "-sf", "-o", "/dev/null", "http://localhost:5299/"]
       start_period: 30s
       timeout: 5s
       interval: 30s
