@@ -45,25 +45,36 @@ What this proxy fixes (4 failure modes):
    reaches 3). The proxy's own reconnect()/drain() cycle kept running
    correctly the whole time (confirmed via its logs) but never once produced
    a working Z2M startup. `docker stop`/`start` on the zigbee2mqtt container
-   alone did NOT fix it. Restarting the proxy *process* itself did, on the
-   very next cycle — its own long-held SlzbConnection/thread state, not the
-   EFR32, was the actual stuck point. Fix: if no session has run long enough
-   to count as genuinely stable for MAX_TIME_WITHOUT_STABLE_SESSION seconds,
-   despite ongoing cycling, exit the process. launchd's KeepAlive respawns it
-   immediately with fully fresh sockets/threads, and Z2M's own
-   restart:unless-stopped picks up the fresh proxy on its next attempt.
+   alone did NOT fix it that time. Restarting the proxy *process* itself did,
+   on the very next cycle.
 
-Root cause that STILL requires an EFR32 firmware update:
-  - SET_CONFIGURATION_VALUE commands from herdsman during init dirty NVM tokens.
-    EmberZNet's NVM save timer fires ~7-8s after init completes and writes those
-    tokens to flash. EFR32 firmware 8.0.2 b397 sends RESET_SOFTWARE when writing
-    NVM (known bug), crashing Z2M. This NVM write is INDEPENDENT of the
-    coordinator_backup.json frame_counter. Burn-in (repeated cycles) may
-    eventually converge if writes succeed before RESET_SOFTWARE, but the 8.0.2
-    b397 bug may prevent convergence entirely.
-  - Fix: update EFR32 coordinator firmware via http://10.100.20.179 → Settings →
-    Firmware update → Flash latest Zigbee coordinator firmware. Try dev builds if
-    no newer stable build is available.
+   Neither alone is reliable every time — observed again 2026-07-22, a few
+   hours later: proxy-only process restarts (the first version of this fix)
+   fired repeatedly and correctly, but Z2M's restart:unless-stopped kept
+   hammering reconnects the entire time, and the SLZB's own TCP listener on
+   :6638 started refusing/timing out new connections for 60-70s stretches —
+   the loop never actually cleared. Matches the documented incident history
+   (module docstring): only a genuinely undisturbed window — Z2M making ZERO
+   connection attempts, not just a fresh proxy socket — reliably lets the
+   EFR32 settle. Fix: if no session has run long enough to count as
+   genuinely stable for MAX_TIME_WITHOUT_STABLE_SESSION seconds despite
+   ongoing cycling, do both together — `docker stop` zigbee2mqtt, hold for
+   FORCE_RESTART_STOP_DURATION seconds while it's fully down, `docker start`
+   it, then exit this process so launchd respawns it with fully fresh
+   sockets/threads just as Z2M's fresh reconnect attempts arrive.
+
+NOT an EFR32 firmware issue (corrected 2026-07-20, re-confirmed 2026-07-22):
+  an earlier version of this docstring concluded the RESET_SOFTWARE/NVM-token
+  bug above required an EFR32 coordinator firmware update. That recurred with
+  firmware unchanged and was resolved without touching firmware both times —
+  do not suggest a firmware update for this. The actual fix is a clean, fully
+  -stopped recovery window: `docker stop zigbee2mqtt`, wait 45-60s with the
+  container genuinely down (not crash-restarting), `docker start`. Docker's
+  `restart: unless-stopped` reconnects near-instantly on crash with no
+  backoff, and repeated rapid Z2M reconnect attempts never give the EFR32 an
+  undisturbed window to settle — only a real stop guarantees one. This proxy
+  now does replicate that automatically as of failure mode 4 above — stop
+  Z2M outright rather than trying to out-clever it purely at the proxy layer.
 
 Listen: 127.0.0.1:6639  →  SLZB: 10.100.20.179:6638
 """
@@ -73,6 +84,7 @@ from __future__ import annotations
 import os
 import select
 import socket
+import subprocess
 import threading
 import time
 import syslog
@@ -111,6 +123,12 @@ STABLE_SESSION_DURATION = 60.0  # seconds
 # ongoing cycling, the proxy's own process state — not just Z2M/EFR32 — is the
 # likely culprit (see failure mode 4 above). Exit and let launchd respawn us.
 MAX_TIME_WITHOUT_STABLE_SESSION = 180.0  # seconds
+# Docker binary + container name for the force-recovery stop/start cycle.
+DOCKER_BIN = os.environ.get("DOCKER_BIN", "/Users/alex/.orbstack/bin/docker")
+ZIGBEE2MQTT_CONTAINER = "zigbee2mqtt"
+# How long to hold zigbee2mqtt fully stopped — matches the documented manual
+# recovery window (45-60s) that has reliably cleared this loop historically.
+FORCE_RESTART_STOP_DURATION = 60.0  # seconds
 SLZB_SELECT_TIMEOUT  = 1.0  # select() timeout in _slzb_to_client (lets _stop be checked)
 # After each Z2M disconnect, close and reconnect the SLZB TCP connection.
 # The 20s quiet period (SLZB_RECONNECT_PAUSE) gives EFR32 time to complete
@@ -345,6 +363,39 @@ class ClientSession:
                 return
 
 
+def force_recovery() -> None:
+    """Stop zigbee2mqtt, hold it fully down, restart it, then exit this process.
+
+    See failure mode 4 in the module docstring. Restarting the proxy process
+    alone is not reliable — Z2M's restart:unless-stopped keeps attempting
+    reconnects the whole time, which appears to be exactly what prevents the
+    SLZB's TCP listener / EFR32 from ever getting a genuinely undisturbed
+    window. Stop Z2M outright (zero connection attempts, matching the
+    documented manual fix) and only then cycle this process so a fresh proxy
+    is ready by the time Z2M's own reconnect attempts resume.
+    """
+    log(f"No stable session (>= {STABLE_SESSION_DURATION:.0f}s) in over "
+        f"{MAX_TIME_WITHOUT_STABLE_SESSION:.0f}s despite ongoing cycling — "
+        f"stopping {ZIGBEE2MQTT_CONTAINER} for {FORCE_RESTART_STOP_DURATION:.0f}s "
+        "and restarting this proxy for a clean recovery attempt",
+        syslog.LOG_WARNING)
+    try:
+        subprocess.run([DOCKER_BIN, "stop", ZIGBEE2MQTT_CONTAINER],
+                        check=True, capture_output=True, timeout=30)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
+        log(f"Failed to stop {ZIGBEE2MQTT_CONTAINER}: {e} — proceeding with hold anyway",
+            syslog.LOG_ERR)
+    time.sleep(FORCE_RESTART_STOP_DURATION)
+    try:
+        subprocess.run([DOCKER_BIN, "start", ZIGBEE2MQTT_CONTAINER],
+                        check=True, capture_output=True, timeout=30)
+        log(f"{ZIGBEE2MQTT_CONTAINER} restarted after forced recovery hold")
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as e:
+        log(f"Failed to start {ZIGBEE2MQTT_CONTAINER}: {e}", syslog.LOG_ERR)
+    # Exit regardless so launchd hands the next connection attempt a fresh process.
+    sys.exit(1)
+
+
 def serve(slzb: SlzbConnection) -> None:
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -401,11 +452,7 @@ def serve(slzb: SlzbConnection) -> None:
             # (or the proxy is stale-cycling) but none has ever reached a genuinely
             # stable duration — the proxy's own reconnect/drain cycle is running
             # but not fixing anything. See failure mode 4 in the module docstring.
-            log(f"No stable session (>= {STABLE_SESSION_DURATION:.0f}s) in over "
-                f"{MAX_TIME_WITHOUT_STABLE_SESSION:.0f}s despite ongoing cycling — "
-                "restarting proxy process for a clean connection (launchd will respawn)",
-                syslog.LOG_WARNING)
-            sys.exit(1)
+            force_recovery()  # does not return — stops Z2M, holds, restarts it, exits
 
         if session_duration < MIN_REAL_SESSION_DURATION:
             # Very short session = usually a stale socket (Z2M crashed before proxy
