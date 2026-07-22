@@ -99,6 +99,31 @@ services:
       timeout: 5s
       retries: 3
 
+  # ============================================================
+  # libsync-redis — dedicated Redis for the libsync (KOReader kosync)
+  # k3s deployment. Only libsync talks to this instance — nothing else
+  # should be pointed at it.
+  # network_mode: host — accessible at 10.100.20.18:6379 from the LAN
+  # (k3s pods included, regardless of which node they schedule on).
+  # ============================================================
+  libsync-redis:
+    image: redis:8.8.0-alpine
+    container_name: libsync-redis
+    restart: unless-stopped
+    network_mode: host
+    command: >
+      redis-server
+      --requirepass ${LIBSYNC_REDIS_PASSWORD}
+      --port 6379
+      --appendonly yes
+    volumes:
+      - libsync-redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${LIBSYNC_REDIS_PASSWORD}", "--no-auth-warning", "ping"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
 volumes:
   technitium-data:
     external: true
@@ -109,4 +134,12 @@ volumes:
   mongo-data:
     external: true
     name: services_mongo-data
+  # Plain named volume (not external: true) — Compose auto-creates this on
+  # first `up`, no manual/Ansible step required. The other 4 volumes in this
+  # file use external: true but nothing in this repo or ansible-playbooks
+  # actually creates them, meaning they were hand-created once (a gap
+  # GITOPS_POLICY.md itself flags as a bug). Not propagating that gap here:
+  # this repo already bans `docker compose down -v` / individual container
+  # rm, so a plain named volume is exactly as durable in practice.
+  libsync-redis-data:
   qdrant-data:
