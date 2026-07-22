@@ -56,6 +56,7 @@ printf 'BACKUP_SECRET_KEY=%s\n' "$(bws secret get d2d87681-b2e3-4a3e-b821-b37300
 printf 'BACKUP_ENDPOINT=%s\n' "$(bws secret get 2c95ebd0-9330-455b-abbd-b37300e580b0 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/core/.env
 printf 'QDRANT_API_KEY=%s\n' "$(bws secret get d134c7a7-de93-46d5-8e77-b46501500d97 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/core/.env
 printf 'OPENWEBUI_DB_PASSWORD=%s\n' "$(bws secret get ba388db7-ff49-4c2f-a019-b46b003c2581 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/core/.env
+printf 'LIBSYNC_REDIS_PASSWORD=%s\n' "$(bws secret get 555eb43b-3749-408d-b90b-b48f0102406e --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/core/.env
 """
 
 # ── Automation: Home Assistant, Voice Pipeline, Zigbee, MQTT ───────────────
