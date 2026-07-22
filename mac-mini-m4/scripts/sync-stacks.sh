@@ -112,11 +112,17 @@ fi
 
 # Paths are repo-root-relative (e.g. mac-mini-m4/homeassistant/...) after the
 # komodo-dean-gitops layout move; older ^homeassistant/ patterns never matched.
-if echo "$CHANGED" | grep -qE '^mac-mini-m4/monitoring/compose\.yaml'; then
-    # compose.yaml changed — command-line flags don't take effect on reload; need full compose up.
-    echo "$(date): monitoring compose.yaml changed — running compose up" >> "$LOG"
-    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/monitoring/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
-elif echo "$CHANGED" | grep -qE '^mac-mini-m4/monitoring/'; then
+#
+# monitoring/, core/, runners/, and openwebui/ are declared in
+# resource-sync/stacks.toml — Komodo Periphery is their sole deployer via
+# GitHub stack-deploy webhooks (see mac-mini-m4/CLAUDE.md and
+# GITOPS_POLICY.md). This script must never run `docker compose up/down`
+# against a Komodo-managed stack's compose file; two uncoordinated deployers
+# racing on the same containers left 19 zombie `Created` containers
+# (2026-07-22 incident). Config/rules-only reload hooks below (which just
+# `docker restart` an already-running container, not `compose up`) are fine —
+# they don't collide with Komodo's own reconciliation.
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/monitoring/'; then
     echo "$(date): monitoring config/rules changed — reloading prometheus, restarting grafana" >> "$LOG"
     # Prometheus supports live config reload via HTTP (--web.enable-lifecycle); no restart needed.
     curl -sf -X POST http://localhost:9090/-/reload >> "$LOG" 2>&1 \
@@ -158,35 +164,4 @@ if echo "$CHANGED" | grep -qE '^mac-mini-m4/komodo/'; then
     # libnetwork endpoints that block future deploys.
     "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/komodo/compose.yaml" down --remove-orphans >> "$LOG" 2>&1 || true
     "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/komodo/compose.yaml" up -d >> "$LOG" 2>&1 || true
-fi
-
-if echo "$CHANGED" | grep -qE '^mac-mini-m4/core/'; then
-    echo "$(date): core stack files changed, redeploying" >> "$LOG"
-    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" down --remove-orphans >> "$LOG" 2>&1 || true
-    # OrbStack leaves stale host-network endpoint registrations behind even after container
-    # removal. The endpoint is registered when the container is Created (not Started), so
-    # compose down's removal of running containers doesn't always clear it.
-    # Fix: disconnect the endpoint by container ID, then force-remove Created containers.
-    for _svc in postgres mongo qdrant technitium; do
-        _cid=$("$DOCKER" ps -a --filter "name=^${_svc}$" --format "{{.ID}}" 2>/dev/null | head -1)
-        if [[ -n "$_cid" ]]; then
-            "$DOCKER" network disconnect --force host "$_cid" >> "$LOG" 2>&1 || true
-        fi
-    done
-    # Remove any containers that survived compose down (e.g. Created state from prior failed up)
-    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" rm -sf >> "$LOG" 2>&1 || true
-    "$DOCKER" compose -f "$HOST_REPO/mac-mini-m4/core/compose.yaml" up -d >> "$LOG" 2>&1 || true
-fi
-
-if echo "$CHANGED" | grep -qE '^mac-mini-m4/runners/'; then
-    echo "$(date): runners stack files changed, redeploying" >> "$LOG"
-    "$DOCKER" compose -p runners -f "$HOST_REPO/mac-mini-m4/runners/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
-fi
-
-if echo "$CHANGED" | grep -qE '^mac-mini-m4/openwebui/'; then
-    echo "$(date): openwebui stack files changed, redeploying" >> "$LOG"
-    # openwebui compose uses env_file (.env written by inject-secrets) so we run
-    # compose from the Komodo stacks checkout (already pulled by the sync loop above).
-    OWUI_STACKS_DIR="$STACKS_ROOT/openwebui"
-    "$DOCKER" compose -f "$OWUI_STACKS_DIR/mac-mini-m4/openwebui/compose.yaml" up -d --remove-orphans >> "$LOG" 2>&1 || true
 fi

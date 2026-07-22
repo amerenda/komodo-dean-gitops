@@ -1,0 +1,16 @@
+name: GitOps Policy Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  no-compose-collision:
+    name: sync-stacks.sh does not race Komodo-declared stacks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check sync-stacks.sh vs resource-sync/stacks.toml
+        run: python3 mac-mini-m4/scripts/check-no-compose-collision.py
