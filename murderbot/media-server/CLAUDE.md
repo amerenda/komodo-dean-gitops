@@ -54,3 +54,6 @@ This will regenerate the 63+ contaminated movie.nfo files from TMDB only.
 | jellyfin | `linuxserver/jellyfin` | `10.11.8` | Pinned since stack creation |
 | seerr | `ghcr.io/seerr-team/seerr` | `v3.2.0` | GitHub release tag |
 | recyclarr | `ghcr.io/recyclarr/recyclarr` | `7` | Major version only (stable v7 API) |
+| calibre | `lscr.io/linuxserver/calibre` | `9.11.0` | linuxserver tag (no `-lsN`) |
+| calibre-web | `lscr.io/linuxserver/calibre-web` | `0.6.26` | linuxserver tag (no `-lsN`) |
+| lazylibrarian | `lscr.io/linuxserver/lazylibrarian` | `f4110fff-ls314` | No semver releases exist upstream — only commit-hash build tags. This is linuxserver's current build, not `:latest`. |
