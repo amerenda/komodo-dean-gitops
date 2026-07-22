@@ -4,13 +4,20 @@
 <dict>
     <key>Label</key>
     <string>com.local.slzb-proxy</string>
+    <!-- Runs the script directly from the gitops clone (kept current by the
+         60s com.local.komodo-stack-sync pull) so that `launchctl kickstart`
+         after a code change actually picks up the new code. Previously
+         pointed at /Users/alex/docker/zigbee2mqtt/slzb-proxy.py, a one-off
+         copy last touched 2026-05-26 — every proxy fix merged since then
+         (including #172 and #174) was kickstarted but never actually ran,
+         because the executed file was never updated. Discovered 2026-07-21. -->
     <key>ProgramArguments</key>
     <array>
         <string>/usr/bin/python3</string>
-        <string>/Users/alex/docker/zigbee2mqtt/slzb-proxy.py</string>
+        <string>/Users/alex/komodo-dean-gitops/mac-mini-m4/zigbee2mqtt/slzb-proxy.py</string>
     </array>
     <key>WorkingDirectory</key>
-    <string>/Users/alex/docker/zigbee2mqtt</string>
+    <string>/Users/alex/komodo-dean-gitops/mac-mini-m4/zigbee2mqtt</string>
     <key>RunAtLoad</key>
     <true/>
     <key>KeepAlive</key>
