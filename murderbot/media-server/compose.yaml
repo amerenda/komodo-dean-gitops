@@ -197,7 +197,12 @@ services:
       - ${CALIBRE_CONFIG}:/config
       - ${CALIBRE_LIBRARY_FOLDER}:/books
     ports:
-      - 8080:8080 # noVNC desktop GUI, HTTP — LAN-only, no public ingress
+      - 8082:8080 # noVNC desktop GUI, HTTP — LAN-only, no public ingress.
+                  # NOT 8080: that's already bound on this host by
+                  # zigbee2mqtt's frontend (network_mode: host), missed by
+                  # the original port audit since it only grepped murderbot's
+                  # own compose.yaml files, not mac-mini-m4/automation's
+                  # (zigbee2mqtt evidently also runs on this physical host).
     shm_size: "1gb"
     security_opt:
       - seccomp:unconfined
