@@ -16,7 +16,7 @@ Root cause of crash loop:
   frame_counter=0 so herdsman never writes a frame counter to EFR32 (EFR32
   always has counter >= 0, so no write is needed).
 
-What this proxy fixes (3 failure modes):
+What this proxy fixes (4 failure modes):
 
 1. HOST_FATAL_ERROR on new connection — stale RSTACK data accumulates in
    the SLZB TCP receive buffer while Z2M is crashed. When Z2M reconnects,
@@ -37,6 +37,21 @@ What this proxy fixes (3 failure modes):
    connection that immediately returns EOF, triggering another unnecessary drain
    cycle. Fix: track session duration; sessions < MIN_REAL_SESSION_DURATION are
    stale and skipped (no drain started).
+
+4. Long-lived proxy process itself gets stuck — observed 2026-07-21: Z2M was
+   crash-looping for 9+ minutes in a pattern that never tripped the
+   MAX_CONSECUTIVE_STALE detector below (one stale session followed by one
+   ~15s "real" session each cycle, which resets the stale counter before it
+   reaches 3). The proxy's own reconnect()/drain() cycle kept running
+   correctly the whole time (confirmed via its logs) but never once produced
+   a working Z2M startup. `docker stop`/`start` on the zigbee2mqtt container
+   alone did NOT fix it. Restarting the proxy *process* itself did, on the
+   very next cycle — its own long-held SlzbConnection/thread state, not the
+   EFR32, was the actual stuck point. Fix: if no session has run long enough
+   to count as genuinely stable for MAX_TIME_WITHOUT_STABLE_SESSION seconds,
+   despite ongoing cycling, exit the process. launchd's KeepAlive respawns it
+   immediately with fully fresh sockets/threads, and Z2M's own
+   restart:unless-stopped picks up the fresh proxy on its next attempt.
 
 Root cause that STILL requires an EFR32 firmware update:
   - SET_CONFIGURATION_VALUE commands from herdsman during init dirty NVM tokens.
@@ -87,6 +102,15 @@ MIN_REAL_SESSION_DURATION = 5.0  # seconds
 # stale sessions, force a full recovery cycle anyway to get the same effect
 # without requiring a manual `docker stop`.
 MAX_CONSECUTIVE_STALE = 3
+# A session this long or longer means Z2M is genuinely up and running (real
+# sessions just don't end on their own once zigbee-herdsman has actually
+# started — something failing repeatedly at ~15-20s per attempt is still a
+# failed startup, not recovery, even though it clears MIN_REAL_SESSION_DURATION).
+STABLE_SESSION_DURATION = 60.0  # seconds
+# If no session has reached STABLE_SESSION_DURATION within this window despite
+# ongoing cycling, the proxy's own process state — not just Z2M/EFR32 — is the
+# likely culprit (see failure mode 4 above). Exit and let launchd respawn us.
+MAX_TIME_WITHOUT_STABLE_SESSION = 180.0  # seconds
 SLZB_SELECT_TIMEOUT  = 1.0  # select() timeout in _slzb_to_client (lets _stop be checked)
 # After each Z2M disconnect, close and reconnect the SLZB TCP connection.
 # The 20s quiet period (SLZB_RECONNECT_PAUSE) gives EFR32 time to complete
@@ -331,6 +355,7 @@ def serve(slzb: SlzbConnection) -> None:
 
     last_disconnect = None  # None = first run, no hold needed
     consecutive_stale = 0   # tight-loop detector — see MAX_CONSECUTIVE_STALE
+    last_stable_at = time.monotonic()  # process-stuck detector — see MAX_TIME_WITHOUT_STABLE_SESSION
 
     while True:
         # Hold and drain after each real Z2M disconnect.
@@ -368,6 +393,19 @@ def serve(slzb: SlzbConnection) -> None:
         session = ClientSession(client_sock, addr, slzb)
         session.run()  # synchronous — only one Z2M client at a time
         session_duration = time.monotonic() - session_start
+
+        if session_duration >= STABLE_SESSION_DURATION:
+            last_stable_at = time.monotonic()
+        elif time.monotonic() - last_stable_at > MAX_TIME_WITHOUT_STABLE_SESSION:
+            # Sessions have been long enough to clear MIN_REAL_SESSION_DURATION
+            # (or the proxy is stale-cycling) but none has ever reached a genuinely
+            # stable duration — the proxy's own reconnect/drain cycle is running
+            # but not fixing anything. See failure mode 4 in the module docstring.
+            log(f"No stable session (>= {STABLE_SESSION_DURATION:.0f}s) in over "
+                f"{MAX_TIME_WITHOUT_STABLE_SESSION:.0f}s despite ongoing cycling — "
+                "restarting proxy process for a clean connection (launchd will respawn)",
+                syslog.LOG_WARNING)
+            sys.exit(1)
 
         if session_duration < MIN_REAL_SESSION_DURATION:
             # Very short session = usually a stale socket (Z2M crashed before proxy
