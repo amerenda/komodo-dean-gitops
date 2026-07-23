@@ -146,7 +146,7 @@ services:
       komodo.skip:
     depends_on:
       llama-server:
-        condition: service_healthy
+        condition: service_started
     environment:
       LLAMA_URL: "http://llama-server:8088"
       SEARXNG_URL: "https://searxng.amer.dev"
