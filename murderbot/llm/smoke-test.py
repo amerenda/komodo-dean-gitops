@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-Smoke test for llm-murderbot (vLLM on NVIDIA RTX PRO 4000 Blackwell, SM_120a).
+Smoke test for llm-murderbot (llama.cpp on NVIDIA RTX PRO 4000 Blackwell, SM_120a).
 Runs once after Komodo deploy (restart: "no"). Exit 0 = all critical checks passed.
 
 Tests:
-  1. vLLM server health endpoint
-  2. Expected model loaded and named correctly
-  3. GPU KV cache loaded (vLLM Prometheus metrics)
-  4. Tool calling returns JSON format (not XML)
-  5. Real web search via SearXNG (tool execution)
-  6. Synthesis after tool turn (non-empty response)
-  7. Uncensored model available in HF cache (AEON benchmark model)
-  8. Token throughput benchmark (tokens/s)
+  1. llama-server health endpoint
+  2. Expected model loaded
+  3. Tool calling returns JSON format (not XML)
+  4. Real web search via SearXNG (tool execution)
+  5. Synthesis after tool turn (non-empty response)
+  6. Token throughput benchmark (tokens/s) -- MTP speculative decoding should land
+     well above the old vLLM baseline (~25-32 tok/s); this checks a floor, not the
+     ceiling, since draft-acceptance rate varies by content.
 """
 import json
 import os
@@ -21,15 +21,11 @@ import urllib.request
 import urllib.parse
 import urllib.error
 
-VLLM_URL = os.environ.get("VLLM_URL", "http://vllm-server:8088")
+LLAMA_URL = os.environ.get("LLAMA_URL", "http://llama-server:8088")
 SEARXNG_URL = os.environ.get("SEARXNG_URL", "https://searxng.amer.dev")
-EXPECTED_MODEL = os.environ.get("EXPECTED_MODEL", "qwen36-27b")
-# Production model (abliterated text-only, same as vllm-server primary)
-UNCENSORED_MODEL_ID = os.environ.get(
-    "UNCENSORED_MODEL_ID",
-    "sakamakismile/Huihui-Qwen3.6-27B-abliterated-NVFP4-TEXT-MTP",
-)
-HF_HOME = os.environ.get("HF_HOME", "/mnt/models/hf-cache")
+# llama-server reports whatever --alias was set to as its "id" in /v1/models
+# (murderbot/llm/compose.yaml sets --alias qwen36-35b-a3b) rather than the raw GGUF path.
+EXPECTED_MODEL_SUBSTR = os.environ.get("EXPECTED_MODEL_SUBSTR", "qwen36-35b-a3b")
 
 PASS: list[str] = []
 WARN: list[str] = []
@@ -70,68 +66,35 @@ def get_text(url: str, timeout: int = 10) -> str:
 
 
 print("=" * 60)
-print("llm-murderbot smoke test")
-print(f"  vLLM URL : {VLLM_URL}")
-print(f"  Model    : {EXPECTED_MODEL}")
-print(f"  SearXNG  : {SEARXNG_URL}")
+print("llm-murderbot smoke test (llama.cpp)")
+print(f"  llama.cpp URL : {LLAMA_URL}")
+print(f"  Model         : *{EXPECTED_MODEL_SUBSTR}*")
+print(f"  SearXNG       : {SEARXNG_URL}")
 print("=" * 60)
 
-# ── 1. vLLM health ────────────────────────────────────────────────────────────
-print("\n[1] vLLM server health")
+# ── 1. llama-server health ────────────────────────────────────────────────────
+print("\n[1] llama-server health")
 try:
-    get_text(f"{VLLM_URL}/health", timeout=10)
-    check("vllm_health", True)
+    get_text(f"{LLAMA_URL}/health", timeout=10)
+    check("llama_health", True)
 except Exception as e:
-    check("vllm_health", False, str(e))
+    check("llama_health", False, str(e))
 
-# ── 2. Model loaded with correct served name ───────────────────────────────────
+# ── 2. Model loaded ────────────────────────────────────────────────────────────
 print("\n[2] Model loaded")
 try:
-    models_data = get_json(f"{VLLM_URL}/v1/models", timeout=10)
-    model_ids = [m["id"] for m in models_data.get("data", [])]
+    models_data = get_json(f"{LLAMA_URL}/v1/models", timeout=10)
+    model_ids = [m.get("id", "") for m in models_data.get("models", models_data.get("data", []))]
     check(
         "model_loaded",
-        EXPECTED_MODEL in model_ids,
-        f"expected {EXPECTED_MODEL!r}, got {model_ids}",
+        any(EXPECTED_MODEL_SUBSTR in m for m in model_ids),
+        f"expected substring {EXPECTED_MODEL_SUBSTR!r}, got {model_ids}",
     )
 except Exception as e:
     check("model_loaded", False, str(e))
 
-# ── 3. GPU KV cache loaded (via vLLM Prometheus metrics) ─────────────────────
-print("\n[3] GPU KV cache")
-try:
-    metrics_text = get_text(f"{VLLM_URL}/metrics", timeout=10)
-    kv_cache_usage = None
-    num_gpu_blocks = 0
-    for line in metrics_text.splitlines():
-        # kv_cache_usage_perc is 0.0 when idle — that's correct; metric existing proves GPU KV is set up
-        if line.startswith("vllm:kv_cache_usage_perc") and not line.startswith("#"):
-            try:
-                kv_cache_usage = float(line.split()[-1])
-            except (ValueError, IndexError):
-                pass
-        # cache_config_info has num_gpu_blocks label — positive value = model loaded, VRAM reserved
-        if "num_gpu_blocks=" in line and not line.startswith("#"):
-            try:
-                import re
-                m = re.search(r'num_gpu_blocks="(\d+)"', line)
-                if m:
-                    num_gpu_blocks = int(m.group(1))
-            except Exception:
-                pass
-    check(
-        "gpu_kv_cache_loaded",
-        kv_cache_usage is not None and num_gpu_blocks > 0,
-        f"kv_cache_usage={kv_cache_usage} num_gpu_blocks={num_gpu_blocks} "
-        f"(metric missing or no GPU blocks — model may not be loaded in VRAM)",
-    )
-    if kv_cache_usage is not None:
-        print(f"         KV cache usage: {kv_cache_usage:.1%}  GPU blocks: {num_gpu_blocks}")
-except Exception as e:
-    check("gpu_kv_cache_loaded", False, str(e), warn_only=True)
-
-# ── 4. Tool calling — JSON format, not XML ────────────────────────────────────
-print("\n[4] Tool calling format")
+# ── 3. Tool calling — JSON format, not XML ────────────────────────────────────
+print("\n[3] Tool calling format")
 MOCK_TOOL = [
     {
         "type": "function",
@@ -150,16 +113,17 @@ MOCK_TOOL = [
 tool_call_id = "call_smoke_0"
 try:
     resp = post_json(
-        f"{VLLM_URL}/v1/chat/completions",
+        f"{LLAMA_URL}/v1/chat/completions",
         {
-            "model": EXPECTED_MODEL,
             "messages": [
                 {"role": "user", "content": "Search for information about Python programming language."},
             ],
             "tools": MOCK_TOOL,
             "tool_choice": "required",
-            "max_tokens": 256,
-            # Disable extended thinking — thinking tokens consume all max_tokens before tool call is emitted
+            "max_tokens": 512,
+            # Disable extended thinking for this check — reasoning tokens would otherwise
+            # consume the budget before a tool call is emitted. Production leaves thinking
+            # on by default (froggeric template); this is a smoke-test speed/determinism choice.
             "chat_template_kwargs": {"enable_thinking": False},
         },
         timeout=120,
@@ -171,7 +135,7 @@ try:
     content = msg.get("content") or ""
 
     check("tool_call_finish_reason", finish == "tool_calls", f"finish={finish!r}")
-    check("tool_call_json_not_xml", "<function=" not in content, f"XML in content: {content[:80]}")
+    check("tool_call_json_not_xml", "<function=" not in content and "<tool_call>" not in content, f"XML in content: {content[:80]}")
     check("tool_call_has_tool_calls", len(tc) > 0, f"tool_calls empty, content={content[:80]}")
 
     if tc:
@@ -188,8 +152,8 @@ except Exception as e:
     check("tool_call_has_tool_calls", False, "skipped")
     check("tool_call_args_json_string", False, "skipped")
 
-# ── 5. Real web search via SearXNG ────────────────────────────────────────────
-print("\n[5] SearXNG web search (tool execution)")
+# ── 4. Real web search via SearXNG ────────────────────────────────────────────
+print("\n[4] SearXNG web search (tool execution)")
 search_result = ""
 try:
     params = urllib.parse.urlencode({"q": "Python programming language", "format": "json"})
@@ -205,7 +169,7 @@ try:
         search_result = " | ".join(parts)
     check("searxng_returns_results", len(results) > 0, f"got {len(results)} results")
     check("searxng_result_content", len(search_result) > 50, f"short: {search_result[:60]}")
-    check("searxng_result_relevant", "python" in search_result.lower(), f"no 'python' in results")
+    check("searxng_result_relevant", "python" in search_result.lower(), "no 'python' in results")
 except urllib.error.URLError as e:
     check("searxng_returns_results", False, str(e), warn_only=True)
     check("searxng_result_content", False, "skipped", warn_only=True)
@@ -215,8 +179,8 @@ except Exception as e:
     check("searxng_returns_results", False, str(e), warn_only=True)
     search_result = "Python is a high-level interpreted programming language."
 
-# ── 6. Synthesis after tool call ─────────────────────────────────────────────
-print("\n[6] Synthesis after tool turn")
+# ── 5. Synthesis after tool call ─────────────────────────────────────────────
+print("\n[5] Synthesis after tool turn")
 try:
     synthesis_messages = [
         {"role": "user", "content": "Search for information about Python programming language."},
@@ -238,12 +202,10 @@ try:
     ]
     t0 = time.monotonic()
     resp = post_json(
-        f"{VLLM_URL}/v1/chat/completions",
+        f"{LLAMA_URL}/v1/chat/completions",
         {
-            "model": EXPECTED_MODEL,
             "messages": synthesis_messages,
-            "max_tokens": 256,
-            # Disable extended thinking — thinking tokens consume all max_tokens, leaving 0 visible output
+            "max_tokens": 512,
             "chat_template_kwargs": {"enable_thinking": False},
         },
         timeout=120,
@@ -266,34 +228,17 @@ try:
         print(f"         Throughput: {tok_per_sec:.1f} tok/s ({tokens_out} tokens in {elapsed:.1f}s)")
         check(
             "throughput_acceptable",
-            tok_per_sec >= 20.0,
-            f"{tok_per_sec:.1f} tok/s — CUDA graphs may be disabled (expected ≥20 tok/s with graph capture)",
+            tok_per_sec >= 60.0,
+            f"{tok_per_sec:.1f} tok/s — MTP speculative decoding may not be active "
+            "(expected 80-140+ tok/s; floor set well below that to avoid flaking on short responses)",
             warn_only=True,
         )
 except Exception as e:
     check("synthesis_non_empty", False, str(e))
     check("synthesis_mentions_python", False, "skipped")
 
-# ── 7. Uncensored benchmark model in HF cache ─────────────────────────────────
-print("\n[7] Uncensored benchmark model cache")
-# Derive expected cache directory from HF hub layout
-# HF Hub stores models at: HF_HOME/hub/models--<org>--<name>/snapshots/
-hf_model_dir = UNCENSORED_MODEL_ID.replace("/", "--")
-# snapshot_download(cache_dir=HF_HOME) stores directly in HF_HOME, not HF_HOME/hub/
-# (vLLM's own downloads go to HF_HOME/hub/ because they use the default HF cache path)
-hf_cache_path = os.path.join(HF_HOME, f"models--{hf_model_dir}")
-try:
-    check(
-        "uncensored_model_cached",
-        os.path.isdir(hf_cache_path),
-        f"not found at {hf_cache_path} — run uncensored-model-init service to download",
-        warn_only=True,
-    )
-except Exception as e:
-    check("uncensored_model_cached", False, str(e), warn_only=True)
-
-# ── 8. Token throughput benchmark ────────────────────────────────────────────
-print("\n[8] Token throughput benchmark")
+# ── 6. Token throughput benchmark + KV cache sanity (via metrics counters) ────
+print("\n[6] Token throughput benchmark")
 try:
     bench_prompt = (
         "Write a concise technical explanation of how transformer attention works. "
@@ -302,12 +247,10 @@ try:
     )
     t0 = time.monotonic()
     resp = post_json(
-        f"{VLLM_URL}/v1/chat/completions",
+        f"{LLAMA_URL}/v1/chat/completions",
         {
-            "model": EXPECTED_MODEL,
             "messages": [{"role": "user", "content": bench_prompt}],
-            "max_tokens": 512,
-            # Disable extended thinking — thinking tokens consume all max_tokens, leaving 0 visible output
+            "max_tokens": 700,
             "chat_template_kwargs": {"enable_thinking": False},
         },
         timeout=180,
@@ -323,8 +266,9 @@ try:
         print(f"         Tokens: {tokens_in} in / {tokens_out} out / {elapsed:.1f}s")
         check(
             "benchmark_throughput_min",
-            tok_per_sec >= 20.0,
-            f"{tok_per_sec:.1f} tok/s is below minimum (20 tok/s) — CUDA graph capture may be broken",
+            tok_per_sec >= 60.0,
+            f"{tok_per_sec:.1f} tok/s is below the MTP floor (60 tok/s) — speculative "
+            "decoding may not be active, check --spec-type/--spec-draft-n-max",
             warn_only=True,
         )
     check(
@@ -332,9 +276,27 @@ try:
         len(content) >= 100 and "attention" in content.lower(),
         f"response too short or incoherent ({len(content)} chars)",
     )
+
+    # llama.cpp has no vLLM-style "kv_cache_usage_perc" gauge -- instead confirm the
+    # server actually processed real prompt+generation tokens via its own counters
+    # (proves the GPU/KV-cache path is functioning, not just that health returns ok).
+    metrics_text = get_text(f"{LLAMA_URL}/metrics", timeout=10)
+    prompt_total = predicted_total = 0
+    for line in metrics_text.splitlines():
+        if line.startswith("llamacpp:prompt_tokens_total "):
+            prompt_total = float(line.split()[-1])
+        elif line.startswith("llamacpp:tokens_predicted_total "):
+            predicted_total = float(line.split()[-1])
+    check(
+        "gpu_processed_real_tokens",
+        prompt_total > 0 and predicted_total > 0,
+        f"prompt_tokens_total={prompt_total} tokens_predicted_total={predicted_total} "
+        "(should be nonzero after the requests above — model may not be running on GPU)",
+    )
 except Exception as e:
     check("benchmark_throughput_min", False, str(e), warn_only=True)
     check("benchmark_response_coherent", False, "skipped")
+    check("gpu_processed_real_tokens", False, "skipped")
 
 # ── Summary ───────────────────────────────────────────────────────────────────
 print()
