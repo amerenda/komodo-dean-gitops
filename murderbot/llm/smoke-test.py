@@ -72,6 +72,24 @@ print(f"  Model         : *{EXPECTED_MODEL_SUBSTR}*")
 print(f"  SearXNG       : {SEARXNG_URL}")
 print("=" * 60)
 
+# ── 0. Wait for llama-server to be ready ──────────────────────────────────────
+# depends_on is service_started (not service_healthy) so the compose dependency
+# wait can never block on/interfere with llama-server's own startup — this test
+# does its own readiness polling instead. Cold start (20GB GGUF load + full GPU
+# upload + KV cache alloc) took ~1m28s-2m15s in testing; poll well past that.
+print("\n[0] Waiting for llama-server readiness")
+READY_TIMEOUT_S = 600
+t_wait_start = time.monotonic()
+ready = False
+while time.monotonic() - t_wait_start < READY_TIMEOUT_S:
+    try:
+        get_text(f"{LLAMA_URL}/health", timeout=10)
+        ready = True
+        break
+    except Exception:
+        time.sleep(5)
+print(f"  {'ready' if ready else 'TIMED OUT'} after {time.monotonic() - t_wait_start:.0f}s")
+
 # ── 1. llama-server health ────────────────────────────────────────────────────
 print("\n[1] llama-server health")
 try:
