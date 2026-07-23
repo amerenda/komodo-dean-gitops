@@ -236,7 +236,7 @@ services:
 
   lazylibrarian:
     container_name: lazylibrarian
-    image: lscr.io/linuxserver/lazylibrarian:f4110fff-ls314
+    image: lscr.io/linuxserver/lazylibrarian:9838d6fe-ls314
     networks:
       servarr:
     dns: *dns-servers

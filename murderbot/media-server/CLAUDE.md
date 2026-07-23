@@ -56,4 +56,4 @@ This will regenerate the 63+ contaminated movie.nfo files from TMDB only.
 | recyclarr | `ghcr.io/recyclarr/recyclarr` | `7` | Major version only (stable v7 API) |
 | calibre | `lscr.io/linuxserver/calibre` | `9.11.0` | linuxserver tag (no `-lsN`) |
 | calibre-web | `lscr.io/linuxserver/calibre-web` | `0.6.26` | linuxserver tag (no `-lsN`) |
-| lazylibrarian | `lscr.io/linuxserver/lazylibrarian` | `f4110fff-ls314` | No semver releases exist upstream — only commit-hash build tags. This is linuxserver's current build, not `:latest`. |
+| lazylibrarian | `lscr.io/linuxserver/lazylibrarian` | `9838d6fe-ls314` | No semver releases exist upstream — only commit-hash build tags. Bumped from f4110fff 2026-07-23: that build's `add_book` handler didn't accept the `source=` param the frontend sends, causing a 404 on every "add book" click. |
