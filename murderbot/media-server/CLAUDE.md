@@ -41,6 +41,41 @@ After disabling per-library, refresh all metadata for each affected library
 (Admin → Libraries → (library) → ⋮ → Refresh Metadata → Replace all metadata).
 This will regenerate the 63+ contaminated movie.nfo files from TMDB only.
 
+## Book metadata — one source of truth: Hardcover
+
+Three writers touched book metadata independently (manual `calibredb add`,
+LazyLibrarian's GoodReads-backed import, calibre's own auto-lookup on
+import), producing inconsistent series/title data (e.g. "Red Rising" (id 1)
+had no series link at all while Golden Son/Morning Star did). Fixed
+2026-07-23 by making calibre + Hardcover.app the single metadata authority:
+
+1. LazyLibrarian imports a book and writes its ISBN into calibre via OPF
+   (`<dc:identifier opf:scheme="ISBN">`, see `metadata_opf.py`) — this is
+   the *only* thing LazyLibrarian's own metadata is trusted for now.
+2. The `calibre-metadata-sync` sidecar (compose.yaml, reuses the `calibre`
+   image with `entrypoint` overridden to skip s6/Xvfb — calibredb and
+   fetch-ebook-metadata are headless CLI tools) polls every 15 min for books
+   with an ISBN identifier not yet marked `hardcover_synced`, and pulls
+   canonical title/authors/series/tags from Hardcover via
+   `fetch-ebook-metadata --allowed-plugin Hardcover` — restricted to that one
+   source, no merging with Amazon/Google Books. Script:
+   `config/calibre-mods/hardcover-metadata-sync.py`.
+3. calibre's own GUI/`calibredb` uses the `RobBrazier/calibre-plugins`
+   Hardcover Source plugin (installed via `calibre-customize -a`, config
+   dir persisted at `${CALIBRE_CONFIG}`); its API key is seeded on every
+   container start by a `custom-cont-init.d` script
+   (`config/calibre-mods/10-hardcover-key.sh`) from `HARDCOVER_API_KEY`.
+4. calibre-web's manual "Search metadata" button also gets a Hardcover
+   option via `darkestthewhite/calibre-web-hardcover`
+   (`config/calibre-web-mods/hardcover.py`, bind-mounted directly onto
+   `cps/metadata_provider/hardcover.py` — calibre-web auto-discovers every
+   `.py` file in that directory, no registration needed).
+
+**Known gap:** books whose only identifier is `goodreads` (no ISBN) never
+get picked up by the sync sidecar — no fallback title/author search, by
+design, to avoid fuzzy-match false positives. `HARDCOVER_API_KEY` is one
+BWS secret (`hardcover-api-key`) shared by all three integration points.
+
 ### Current pinned versions
 
 | Service | Image | Pinned Version | Notes |
