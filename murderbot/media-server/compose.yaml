@@ -193,9 +193,11 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=America/New_York
+      - HARDCOVER_API_KEY=${HARDCOVER_API_KEY}
     volumes:
       - ${CALIBRE_CONFIG}:/config
       - ${CALIBRE_LIBRARY_FOLDER}:/books
+      - ${CALIBRE_CUSTOM_INIT}:/custom-cont-init.d:ro
     ports:
       - 8082:8080 # noVNC desktop GUI, HTTP — LAN-only, no public ingress.
                   # NOT 8080: that's already bound on this host by
@@ -221,9 +223,11 @@ services:
       # No DOCKER_MODS here on purpose — calibre already owns calibredb and
       # is the one writer to the library; calibre-web only reads metadata.db
       # natively, no mod needed. Fewer moving parts, fewer things to break.
+      - HARDCOVER_TOKEN=${HARDCOVER_API_KEY}
     volumes:
       - ${CALIBREWEB_CONFIG}:/config
       - ${CALIBRE_LIBRARY_FOLDER}:/books
+      - ${HARDCOVER_PROVIDER_FILE}:/app/calibre-web/cps/metadata_provider/hardcover.py:ro
     ports:
       - 8083:8083
     healthcheck:
@@ -257,6 +261,28 @@ services:
       timeout: 5s
       interval: 30s
       retries: 3
+    restart: unless-stopped
+
+  # One source of truth for book metadata: LazyLibrarian sets the ISBN on
+  # import (via its OPF, see calibre_integration.py), this sidecar picks up
+  # any book with an ISBN it hasn't synced yet and pulls canonical
+  # title/authors/series/tags from Hardcover via calibredb — restricted to
+  # the Hardcover source only (--allowed-plugin), no merging with
+  # Amazon/Google. Reuses the calibre image (calibredb/fetch-ebook-metadata
+  # are headless CLI tools, no Xvfb/GUI needed) but skips s6 entirely via a
+  # bare entrypoint override. Books with no ISBN identifier (e.g. only a
+  # goodreads id) are a known gap — not handled here.
+  calibre-metadata-sync:
+    container_name: calibre-metadata-sync
+    image: lscr.io/linuxserver/calibre:9.11.0
+    entrypoint: ["/bin/bash", "/sync-scripts/loop.sh"]
+    networks:
+      servarr:
+    dns: *dns-servers
+    volumes:
+      - ${CALIBRE_CONFIG}:/config
+      - ${CALIBRE_LIBRARY_FOLDER}:/books
+      - ${CALIBRE_SYNC_SCRIPTS}:/sync-scripts:ro
     restart: unless-stopped
 
 

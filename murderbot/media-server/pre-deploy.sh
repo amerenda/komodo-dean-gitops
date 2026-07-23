@@ -21,6 +21,11 @@ fi
 
 : "${BWS_ACCESS_TOKEN:?BWS_ACCESS_TOKEN required (cat /run/secrets/bws-access-token)}"
 
+HARDCOVER_API_KEY=$(bws secret get "df58364d-4e24-4844-bad3-b4900137097e" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$HARDCOVER_API_KEY" && "$HARDCOVER_API_KEY" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch hardcover-api-key" >&2; exit 1; }
+
 # Remove orphaned containers from pre-k3s-ingress era (nginx/certbot/dns no
 # longer in compose; k3s Traefik + cert-manager handle TLS termination).
 for _c in nginx certbot dns; do
@@ -50,6 +55,24 @@ CALIBRE_LIBRARY_DIR="/mnt/storage/books/calibre-library"
 mkdir -p "$CALIBRE_CONFIG_DIR" "$CALIBREWEB_CONFIG_DIR" "$LAZYLIBRARIAN_CONFIG_DIR" "$CALIBRE_LIBRARY_DIR"
 chown -R 1000:1000 "${CONFIG_ROOT}/calibre" "${CONFIG_ROOT}/calibre-web" "${CONFIG_ROOT}/lazylibrarian" "$CALIBRE_LIBRARY_DIR"
 chmod 0755 "${CONFIG_ROOT}/calibre" "$CALIBRE_CONFIG_DIR" "${CONFIG_ROOT}/calibre-web" "$CALIBREWEB_CONFIG_DIR" "${CONFIG_ROOT}/lazylibrarian" "$LAZYLIBRARIAN_CONFIG_DIR"
+
+# Hardcover metadata source: calibre plugin's API key is seeded by a
+# custom-cont-init.d script (needs to land in its own bind-mounted dir, not
+# under /config, since that's a top-level linuxserver init path); calibre-web's
+# provider file needs to land exactly on cps/metadata_provider/hardcover.py;
+# the sync sidecar's script needs its own dir too. All copied fresh from the
+# repo on every deploy so version-controlled edits actually take effect.
+CALIBRE_CUSTOM_INIT_DIR="${CONFIG_ROOT}/calibre/custom-cont-init.d"
+HARDCOVER_PROVIDER_DIR="${CONFIG_ROOT}/calibre-web/hardcover-mod"
+CALIBRE_SYNC_SCRIPTS_DIR="${CONFIG_ROOT}/calibre/sync-scripts"
+mkdir -p "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBRE_SYNC_SCRIPTS_DIR"
+cp murderbot/media-server/config/calibre-mods/10-hardcover-key.sh "${CALIBRE_CUSTOM_INIT_DIR}/10-hardcover-key.sh"
+chmod 0755 "${CALIBRE_CUSTOM_INIT_DIR}/10-hardcover-key.sh"
+cp murderbot/media-server/config/calibre-web-mods/hardcover.py "${HARDCOVER_PROVIDER_DIR}/hardcover.py"
+cp murderbot/media-server/config/calibre-mods/hardcover-metadata-sync.py "${CALIBRE_SYNC_SCRIPTS_DIR}/hardcover-metadata-sync.py"
+cp murderbot/media-server/config/calibre-mods/loop.sh "${CALIBRE_SYNC_SCRIPTS_DIR}/loop.sh"
+chmod 0755 "${CALIBRE_SYNC_SCRIPTS_DIR}/loop.sh"
+chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBRE_SYNC_SCRIPTS_DIR"
 {
   echo "CONFIG_BASE=${CONFIG_ROOT}"
   echo "PROFILARR_CONFIG=${CONFIG_ROOT}/profilarr/config"
@@ -64,6 +87,10 @@ chmod 0755 "${CONFIG_ROOT}/calibre" "$CALIBRE_CONFIG_DIR" "${CONFIG_ROOT}/calibr
   echo "CALIBRE_CONFIG=${CONFIG_ROOT}/calibre/config"
   echo "CALIBREWEB_CONFIG=${CONFIG_ROOT}/calibre-web/config"
   echo "LAZYLIBRARIAN_CONFIG=${CONFIG_ROOT}/lazylibrarian/config"
+  echo "HARDCOVER_API_KEY=${HARDCOVER_API_KEY}"
+  echo "CALIBRE_CUSTOM_INIT=${CALIBRE_CUSTOM_INIT_DIR}"
+  echo "HARDCOVER_PROVIDER_FILE=${HARDCOVER_PROVIDER_DIR}/hardcover.py"
+  echo "CALIBRE_SYNC_SCRIPTS=${CALIBRE_SYNC_SCRIPTS_DIR}"
   echo "DATA_BASE=/mnt/storage"
   echo "MOVIES_FOLDER=/mnt/storage/movies"
   echo "TV_FOLDER=/mnt/storage/tv"
