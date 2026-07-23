@@ -102,7 +102,10 @@ except Exception as e:
 print("\n[2] Model loaded")
 try:
     models_data = get_json(f"{LLAMA_URL}/v1/models", timeout=10)
-    model_ids = [m.get("id", "") for m in models_data.get("models", models_data.get("data", []))]
+    # llama-server's /v1/models returns both an OpenAI-style "data" array (keyed "id")
+    # and an Ollama-style "models" array (keyed "name") -- prefer "data" since that's
+    # the key this check actually reads.
+    model_ids = [m.get("id", "") for m in models_data.get("data", models_data.get("models", []))]
     check(
         "model_loaded",
         any(EXPECTED_MODEL_SUBSTR in m for m in model_ids),
