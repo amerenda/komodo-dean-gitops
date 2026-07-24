@@ -13,7 +13,7 @@ views:
             name: Alex
           - entity: person.eirill
             name: Eirill (person — stale until linked, see below)
-          - entity: device_tracker.eirill_iphone_lan
+          - entity: binary_sensor.eirill_iphone_lan
             name: Eirill (LAN ping — reliable)
           - entity: binary_sensor.anyone_home
             name: Anyone Home (drives all automations)
@@ -22,10 +22,10 @@ views:
           - type: section
             label: >-
               Note: person.eirill only reflects device_tracker.eirill_iphone
-              (bound to her old MAC). Settings > People > Eirill > add
-              device_tracker.eirill_iphone_lan as a source to fix this
-              display — not required for automations, which already use
-              binary_sensor.anyone_home.
+              (bound to her old MAC) and will keep showing "away" here.
+              This is cosmetic only — all automations already key off
+              binary_sensor.anyone_home, which uses the reliable LAN check
+              above instead.
 
       # ── Master switch ───────────────────────────────────────
       - type: entities
