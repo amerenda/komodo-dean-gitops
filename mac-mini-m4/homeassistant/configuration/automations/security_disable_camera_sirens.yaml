@@ -16,6 +16,9 @@ trigger:
 condition:
   - condition: template
     value_template: "{{ trigger.to_state.state not in ['unavailable', 'unknown'] }}"
+  - condition: state
+    entity_id: input_boolean.master_automation_pause
+    state: "off"
 action:
   - service: switch.turn_off
     target:

@@ -6,5 +6,9 @@ trigger:
     entity_id: binary_sensor.anyone_home
     to: "on"
     from: "off"
+condition:
+  - condition: state
+    entity_id: input_boolean.master_automation_pause
+    state: "off"
 action:
   - service: script.camera_privacy_on

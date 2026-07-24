@@ -13,6 +13,13 @@ trigger:
     minutes: "/1"
 condition: []
 action:
+  # Skip while the master automation pause is on — manual override in effect
+  - if:
+      - condition: state
+        entity_id: input_boolean.master_automation_pause
+        state: "on"
+    then:
+      - stop: "Master automation pause is on — skipping"
   # Skip if cameras are disabled/unavailable
   - if:
       - condition: template

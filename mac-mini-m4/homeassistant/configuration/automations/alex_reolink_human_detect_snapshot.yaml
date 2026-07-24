@@ -13,6 +13,9 @@ conditions:
       - condition: "state"
         entity_id: "person.alex_merenda"
         state: "home"
+  - condition: "state"
+    entity_id: "input_boolean.master_automation_pause"
+    state: "off"
 variables:
   CAM_MAP: >
     {{
