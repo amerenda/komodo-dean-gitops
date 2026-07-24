@@ -1,9 +1,16 @@
 alias: "Security: Privacy Monitor (Drift Correction)"
 id: security_privacy_monitor
+description: >
+  Every-minute self-heal: re-syncs camera privacy/LED state to actual
+  occupancy (binary_sensor.anyone_home) in case a state-change automation
+  was missed (HA restart mid-transition, script failure, etc).
+  initial_state forces this back on across every HA restart — it was found
+  disabled 2026-07-24 and silently not running.
 mode: single
+initial_state: true
 trigger:
   - platform: time_pattern
-    minutes: "/5"
+    minutes: "/1"
 condition: []
 action:
   # Skip if cameras are disabled/unavailable
@@ -14,12 +21,19 @@ action:
              and states('switch.living_room_privacy_mode') in ['unavailable', 'unknown'] }}
     then:
       - stop: "Cameras unavailable — skipping"
+  # Skip if occupancy sensor is unavailable — prevents false triggers on HA restart
+  - if:
+      - condition: state
+        entity_id: binary_sensor.anyone_home
+        state: "unavailable"
+    then:
+      - stop: "Occupancy sensor unavailable — skipping"
   - choose:
       # Someone home → privacy on, LEDs off
       - conditions:
           - condition: state
-            entity_id: group.members
-            state: "home"
+            entity_id: binary_sensor.anyone_home
+            state: "on"
         sequence:
           # Only act if something is out of sync
           - condition: template
@@ -31,21 +45,11 @@ action:
           # script.camera_privacy_on confirms LED off before enabling privacy
           - service: script.camera_privacy_on
 
-      # Nobody home → privacy off, LEDs on (skip if trackers unavailable — HA restart)
+      # Nobody home → privacy off, LEDs on
       - conditions:
           - condition: state
-            entity_id: group.members
-            state: "not_home"
-          - condition: not
-            conditions:
-              - condition: state
-                entity_id: device_tracker.pixel_9_pro_xl_2
-                state: "unavailable"
-          - condition: not
-            conditions:
-              - condition: state
-                entity_id: device_tracker.eirill_iphone
-                state: "unavailable"
+            entity_id: binary_sensor.anyone_home
+            state: "off"
         sequence:
           # Only act if something is out of sync
           - condition: template

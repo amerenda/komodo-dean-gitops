@@ -3,8 +3,8 @@ id: security_someone_home
 mode: restart
 trigger:
   - platform: state
-    entity_id: group.members
-    to: "home"
-    from: "not_home"
+    entity_id: binary_sensor.anyone_home
+    to: "on"
+    from: "off"
 action:
   - service: script.camera_privacy_on
