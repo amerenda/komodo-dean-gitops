@@ -25,11 +25,6 @@ services:
       hacs-init:
         condition: service_completed_successfully
     network_mode: host
-    # NET_RAW — required for the ping device_tracker (Eirill's presence
-    # check) to send raw ICMP regardless of the host's unprivileged-ping
-    # sysctl defaults.
-    cap_add:
-      - NET_RAW
     environment:
       TZ: "America/New_York"
     volumes:
