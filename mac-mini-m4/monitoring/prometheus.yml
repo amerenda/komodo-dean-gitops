@@ -97,7 +97,10 @@ scrape_configs:
     static_configs:
       # MetalLB VIP assigned by the k3s-prometheus-heartbeat Service;
       # k3s Prometheus does not listen directly on node ports.
-      - targets: ["10.100.20.206:9090"]
+      # Was 10.100.20.206 (that's actually argocd-server's LB VIP — MetalLB
+      # reassigned pool addresses at some point and this target went stale,
+      # so the heartbeat was probing the wrong service the whole time).
+      - targets: ["10.100.20.201:9090"]
         labels:
           cluster: k3s-dean
 
