@@ -94,23 +94,31 @@ zone:
     icon: mdi:map-marker-radius
     passive: true
 
-# Eirill's phone presence — direct ICMP check against her DHCP-reserved static
-# IP (10.100.20.184 / MAC 6e:6e:a1:e4:cb:1c in UniFi). Added because the UniFi
+# Eirill's phone presence — checked against her DHCP-reserved static MAC
+# (6e:6e:a1:e4:cb:1c / IP 10.100.20.184 in UniFi). Added because the UniFi
 # integration's device_tracker.eirill_iphone is bound to her OLD randomized MAC
 # (96:6f:ea:3e:d2:9d) and never updated after the new static MAC took over —
 # it silently reports not_home forever. This check is independent of that
 # UniFi client-identity issue and self-heals on every HA restart since it's
 # fully declared here (no UI linking required).
-# NOTE: the legacy `device_tracker: platform: ping` YAML setup was removed in
-# recent HA core (errors "does not support platform setup") — command_line
-# is the current supported way to do a plain declarative ICMP check.
+#
+# Reads the kernel ARP table (/proc/net/arp) instead of sending an ICMP ping.
+# The container runs network_mode: host, so it shares the host's ARP cache
+# directly — no raw socket / CAP_NET_RAW required. This is also more reliable
+# than active ICMP: iOS frequently ignores unsolicited ping while the phone is
+# idle/locked (the same reason the original iphonedetect integration used
+# passive mDNS instead of ping), whereas the ARP entry is refreshed by any
+# background traffic the phone sends and doesn't require it to respond to us.
+# NOTE: legacy `device_tracker: platform: ping` YAML setup was tried first and
+# rejected by HA core ("does not support platform setup") — command_line is
+# the current supported way to do a plain declarative check like this.
 command_line:
   - binary_sensor:
       name: "Eirill iPhone LAN"
       unique_id: eirill_iphone_lan
       device_class: presence
       scan_interval: 60
-      command: "ping -c 1 -W 1 10.100.20.184 > /dev/null 2>&1 && echo on || echo off"
+      command: "grep -qi '6e:6e:a1:e4:cb:1c' /proc/net/arp && echo on || echo off"
       payload_on: "on"
       payload_off: "off"
 
