@@ -28,27 +28,29 @@ input_text:     !include_dir_merge_named helpers/input_text/
 # Timers (smart lighting motion auto-off)
 timer: !include_dir_merge_named helpers/timer/
 
-# Occupancy — combined presence, independent of the person registry (which
-# stays stale for Eirill until binary_sensor.eirill_iphone_lan is linked to
-# person.eirill in Settings > People). All presence automations key off
-# binary_sensor.anyone_home so they work correctly regardless of that.
+# Occupancy — single source of truth for all presence automations.
+# person.eirill was fixed 2026-07-24: the UniFi integration had already
+# discovered her current phone (its static MAC 6e:6e:a1:e4:cb:1c) as
+# device_tracker.iphone_2, but UniFi auto-disables newly-discovered client
+# trackers by default, so it silently never activated — same failure mode
+# as the original device_tracker.eirill_iphone, which stayed bound to her
+# OLD randomized MAC forever. Enabled device_tracker.iphone_2 and added it
+# to person.eirill's device_trackers via Settings > People > Eirill (the
+# entity-registry / person-storage change persists in .storage exactly
+# like every other already-working tracker here — no YAML can express it,
+# since person/UniFi are config-entry integrations, but it's just as
+# durable as Alex's existing device_tracker.pixel_9_pro_xl_2).
 template:
   - binary_sensor:
-      - name: "Eirill Present"
-        unique_id: eirill_present
-        device_class: presence
-        state: >
-          {{ is_state('binary_sensor.eirill_iphone_lan', 'on')
-             or is_state('device_tracker.eirill_iphone', 'home') }}
       - name: "Anyone Home"
         unique_id: anyone_home
         device_class: occupancy
         availability: >
           {{ not (is_state('person.alex_merenda', 'unavailable')
-                  and is_state('binary_sensor.eirill_iphone_lan', 'unavailable')) }}
+                  and is_state('person.eirill', 'unavailable')) }}
         state: >
           {{ is_state('person.alex_merenda', 'home')
-             or is_state('binary_sensor.eirill_present', 'on') }}
+             or is_state('person.eirill', 'home') }}
   # Smart Lighting v2 — template sensor for current time window
   - sensor:
       - name: "SL: Current Window"
@@ -93,61 +95,6 @@ zone:
     radius: 800
     icon: mdi:map-marker-radius
     passive: true
-
-# Eirill's phone presence — checked against her DHCP-reserved static MAC
-# (6e:6e:a1:e4:cb:1c / IP 10.100.20.184 in UniFi). Added because the UniFi
-# integration's device_tracker.eirill_iphone is bound to her OLD randomized MAC
-# (96:6f:ea:3e:d2:9d) and never updated after the new static MAC took over —
-# it silently reports not_home forever. This check is independent of that
-# UniFi client-identity issue and self-heals on every HA restart since it's
-# fully declared here (no UI linking required).
-#
-# Reads the kernel ARP table (/proc/net/arp) instead of sending an ICMP ping.
-# The container runs network_mode: host, so it shares the host's ARP cache
-# directly — no raw socket / CAP_NET_RAW required. This is also more reliable
-# than active ICMP: iOS frequently ignores unsolicited ping while the phone is
-# idle/locked (the same reason the original iphonedetect integration used
-# passive mDNS instead of ping), whereas the ARP entry is refreshed by any
-# background traffic the phone sends and doesn't require it to respond to us.
-# NOTE: legacy `device_tracker: platform: ping` YAML setup was tried first and
-# rejected by HA core ("does not support platform setup") — command_line is
-# the current supported way to do a plain declarative check like this.
-command_line:
-  - binary_sensor:
-      name: "Eirill iPhone LAN"
-      unique_id: eirill_iphone_lan
-      device_class: presence
-      scan_interval: 60
-      command: "grep -qi '6e:6e:a1:e4:cb:1c' /proc/net/arp && echo on || echo off"
-      payload_on: "on"
-      payload_off: "off"
-  # TEMPORARY diagnostics — remove once eirill_iphone_lan is confirmed working.
-  # Round 1 showed ping/icmplib/arping all present and 25 ARP entries, but
-  # none matching her MAC. These narrow down whether ping fails outright
-  # (permissions) vs simply gets no reply, and whether her IP shows up in
-  # ARP at all under any MAC.
-  - sensor:
-      name: "Eirill Diag Ping Raw"
-      unique_id: eirill_diag_ping_raw
-      scan_interval: 60
-      command: "ping -c 1 -W 1 10.100.20.184 2>&1 | tr '\n' '|' | tail -c 200"
-  - sensor:
-      name: "Eirill Diag ICMP Unpriv"
-      unique_id: eirill_diag_icmp_unpriv
-      scan_interval: 60
-      command: >-
-        python3 -c "import icmplib; r = icmplib.ping('10.100.20.184', count=1, timeout=1, privileged=False); print('alive' if r.is_alive else 'dead')" 2>&1 | tr '\n' '|' | tail -c 200
-  - sensor:
-      name: "Eirill Diag ICMP Priv"
-      unique_id: eirill_diag_icmp_priv
-      scan_interval: 60
-      command: >-
-        python3 -c "import icmplib; r = icmplib.ping('10.100.20.184', count=1, timeout=1, privileged=True); print('alive' if r.is_alive else 'dead')" 2>&1 | tr '\n' '|' | tail -c 200
-  - sensor:
-      name: "Eirill Diag ARP By IP"
-      unique_id: eirill_diag_arp_by_ip
-      scan_interval: 60
-      command: "grep '10.100.20.184' /proc/net/arp || echo NOTFOUND_BY_IP"
 
 homeassistant:
   media_dirs:
