@@ -121,6 +121,19 @@ command_line:
       command: "grep -qi '6e:6e:a1:e4:cb:1c' /proc/net/arp && echo on || echo off"
       payload_on: "on"
       payload_off: "off"
+  # TEMPORARY diagnostic — remove once eirill_iphone_lan is confirmed working.
+  # Reports what tools/data are actually available in the container so we're
+  # not guessing blind about why the presence check isn't landing.
+  - sensor:
+      name: "Eirill Presence Diag"
+      unique_id: eirill_presence_diag
+      scan_interval: 60
+      command: >-
+        sh -c "echo -n 'ping:'; command -v ping >/dev/null 2>&1 && echo -n yes || echo -n no;
+        echo -n ' icmplib:'; python3 -c 'import icmplib' >/dev/null 2>&1 && echo -n yes || echo -n no;
+        echo -n ' arping:'; command -v arping >/dev/null 2>&1 && echo -n yes || echo -n no;
+        echo -n ' arplines:'; wc -l < /proc/net/arp 2>/dev/null | tr -d ' \n';
+        echo -n ' netns:'; readlink /proc/self/ns/net 2>/dev/null"
 
 homeassistant:
   media_dirs:
