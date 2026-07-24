@@ -1,0 +1,70 @@
+alias: "HA: Someone Arrived Home"
+id: ha_someone_arrived
+description: >
+  Fires once when the home transitions from empty to occupied — either Alex
+  or Eirill arriving first, whoever it is. Turns on the enabled welcome
+  lights and sets AC to home temp. Edge-triggered off binary_sensor.anyone_home
+  so it does NOT refire when the second person also gets home (per-person
+  triggers like the old "Alex Arrived" automation missed Eirill arriving
+  alone and could double-fire welcome lights).
+mode: single
+trigger:
+  - platform: state
+    entity_id: binary_sensor.anyone_home
+    from: "off"
+    to: "on"
+condition:
+  - condition: state
+    entity_id: input_boolean.ha_automation_enabled
+    state: "on"
+action:
+  - if:
+      - condition: state
+        entity_id: input_boolean.ha_arrive_hallway
+        state: "on"
+    then:
+      - service: script.sl_room_on
+        data:
+          room: hallway
+  - if:
+      - condition: state
+        entity_id: input_boolean.ha_arrive_living_room
+        state: "on"
+    then:
+      - service: script.sl_room_on
+        data:
+          room: living_room
+  - if:
+      - condition: state
+        entity_id: input_boolean.ha_arrive_kitchen
+        state: "on"
+    then:
+      - service: script.sl_room_on
+        data:
+          room: kitchen
+  - if:
+      - condition: state
+        entity_id: input_boolean.ha_arrive_bedroom
+        state: "on"
+    then:
+      - service: script.sl_room_on
+        data:
+          room: bedroom
+  - if:
+      - condition: state
+        entity_id: input_boolean.ha_arrive_bathroom
+        state: "on"
+    then:
+      - service: script.sl_room_on
+        data:
+          room: bathroom
+  - if:
+      - condition: state
+        entity_id: input_boolean.ha_ac_home
+        state: "on"
+    then:
+      - service: climate.set_temperature
+        target:
+          entity_id: climate.151732605151026_climate
+        data:
+          temperature: "{{ states('input_number.ha_ac_home_temp') | float }}"

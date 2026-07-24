@@ -12,9 +12,20 @@ views:
           - entity: person.alex_merenda
             name: Alex
           - entity: person.eirill
-            name: Eirill
+            name: Eirill (person — stale until linked, see below)
+          - entity: device_tracker.eirill_iphone_lan
+            name: Eirill (LAN ping — reliable)
+          - entity: binary_sensor.anyone_home
+            name: Anyone Home (drives all automations)
           - entity: climate.151732605151026_climate
             name: AC
+          - type: section
+            label: >-
+              Note: person.eirill only reflects device_tracker.eirill_iphone
+              (bound to her old MAC). Settings > People > Eirill > add
+              device_tracker.eirill_iphone_lan as a source to fix this
+              display — not required for automations, which already use
+              binary_sensor.anyone_home.
 
       # ── Master switch ───────────────────────────────────────
       - type: entities

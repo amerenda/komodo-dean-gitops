@@ -7,24 +7,19 @@ description: >
 mode: single
 trigger:
   - platform: state
-    entity_id: group.members
-    from: "home"
-    to: "not_home"
+    entity_id: binary_sensor.anyone_home
+    from: "on"
+    to: "off"
     for: "00:01:00"
 condition:
   - condition: state
     entity_id: input_boolean.ha_automation_enabled
     state: "on"
-  # Block if either tracker is unavailable — prevents false triggers on HA restart
+  # Block if the combined sensor is unavailable — prevents false triggers on HA restart
   - condition: not
     conditions:
       - condition: state
-        entity_id: device_tracker.pixel_9_pro_xl_2
-        state: "unavailable"
-  - condition: not
-    conditions:
-      - condition: state
-        entity_id: device_tracker.eirill_iphone
+        entity_id: binary_sensor.anyone_home
         state: "unavailable"
 action:
   - if:

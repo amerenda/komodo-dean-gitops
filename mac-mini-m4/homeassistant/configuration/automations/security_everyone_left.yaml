@@ -3,24 +3,19 @@ id: security_everyone_left
 mode: restart
 trigger:
   - platform: state
-    entity_id: group.members
-    to: "not_home"
-    from: "home"
+    entity_id: binary_sensor.anyone_home
+    to: "off"
+    from: "on"
     for: "00:05:00"
 condition:
   - condition: state
-    entity_id: group.members
-    state: "not_home"
-  # Block if either tracker is unavailable — prevents cameras activating on HA restart
+    entity_id: binary_sensor.anyone_home
+    state: "off"
+  # Block if the combined sensor is unavailable — prevents cameras activating on HA restart
   - condition: not
     conditions:
       - condition: state
-        entity_id: device_tracker.pixel_9_pro_xl_2
-        state: "unavailable"
-  - condition: not
-    conditions:
-      - condition: state
-        entity_id: device_tracker.eirill_iphone
+        entity_id: binary_sensor.anyone_home
         state: "unavailable"
 action:
   - service: script.camera_privacy_off
