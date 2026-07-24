@@ -29,7 +29,7 @@ input_text:     !include_dir_merge_named helpers/input_text/
 timer: !include_dir_merge_named helpers/timer/
 
 # Occupancy — combined presence, independent of the person registry (which
-# stays stale for Eirill until device_tracker.eirill_iphone_lan is linked to
+# stays stale for Eirill until binary_sensor.eirill_iphone_lan is linked to
 # person.eirill in Settings > People). All presence automations key off
 # binary_sensor.anyone_home so they work correctly regardless of that.
 template:
@@ -38,14 +38,14 @@ template:
         unique_id: eirill_present
         device_class: presence
         state: >
-          {{ is_state('device_tracker.eirill_iphone_lan', 'home')
+          {{ is_state('binary_sensor.eirill_iphone_lan', 'on')
              or is_state('device_tracker.eirill_iphone', 'home') }}
       - name: "Anyone Home"
         unique_id: anyone_home
         device_class: occupancy
         availability: >
           {{ not (is_state('person.alex_merenda', 'unavailable')
-                  and is_state('device_tracker.eirill_iphone_lan', 'unavailable')) }}
+                  and is_state('binary_sensor.eirill_iphone_lan', 'unavailable')) }}
         state: >
           {{ is_state('person.alex_merenda', 'home')
              or is_state('binary_sensor.eirill_present', 'on') }}
@@ -98,15 +98,21 @@ zone:
 # IP (10.100.20.184 / MAC 6e:6e:a1:e4:cb:1c in UniFi). Added because the UniFi
 # integration's device_tracker.eirill_iphone is bound to her OLD randomized MAC
 # (96:6f:ea:3e:d2:9d) and never updated after the new static MAC took over —
-# it silently reports not_home forever. This tracker is independent of that
+# it silently reports not_home forever. This check is independent of that
 # UniFi client-identity issue and self-heals on every HA restart since it's
 # fully declared here (no UI linking required).
-device_tracker:
-  - platform: ping
-    scan_interval: 60
-    consider_home: 180
-    hosts:
-      eirill_iphone_lan: 10.100.20.184
+# NOTE: the legacy `device_tracker: platform: ping` YAML setup was removed in
+# recent HA core (errors "does not support platform setup") — command_line
+# is the current supported way to do a plain declarative ICMP check.
+command_line:
+  - binary_sensor:
+      name: "Eirill iPhone LAN"
+      unique_id: eirill_iphone_lan
+      device_class: presence
+      scan_interval: 60
+      command: "ping -c 1 -W 1 10.100.20.184 > /dev/null 2>&1 && echo on || echo off"
+      payload_on: "on"
+      payload_off: "off"
 
 homeassistant:
   media_dirs:
