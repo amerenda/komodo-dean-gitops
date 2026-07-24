@@ -34,8 +34,11 @@ services:
       # Always-on serving config — single model loaded at a time for max speed and lowest latency
       OLLAMA_NUM_PARALLEL: "1"
       OLLAMA_MAX_LOADED_MODELS: "1"
-      # Keep model loaded indefinitely — prevents 5-minute unload causing cold-start latency on first request
-      OLLAMA_KEEP_ALIVE: "-1"
+      # Unload after 5m idle — this GPU is shared with Sunshine/gaming on the same host.
+      # A model held loaded indefinitely (previously "-1") competes with the game +
+      # encoder for VRAM and starves the stream. Lazy-load on first request is the
+      # tradeoff: occasional cold-start latency instead of permanent VRAM pressure.
+      OLLAMA_KEEP_ALIVE: "5m"
     volumes:
       - ${OLLAMA_DATA_HOST_PATH:-/home/alex/.ollama}:/root/.ollama
       - ${OLLAMA_MODELS_HOST_PATH:-/mnt/storage/models}:/mnt/models
