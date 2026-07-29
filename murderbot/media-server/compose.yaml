@@ -123,6 +123,11 @@ services:
       - PGID=1000
       - TZ=America/New_York
       - JELLYFIN_PublishedServerUrl=$JELLYFIN_URL
+      # Mitigation for known EF Core/SQLite "database is locked" contention under
+      # concurrent access (scans + playback + multiple simultaneous downloads) —
+      # open since 10.9/10.10, not fully fixed as of 10.11.8. Reduces lock frequency,
+      # does not eliminate it. See forum.jellyfin.org/t-sqlite-error-database-is-locked
+      - JELLYFIN_SQLITE__disableSecondLevelCache=true
     volumes:
       - ${JELLYFIN_CONFIG}:/config
       - ${MOVIES_FOLDER}:/movies
