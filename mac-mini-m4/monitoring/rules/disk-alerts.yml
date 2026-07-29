@@ -3,12 +3,16 @@ groups:
     rules:
 
       # Warning: < 20% free — early heads-up before things break.
-      # Excludes tmpfs, overlay (container layers), and squashfs (snap/flatpak).
+      # Excludes tmpfs, overlay (container layers), squashfs (snap/flatpak), and virtiofs
+      # (mac-mini's OrbStack guest VM exposes the macOS host disk as 6 separate virtiofs
+      # shares — /Applications, /Library, /Users, /Volumes, /mnt/mac, /private — all the
+      # same underlying device with the same bogus size, so they'd otherwise fire as 6
+      # duplicate alerts for one non-actionable number).
       - alert: DiskSpaceLow
         expr: >
           (
-            node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs"}
-            / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs"}
+            node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs"}
           ) * 100 < 20
         for: 5m
         labels:
@@ -24,8 +28,8 @@ groups:
       - alert: DiskSpaceCritical
         expr: >
           (
-            node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs"}
-            / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs"}
+            node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs"}
+            / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs"}
           ) * 100 < 10
         for: 2m
         labels:
