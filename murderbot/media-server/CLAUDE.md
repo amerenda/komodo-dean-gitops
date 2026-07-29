@@ -14,6 +14,30 @@ Rules for agents/editors working with this repo:
 4. Do NOT pin to commit SHA digests or image digests — use human-readable version numbers only
 5. When bumping versions: verify the new tag exists on Docker Hub/ghcr.io, check changelogs for breaking changes, then update the compose.yaml and pre-deploy.sh if env vars changed
 
+## Jellyfin — known issue: SQLite "database is locked" under concurrent access
+
+Since Jellyfin 10.9/10.10 (EF Core SQLite backend rewrite), concurrent DB access
+(library scans, playback, multiple simultaneous Streamyfin downloads all hitting
+the DB at once) can throw `SQLite Error 5: 'database is locked'`, failing the
+in-flight request. Confirmed in our own logs 2026-07 (burst of failed `/Items`
+and `/Shows/.../Episodes` requests during a nightly library scan). This is an
+open upstream architecture issue, not fully fixed as of 10.11.8 — see
+forum.jellyfin.org/t-sqlite-error-database-is-locked and
+github.com/jellyfin/jellyfin/issues/15057.
+
+Mitigations applied/considered, roughly in order of effort:
+1. **Applied 2026-07-28:** `JELLYFIN_SQLITE__disableSecondLevelCache=true` env
+   var (compose.yaml) — community-reported to reduce lock frequency, not a full fix.
+2. Not yet applied: limit `LibraryScanFanoutConcurrency` / `ParallelImageEncodingLimit`
+   to 1 in Jellyfin admin settings (currently both `0` = unlimited in system.xml) —
+   reduces DB contention during scans. Requires Jellyfin admin UI access.
+3. Not yet applied: disabling non-essential plugins to test for conflicts.
+   Intro Skipper is installed and has been named in community bug reports as a
+   contributor to lock-ups; LDAP and Kodi Sync Queue plugins are not installed here.
+4. Config dir is on the RAID5 HDD array (`/mnt/storage`), not the NVMe SSD
+   (`nvme0n1`, Patriot M.2 P320 128GB, mounted at `/`) — moving it is the
+   standard recommendation but is reported to help, not fully resolve, this issue.
+
 ## Jellyfin metadata — known issue: anime plugins contaminating Movies/TV
 
 Jellyfin has AniDB, AniList, and AniSearch plugins installed. At default settings
