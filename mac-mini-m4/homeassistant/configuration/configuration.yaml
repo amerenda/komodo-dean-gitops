@@ -218,26 +218,28 @@ logger:
 # file only gets rendered by pre-deploy.sh, so a missed/failed pre-deploy
 # run leaves it missing or empty and HA fails to parse configuration.yaml
 # entirely ("Secrets is not a dictionary"), taking down all of HA, not
-# just this one integration.
+# just this one integration. !env_var itself raises (and again takes down
+# all of HA) if the var is completely undefined and no default is given —
+# the trailing "" default is required, not decorative.
 rest_command:
   jellyfin_search:
     url: >-
       http://10.100.20.19:8096/Items?searchTerm={{ title | urlencode }}&IncludeItemTypes=Movie,Series,Episode&Recursive=true&Limit=5
     method: GET
     headers:
-      X-Emby-Token: !env_var JELLYFIN_API_KEY
+      X-Emby-Token: !env_var JELLYFIN_API_KEY unset
   jellyfin_next_up:
     url: >-
       http://10.100.20.19:8096/Shows/NextUp?SeriesId={{ series_id }}&UserId=4e56c2a4ae1847a998965736b7a8891d&Limit=1
     method: GET
     headers:
-      X-Emby-Token: !env_var JELLYFIN_API_KEY
+      X-Emby-Token: !env_var JELLYFIN_API_KEY unset
   jellyfin_first_episode:
     url: >-
       http://10.100.20.19:8096/Items?ParentId={{ series_id }}&IncludeItemTypes=Episode&Recursive=true&SortBy=ParentIndexNumber,IndexNumber&SortOrder=Ascending&Limit=1
     method: GET
     headers:
-      X-Emby-Token: !env_var JELLYFIN_API_KEY
+      X-Emby-Token: !env_var JELLYFIN_API_KEY unset
 
 # Shell commands
 shell_command:
