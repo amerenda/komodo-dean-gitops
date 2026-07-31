@@ -4,6 +4,7 @@
 # mac-mini-m4 stack secrets (written by pre_deploy)
 mac-mini-m4/core/.env
 mac-mini-m4/automation/.env
+mac-mini-m4/automation/secrets.generated.yaml
 mac-mini-m4/monitoring/.env
 mac-mini-m4/monitoring/ha-token
 mac-mini-m4/runners/compose.env

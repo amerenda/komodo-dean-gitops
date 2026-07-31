@@ -43,6 +43,7 @@ services:
       - ../homeassistant/configuration/dashboards:/config/dashboards/views:ro
       - ../homeassistant/scripts/subway_status.sh:/config/scripts_shell/subway_status.sh:ro
       - ../homeassistant/configuration/groups.yaml:/config/groups.yaml:ro
+      - ./secrets.generated.yaml:/config/secrets.yaml:ro
       # scenes.yaml lives on ha-config volume only (UI-editable). ha-init seeds [] if missing.
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8123/manifest.json"]
