@@ -1,0 +1,85 @@
+alias: "Jellyfin: Play by voice"
+id: jellyfin_play_by_voice
+description: >
+  Local voice command (Assist, wake word "Hey Nabu" via the Wyoming stack in
+  ../automation/compose.yaml — not Google Assistant, which has no supported
+  path for free-text playback against a self-hosted media server). Searches
+  Jellyfin for the requested title and casts it to the media_player in the
+  same HA Area as the satellite that heard the command — e.g. the Kitchen
+  Voice PE routes to the Kitchen smart display, once both are assigned to
+  the "Kitchen" Area (see homeassistant/README.md).
+  For a TV series, resumes from Jellyfin's "next up" episode (per-user watch
+  progress) or falls back to the first episode if never started. For a
+  Movie/Episode match, plays it directly.
+mode: parallel
+max: 3
+trigger:
+  - trigger: conversation
+    command:
+      - "play {title}"
+      - "watch {title}"
+variables:
+  title: "{{ trigger.slots.title }}"
+action:
+  - action: rest_command.jellyfin_search
+    data:
+      title: "{{ title }}"
+    response_variable: search_result
+  - variables:
+      search_items: "{{ (search_result.content | from_json).Items }}"
+      match: "{{ search_items[0] if search_items | count > 0 else none }}"
+  - if:
+      - condition: template
+        value_template: "{{ match is none }}"
+    then:
+      - set_conversation_response: "I couldn't find '{{ title }}' in Jellyfin."
+      - stop: "No Jellyfin match found"
+  - choose:
+      - conditions:
+          - condition: template
+            value_template: "{{ match.Type == 'Series' }}"
+        sequence:
+          - action: rest_command.jellyfin_next_up
+            data:
+              series_id: "{{ match.Id }}"
+            response_variable: next_up_result
+          - variables:
+              next_up_items: "{{ (next_up_result.content | from_json).Items }}"
+          - if:
+              - condition: template
+                value_template: "{{ next_up_items | count > 0 }}"
+            then:
+              - variables:
+                  play_item_id: "{{ next_up_items[0].Id }}"
+            else:
+              - action: rest_command.jellyfin_first_episode
+                data:
+                  series_id: "{{ match.Id }}"
+                response_variable: first_ep_result
+              - variables:
+                  play_item_id: "{{ (first_ep_result.content | from_json).Items[0].Id }}"
+      - conditions:
+          - condition: template
+            value_template: "{{ match.Type in ['Movie', 'Episode'] }}"
+        sequence:
+          - variables:
+              play_item_id: "{{ match.Id }}"
+    default:
+      - set_conversation_response: "Found '{{ match.Name }}' but it's a {{ match.Type }}, which I don't know how to play."
+      - stop: "Unsupported Jellyfin item type"
+  - variables:
+      target_media_player: >-
+        {{ area_entities(area_id(trigger.device_id)) | select('match', 'media_player\..*') | list | first | default('') }}
+  - if:
+      - condition: template
+        value_template: "{{ target_media_player == '' }}"
+    then:
+      - set_conversation_response: "I don't know which player to use — no media_player is assigned to this device's Area."
+      - stop: "No media_player found in the triggering device's Area"
+  - action: media_player.play_media
+    target:
+      entity_id: "{{ target_media_player }}"
+    data:
+      media_content_id: "http://10.100.20.19:8096/Videos/{{ play_item_id }}/stream?static=true"
+      media_content_type: video
+  - set_conversation_response: "Now playing {{ match.Name }}."

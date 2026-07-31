@@ -208,6 +208,30 @@ logger:
     pychromecast.socket_client: critical
     custom_components.gtfs_realtime.coordinator: critical
 
+# Jellyfin play-by-voice (see automations/jellyfin_play_by_voice.yaml).
+# Server is on murderbot, LAN-only. UserId is Alex's Jellyfin account —
+# used only so "NextUp" resumes from his watch progress; hardcoded since
+# this is a single-user voice command for now.
+rest_command:
+  jellyfin_search:
+    url: >-
+      http://10.100.20.19:8096/Items?searchTerm={{ title | urlencode }}&IncludeItemTypes=Movie,Series,Episode&Recursive=true&Limit=5
+    method: GET
+    headers:
+      X-Emby-Token: !secret jellyfin_api_key
+  jellyfin_next_up:
+    url: >-
+      http://10.100.20.19:8096/Shows/NextUp?SeriesId={{ series_id }}&UserId=4e56c2a4ae1847a998965736b7a8891d&Limit=1
+    method: GET
+    headers:
+      X-Emby-Token: !secret jellyfin_api_key
+  jellyfin_first_episode:
+    url: >-
+      http://10.100.20.19:8096/Items?ParentId={{ series_id }}&IncludeItemTypes=Episode&Recursive=true&SortBy=ParentIndexNumber,IndexNumber&SortOrder=Ascending&Limit=1
+    method: GET
+    headers:
+      X-Emby-Token: !secret jellyfin_api_key
+
 # Shell commands
 shell_command:
   cleanup_old_photos: 'find /config/www/pets -name "*.jpg" -mtime +30 -delete && find /config/www/intruders -name "*.jpg" -mtime +30 -delete'
