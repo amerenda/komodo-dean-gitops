@@ -181,3 +181,39 @@ The Smart Lighting dashboard uses custom frontend cards, all installed automatic
 | Streamline Card | v0.2.0 | Template reuse for DRY YAML (future use) |
 
 To update a card version, edit `homeassistant/scripts/ha-init.sh` and push. Changes sync automatically within 60 seconds.
+
+## Voice Assist Pipeline (Jellyfin play-by-voice)
+
+Wyoming services (`whisper`, `piper`, `openwakeword`) in `../automation/compose.yaml`
+provide local speech-to-text/text-to-speech/wake-word for HA's built-in
+**Assist** voice pipeline, wake word "Hey Nabu" (`ok_nabu`). This is separate
+from Google Assistant — it's what powers the "play `<title>`" Jellyfin
+command from the kitchen's HA Voice PE satellite, since Google Assistant has
+no supported path for free-text playback against a self-hosted media server.
+
+These pieces are UI/`.storage`-managed config-entry integrations (same
+category as the `person`/UniFi setup noted above) and can't be expressed in
+git-managed YAML, so they're one-time manual steps:
+
+1. **Settings → Devices & services → Add integration → Wyoming Protocol** —
+   add three times, pointing at:
+   - `localhost:10300` (Whisper, STT)
+   - `localhost:10200` (Piper, TTS)
+   - `localhost:10400` (openWakeWord)
+
+   (HA runs on host network, so `localhost` reaches these directly.)
+
+2. **Settings → Voice assistants → Add assistant** — create a pipeline named
+   e.g. "Local Assist", conversation agent "Home Assistant", STT = Whisper,
+   TTS = Piper, wake word = the `ok_nabu` entity from openWakeWord.
+
+3. **Pair the HA Voice PE** (Settings → Devices & services → it should
+   auto-discover) and assign it to the "Local Assist" pipeline.
+
+4. **Areas** — assign both the Kitchen HA Voice PE device *and* the Kitchen
+   smart display's `media_player` entity to the same HA **Area** ("Kitchen").
+   The Jellyfin play-by-voice automation (`automations/jellyfin_play_by_voice.yaml`,
+   once added) resolves "the media player in this room" from
+   `area_id(trigger.device_id)` — no hardcoded room mapping — so this Area
+   assignment is what makes room-aware routing work, including for future
+   rooms/satellites.
