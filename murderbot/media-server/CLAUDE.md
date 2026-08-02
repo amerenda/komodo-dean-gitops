@@ -34,9 +34,13 @@ Mitigations applied/considered, roughly in order of effort:
 3. Not yet applied: disabling non-essential plugins to test for conflicts.
    Intro Skipper is installed and has been named in community bug reports as a
    contributor to lock-ups; LDAP and Kodi Sync Queue plugins are not installed here.
-4. Config dir is on the RAID5 HDD array (`/mnt/storage`), not the NVMe SSD
-   (`nvme0n1`, Patriot M.2 P320 128GB, mounted at `/`) — moving it is the
-   standard recommendation but is reported to help, not fully resolve, this issue.
+4. **Applied 2026-08-02:** Config dir moved off the RAID5 HDD array
+   (`/mnt/storage`) onto the NVMe SSD (`nvme0n1`, Patriot M.2 P320 128GB,
+   mounted at `/`) — now at `/opt/jellyfin-config` on the host, set via
+   `JELLYFIN_CONFIG_ROOT` in `pre-deploy.sh` (separate from `CONFIG_ROOT`,
+   which stays on RAID for every other service in this stack). This is the
+   standard recommendation but is reported to help, not fully resolve, this
+   issue.
 
 ## Jellyfin metadata — known issue: anime plugins contaminating Movies/TV
 
