@@ -36,6 +36,13 @@ ENV=murderbot/media-server/.env
 
 umask 077
 CONFIG_ROOT=/mnt/storage/media/config
+# Jellyfin config/db lives on the NVMe SSD, not the RAID5 array, to reduce
+# SQLite "database is locked" contention under concurrent access (scans +
+# playback + Streamyfin downloads). See CLAUDE.md "Jellyfin — known issue".
+# Moved 2026-08-02. Every other service's config stays on CONFIG_ROOT (RAID).
+JELLYFIN_CONFIG_ROOT=/opt/jellyfin-config
+mkdir -p "$JELLYFIN_CONFIG_ROOT"
+chown 1000:1000 "$JELLYFIN_CONFIG_ROOT"
 SEERR_CONFIG_DIR="${CONFIG_ROOT}/seerr/config"
 
 # Seerr runs as the `node` user (UID/GID 1000) and writes logs below
@@ -82,7 +89,7 @@ chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBR
   echo "RECYCLARR_CONFIG=${CONFIG_ROOT}/recyclarr/config"
   echo "PROWLARR_CONFIG=${CONFIG_ROOT}/prowlarr/config"
   echo "SABNZBD_CONFIG=${CONFIG_ROOT}/sabnzbd/config"
-  echo "JELLYFIN_CONFIG=${CONFIG_ROOT}/jellyfin/config"
+  echo "JELLYFIN_CONFIG=${JELLYFIN_CONFIG_ROOT}"
   echo "SEERR_CONFIG=${CONFIG_ROOT}/seerr/config"
   echo "CALIBRE_CONFIG=${CONFIG_ROOT}/calibre/config"
   echo "CALIBREWEB_CONFIG=${CONFIG_ROOT}/calibre-web/config"
@@ -110,7 +117,7 @@ chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBR
 # These files pin TitleSimilarityThreshold=95. The per-library fix (disabling
 # AniDB/AniList/AniSearch as providers for Movies + TV in the Jellyfin admin
 # UI) must be done manually — see CLAUDE.md for steps.
-JELLYFIN_PLUGIN_CONF="${CONFIG_ROOT}/jellyfin/config/data/plugins/configurations"
+JELLYFIN_PLUGIN_CONF="${JELLYFIN_CONFIG_ROOT}/data/plugins/configurations"
 mkdir -p "$JELLYFIN_PLUGIN_CONF"
 for _plugin in AniDB AniList AniSearch; do
   _src="murderbot/media-server/config/jellyfin-plugins/Jellyfin.Plugin.${_plugin}.xml"
@@ -125,7 +132,7 @@ done
 # KnownProxies must NOT include 10.100.20.0/24 — listing the whole LAN as a
 # trusted proxy causes Jellyfin to treat the Google Home Display / Chromecast
 # as a proxy, breaking PublishedServerUri selection for Cast devices.
-JELLYFIN_NET_CONF="${CONFIG_ROOT}/jellyfin/config"
+JELLYFIN_NET_CONF="${JELLYFIN_CONFIG_ROOT}"
 _net_src="murderbot/media-server/config/jellyfin-config/network.xml"
 if [[ -f "$_net_src" ]]; then
   cp "$_net_src" "${JELLYFIN_NET_CONF}/network.xml"
