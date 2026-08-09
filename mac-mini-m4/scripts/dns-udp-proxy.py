@@ -17,6 +17,16 @@ Why a userspace proxy (not pf rdr):
 OrbStack publishes TCP/UDP :5354 on localhost and forwards into the Linux VM
 reliably. Override with DNS_PROXY_BACKEND_IP env var if your layout differs.
 
+Per-client query log:
+  Technitium sees every query as coming from loopback (this proxy re-originates
+  from 127.0.0.1), so its own logs cannot attribute queries to LAN devices.
+  This proxy is the only place the real client IP still exists, so it records
+  (timestamp, client_ip, qname, qtype) for every query into a small SQLite DB
+  (DNS_PROXY_CLIENTLOG, default /var/log/dns-proxy-clients.db). Logging happens
+  on a background writer thread via a non-blocking queue — it can never slow or
+  break the DNS path. Rows older than DNS_PROXY_CLIENTLOG_DAYS (default 7) are
+  pruned hourly. Set DNS_PROXY_CLIENTLOG_ENABLED=0 to disable.
+
 Runs as root via LaunchDaemon at boot.
 """
 
@@ -30,6 +40,7 @@ import syslog
 import sys
 import ipaddress
 import time
+import queue
 
 LISTEN_IP    = "10.100.20.240"
 LISTEN_PORT  = 53
@@ -39,6 +50,16 @@ TIMEOUT      = 3
 
 # Optional: force source IP for backend sockets. If unset, resolved at startup.
 BACKEND_SRC_IP = os.environ.get("DNS_PROXY_BACKEND_SRC", "").strip() or None
+
+# Per-client query log (SQLite). See module docstring.
+CLIENTLOG_ENABLED = os.environ.get("DNS_PROXY_CLIENTLOG_ENABLED", "1").strip().lower() \
+    not in ("0", "false", "no", "off", "")
+CLIENTLOG_PATH = os.environ.get("DNS_PROXY_CLIENTLOG", "/var/log/dns-proxy-clients.db").strip()
+CLIENTLOG_DAYS = int(os.environ.get("DNS_PROXY_CLIENTLOG_DAYS", "7"))
+
+# Bounded queue so a slow/stuck writer can never grow memory unbounded or block
+# the DNS path — producers use put_nowait and drop on overflow.
+_clientlog_q: "queue.Queue" = queue.Queue(maxsize=100000)
 
 # Lightweight counters (best-effort; UDP errors are the main signal).
 _stats_lock = threading.Lock()
@@ -76,6 +97,103 @@ def _bump(stat: str) -> None:
                 f"udp_ok={_stats['udp_ok']} udp_err={_stats['udp_err']} "
                 f"tcp_ok={_stats['tcp_ok']} tcp_err={_stats['tcp_err']}",
             )
+
+
+# ── Per-client query log ─────────────────────────────────────────────────────
+
+def _parse_question(data: bytes):
+    """Extract (qname, qtype) from a DNS query's first question.
+    Returns (None, None) if the message is too short or malformed. Never raises
+    for well-formed-but-weird input; callers also wrap this defensively."""
+    if len(data) < 12:
+        return None, None
+    qdcount = struct.unpack("!H", data[4:6])[0]
+    if qdcount < 1:
+        return None, None
+    offset = 12
+    labels = []
+    while offset < len(data):
+        length = data[offset]
+        if length == 0:
+            offset += 1
+            break
+        # Compression pointers are illegal in a question — bail out cleanly.
+        if (length & 0xC0) != 0:
+            return None, None
+        offset += 1
+        labels.append(data[offset:offset + length])
+        offset += length
+    qname = b".".join(labels).decode("ascii", "replace").lower() if labels else "."
+    qtype = struct.unpack("!H", data[offset:offset + 2])[0] if offset + 2 <= len(data) else None
+    return qname, qtype
+
+
+def log_client_query(client_ip: str, data: bytes) -> None:
+    """Enqueue a client query for the background writer. Fully isolated: any
+    failure here is swallowed so the DNS forwarding path is never affected."""
+    if not CLIENTLOG_ENABLED:
+        return
+    try:
+        qname, qtype = _parse_question(data)
+        if qname is None:
+            return
+        _clientlog_q.put_nowait((time.time(), client_ip, qname, qtype))
+    except queue.Full:
+        pass  # drop rather than block or buffer unbounded
+    except Exception:
+        pass  # logging must never break resolution
+
+
+def _clientlog_writer() -> None:
+    """Single background thread: batch-insert queued queries into SQLite and
+    prune old rows hourly. Owns the only write connection to the DB."""
+    import sqlite3
+    conn = sqlite3.connect(CLIENTLOG_PATH)
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA synchronous=NORMAL")
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS client_logs ("
+        " ts REAL NOT NULL, client_ip TEXT NOT NULL, qname TEXT, qtype INTEGER)"
+    )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_cl_ts ON client_logs(ts)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_cl_ip ON client_logs(client_ip)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_cl_qname ON client_logs(qname)")
+    conn.commit()
+    syslog.syslog(
+        syslog.LOG_INFO,
+        f"dns-proxy: client query log -> {CLIENTLOG_PATH} (retention {CLIENTLOG_DAYS}d)",
+    )
+
+    last_prune = time.monotonic()
+    while True:
+        batch = []
+        try:
+            batch.append(_clientlog_q.get(timeout=5.0))
+        except queue.Empty:
+            pass
+        while len(batch) < 500:
+            try:
+                batch.append(_clientlog_q.get_nowait())
+            except queue.Empty:
+                break
+        if batch:
+            try:
+                conn.executemany(
+                    "INSERT INTO client_logs (ts, client_ip, qname, qtype) VALUES (?,?,?,?)",
+                    batch,
+                )
+                conn.commit()
+            except Exception as e:
+                syslog.syslog(syslog.LOG_WARNING, f"dns-proxy clientlog write err {e!r}")
+        now = time.monotonic()
+        if now - last_prune >= 3600.0:
+            last_prune = now
+            try:
+                cutoff = time.time() - CLIENTLOG_DAYS * 86400
+                conn.execute("DELETE FROM client_logs WHERE ts < ?", (cutoff,))
+                conn.commit()
+            except Exception as e:
+                syslog.syslog(syslog.LOG_WARNING, f"dns-proxy clientlog prune err {e!r}")
 
 
 def make_listen_socket(kind: int) -> socket.socket:
@@ -194,6 +312,7 @@ def handle_udp(
     backend_src: str,
 ) -> None:
     try:
+        log_client_query(client_addr[0], data)
         tagged = _add_ecs_to_query(data, client_addr[0])
         resp = _query_backend_udp(tagged, backend_src)
         if not resp:
@@ -233,6 +352,7 @@ def handle_tcp(conn: socket.socket, client_addr: tuple, backend_src: str) -> Non
         query = recv_dns_tcp(conn)
         if not query:
             return
+        log_client_query(client_addr[0], query)
         # TCP clients → backend via UDP (same path as UDP clients).
         resp = _query_backend_udp(query, backend_src)
         if resp:
@@ -275,6 +395,8 @@ def main() -> None:
         f"dns-proxy: backend {BACKEND_IP}:{BACKEND_PORT} via src {backend_src} "
         f"(env DNS_PROXY_BACKEND_SRC={'set' if BACKEND_SRC_IP else 'auto'})",
     )
+    if CLIENTLOG_ENABLED:
+        threading.Thread(target=_clientlog_writer, daemon=True).start()
     threading.Thread(target=udp_listener, args=(backend_src,), daemon=True).start()
     threading.Thread(target=tcp_listener, args=(backend_src,), daemon=True).start()
     syslog.syslog(syslog.LOG_INFO, f"dns-proxy: started on {LISTEN_IP}:{LISTEN_PORT}")
