@@ -33,18 +33,20 @@ Docker Compose stacks for the Mac Mini M4, managed via Komodo GitOps from the
 |---------|---------|
 | runner-k3s-runners | GitHub Actions runner for k3s-runners repo |
 | runner-ecdysis | GitHub Actions runner for ecdysis repo |
-| runner-llm-manager | GitHub Actions runner for llm-manager repo (includes agent code paths) |
 | runner-photos | GitHub Actions runner for photos repo |
 
-### LLM stack (`llm/compose.yaml`)
+### Ollama (native, not Komodo-managed)
 
-| Service | Port | Purpose |
-|---------|------|---------|
-| llm-agent | 8090 | [llm-manager](https://github.com/amerenda/llm-manager) edge agent - OpenAI-compatible API, metrics, registers with the hosted backend |
+llm-manager is retired — there is no `llm/` Komodo stack on this host anymore (the old agent-container stack was deleted; Docker on macOS has no Metal/GPU passthrough anyway, so Ollama in a container was CPU-only and too slow). Ollama runs **natively** via Homebrew, managed as a root LaunchDaemon (`launchd/com.local.ollama.plist`, `RunAtLoad`+`KeepAlive`, bound to `0.0.0.0:11434` — survives reboot with no login required). It's installed and kept running by **Ansible**, not Komodo:
 
-Runs **only** the agent container. **Ollama stays native on macOS** (Metal); the agent reaches it at `host.docker.internal:11434`. Compose sets **`RUNNER_HOSTNAME=mac-mini-m4`** (llm-manager runner name) and **`AGENT_UNIFIED_MEMORY_VRAM=true`** so the UI treats **VRAM and RAM as one pool** (container-visible unified memory; used = system RAM usage, same as llm-manager's memory bar). The agent service uses **`pull_policy: always`**; **`pre-deploy`** pins **`AGENT_IMAGE_TAG`** from the backend target when possible. The **`llm/`** directory is bind-mounted so the agent can **self-update** (pin `.env`, pull, `compose up`). In llm-manager **Runners**, enable **auto update** for `mac-mini-m4` so a new global target triggers that path on the next heartbeat (~30s) without waiting for Komodo. Non-secret overrides for deploy (**`AGENT_ADDRESS`**, **`AGENT_IMAGE_TAG`**, etc.) go in committed **`llm/gitops.env`** (merged at deploy); change them with a PR, not on the host.
+```
+ansible-playbook -i inventory/inventory.ini playbooks/infrastructure/setup-macmini.yml \
+  --extra-vars "bws_access_token=<TOKEN>" --tags mini-ollama
+```
 
-**Ollama bind (GitOps):** commit **`OLLAMA_HOST`** (and other native tunables) in **`ollama/environment`**. Every **`llm-mac-mini-m4`** stack deploy runs **`scripts/configure-native-ollama-bind.sh`**, which sources that file and writes **`OLLAMA_HOST`** into Homebrew's **cellar** `homebrew.mxcl.ollama.plist` (not only `~/Library/LaunchAgents`, which `brew services restart` overwrites from the cellar). **Ollama tunables** (llm-manager Runners -> *Ollama Tunables*): the agent writes **`llm/ollama.env`** and merges changed keys into the **mounted** LaunchAgents plist, then runs **`brew services restart ollama`** via OrbStack's **`mac`** CLI (`NATIVE_OLLAMA_RESTART_CMD` in `llm/.env`, defaulting to `~/.orbstack/bin/mac` when present). Re-deploy **`llm-mac-mini-m4`** after `brew upgrade ollama` if the formula resets the cellar plist. If **`OLLAMA_LAUNCH_AGENTS_DIR`** or **`NATIVE_OLLAMA_RESTART_CMD`** must differ from defaults, extend **`llm/pre-deploy.sh`** / **`llm/gitops.env`** via PR (or Ansible for host-level prerequisites), not one-off edits on the Mac Mini. **`BWS_LLM_AGENT_PSK_UUID`** in `llm/pre-deploy.sh` must point at the Bitwarden secret for `llm-manager-agent-psk` (same as k8s `agent-psk` ExternalSecret). **Backend on k3s:** OrbStack/Docker bridge often yields an unroutable agent address; set **`AGENT_ADDRESS=https://<Tailscale-or-LAN-IP>:8090`** (or DNS the cluster resolves) in **`llm/gitops.env`** so registration and TLS match the URL the backend uses. **Library "fits" on Metal:** the agent container often sees only ~8Gi cgroup RAM; **`pre-deploy`** adds **`AGENT_UNIFIED_VRAM_TOTAL_BYTES`** from **`llm/.ansible-memory-bytes`** (written by **`setup-macmini.yml`**) or a 16 GiB fallback - override in **`gitops.env`** if needed (`sysctl -n hw.memsize` on the Mac).
+See `ansible-playbooks/playbooks/infrastructure/setup-macmini.yml` (`mini-ollama` tag) for install/model-pull tasks, and `group_vars/macmini_hosts.yml` (`ollama_models`) for which models get pulled. LiteLLM routes to it at `http://10.100.20.18:11434` (`apps/litellm/server/configmap.yaml` in `k3s-dean-gitops`) — currently only `nomic-embed-text` (mem0's embedder) depends on it.
+
+`ollama/environment` and `scripts/configure-native-ollama-bind.sh` are leftovers from the never-finished llm-manager-era transition (patched a Homebrew-managed LaunchAgent plist that nothing loads anymore) — unused, safe to ignore or delete in a future cleanup.
 
 ### Komodo stack (`komodo/compose.yaml`)
 

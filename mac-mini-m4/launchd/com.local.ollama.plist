@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.local.ollama</string>
+    <!-- Native Homebrew Ollama, run as a root LaunchDaemon (not `brew services`,
+         which installs a per-user LaunchAgent that only starts after GUI login).
+         RunAtLoad+KeepAlive here means Ollama survives a full power cycle with
+         zero manual steps and no auto-login required. See
+         ansible-playbooks/playbooks/infrastructure/setup-macmini.yml (mini-ollama
+         tag) for the install/reload tasks. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/ollama</string>
+        <string>serve</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>UserName</key>
+    <string>alex</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/alex</string>
+        <key>OLLAMA_HOST</key>
+        <string>0.0.0.0:11434</string>
+        <key>OLLAMA_MODELS</key>
+        <string>/Users/alex/.ollama/models</string>
+        <key>OLLAMA_NUM_PARALLEL</key>
+        <string>1</string>
+        <key>OLLAMA_MAX_LOADED_MODELS</key>
+        <string>1</string>
+    </dict>
+    <key>StandardOutPath</key>
+    <string>/Users/alex/ollama.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/alex/ollama.log</string>
+</dict>
+</plist>
