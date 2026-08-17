@@ -1,0 +1,53 @@
+alias: "Master: Pause/Resume All Automations"
+id: master_automation_pause
+description: >
+  Single dashboard toggle (input_boolean.master_automation_pause) that
+  suspends camera privacy/security automation, arrival/departure lighting
+  and AC automation (via ha_automation_enabled), and the Smart Lighting
+  motion engine (via sl_enabled) — and forces cameras into privacy/off
+  state immediately. On resume, restores both toggles and re-syncs camera
+  state to actual occupancy right away instead of waiting for the next
+  minute's drift-correction pass.
+
+  Camera/security automations are gated by an added
+  input_boolean.master_automation_pause condition rather than
+  automation.turn_off, so the pause survives an HA restart correctly —
+  security_privacy_monitor has initial_state: true specifically because a
+  past incident left it silently disabled after a restart; turning it off
+  here would reintroduce that failure mode.
+mode: single
+trigger:
+  - platform: state
+    entity_id: input_boolean.master_automation_pause
+    to: "on"
+    id: pause
+  - platform: state
+    entity_id: input_boolean.master_automation_pause
+    to: "off"
+    id: resume
+action:
+  - choose:
+      - conditions:
+          - condition: trigger
+            id: pause
+        sequence:
+          - service: input_boolean.turn_off
+            target:
+              entity_id:
+                - input_boolean.ha_automation_enabled
+                - input_boolean.sl_enabled
+          - service: script.camera_privacy_on
+      - conditions:
+          - condition: trigger
+            id: resume
+        sequence:
+          - service: input_boolean.turn_on
+            target:
+              entity_id:
+                - input_boolean.ha_automation_enabled
+                - input_boolean.sl_enabled
+          - service: automation.trigger
+            target:
+              entity_id: automation.security_privacy_monitor_drift_correction
+            data:
+              skip_condition: true

@@ -17,5 +17,8 @@ condition:
       - condition: state
         entity_id: binary_sensor.anyone_home
         state: "unavailable"
+  - condition: state
+    entity_id: input_boolean.master_automation_pause
+    state: "off"
 action:
   - service: script.camera_privacy_off

@@ -1,0 +1,6 @@
+# Master automation pause — one toggle to suspend all house automation
+
+master_automation_pause:
+  name: "Pause All Automations"
+  icon: mdi:pause-octagon
+  initial: false

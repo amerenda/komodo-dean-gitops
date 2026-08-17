@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.local.dns-alias-watchdog</string>
+    <!-- Re-assert the 10.100.20.240 DNS alias on en0. pf-dns-redirect.sh
+         only adds it once, at boot (RunAtLoad). macOS can silently drop
+         manually-added secondary interface IPs across sleep/wake or link
+         flap events, which takes down dns-udp-proxy.py's :53 listener and
+         breaks DNS for every LAN/Tailscale client pointed at .240 until the
+         next reboot. This re-runs the idempotent alias-add on a timer so it
+         self-heals instead. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/sbin/ifconfig</string>
+        <string>en0</string>
+        <string>alias</string>
+        <string>10.100.20.240/24</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>30</integer>
+    <key>StandardOutPath</key>
+    <string>/dev/null</string>
+    <key>StandardErrorPath</key>
+    <string>/dev/null</string>
+</dict>
+</plist>

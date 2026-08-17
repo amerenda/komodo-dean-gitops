@@ -6,6 +6,19 @@ views:
       - type: grid
         cards:
           - type: heading
+            heading: Master Control
+            heading_style: title
+            icon: mdi:pause-octagon
+          - type: tile
+            entity: input_boolean.master_automation_pause
+            name: Pause All Automations
+            icon: mdi:pause-octagon
+            vertical: false
+            color: red
+
+      - type: grid
+        cards:
+          - type: heading
             heading: Camera Feeds
             heading_style: title
             icon: mdi:camera
