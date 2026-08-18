@@ -346,50 +346,53 @@ else
     ERRORS=$((ERRORS + 1))
 fi
 
-# ── alertmanager.yml — written with real Telegram credentials (overwrites git template) ─
+# ── alertmanager.yml — written with real Pushover credentials (overwrites git template) ─
 # alertmanager.yml in git is a no-op placeholder; this writes the live config with secrets.
-# Alertmanager is reloaded immediately after so alerts can be delivered via Telegram.
+# Alertmanager is reloaded immediately after so alerts can be delivered via Pushover.
+# This is mini's PRIMARY Alertmanager — every rule group in monitoring/rules/ routes here.
+# k3s runs its own independent secondary Alertmanager (k3s-dean-gitops) whose only job is
+# alerting if mini itself goes unreachable — see MacMiniPrometheusDown there.
 
-log "Writing alertmanager.yml with Telegram receiver..."
-TELE_TOKEN=$("$BWS_BIN" secret get "19b403db-11cf-4bf4-a441-b41c00f04eaa" 2>/dev/null | /opt/homebrew/bin/jq -r .value)
-TELE_TOKEN=$(printf '%s' "$TELE_TOKEN" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
-TELE_CHAT=$("$BWS_BIN" secret get "09b43d81-36d3-464d-ae02-b41c00e63805" 2>/dev/null | /opt/homebrew/bin/jq -r .value)
-TELE_CHAT=$(printf '%s' "$TELE_CHAT" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+log "Writing alertmanager.yml with Pushover receiver..."
+PUSHOVER_USER_KEY=$("$BWS_BIN" secret get "16d79345-5721-4173-9e14-b49a00ce1cb3" 2>/dev/null | /opt/homebrew/bin/jq -r .value)
+PUSHOVER_USER_KEY=$(printf '%s' "$PUSHOVER_USER_KEY" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+PUSHOVER_TOKEN=$("$BWS_BIN" secret get "45c01263-f879-4cb7-ad01-b49a00d0b2d0" 2>/dev/null | /opt/homebrew/bin/jq -r .value)
+PUSHOVER_TOKEN=$(printf '%s' "$PUSHOVER_TOKEN" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
-if [[ -n "$TELE_TOKEN" ]] && [[ "$TELE_TOKEN" != "null" ]] && \
-   [[ -n "$TELE_CHAT" ]]  && [[ "$TELE_CHAT"  != "null" ]]; then
+if [[ -n "$PUSHOVER_USER_KEY" ]] && [[ "$PUSHOVER_USER_KEY" != "null" ]] && \
+   [[ -n "$PUSHOVER_TOKEN" ]]    && [[ "$PUSHOVER_TOKEN"    != "null" ]]; then
     cat > "$MON_DIR/alertmanager.yml" << ALERTMANAGER_EOF
 global:
   resolve_timeout: 5m
 
 route:
-  receiver: 'telegram'
+  receiver: 'pushover'
   group_by: ['alertname', 'stack']
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 4h
-  routes:
-    - matchers:
-        - severity = "info"
-      receiver: 'no-op'
 
 receivers:
-  - name: 'telegram'
-    telegram_configs:
-      - bot_token: '${TELE_TOKEN}'
-        chat_id: ${TELE_CHAT}
-        parse_mode: 'HTML'
-
-  - name: 'no-op'
+  - name: 'pushover'
+    pushover_configs:
+      - user_key: '${PUSHOVER_USER_KEY}'
+        token: '${PUSHOVER_TOKEN}'
+        title: '{{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'
+        message: |-
+          {{ .CommonAnnotations.summary }}
+          {{ .CommonAnnotations.description }}
+        url: 'https://alertmanager.amer.dev'
+        priority: '0'
+        send_resolved: true
 ALERTMANAGER_EOF
     chmod 0600 "$MON_DIR/alertmanager.yml"
     chown "$OWNER" "$MON_DIR/alertmanager.yml" 2>/dev/null || true
     # Reload alertmanager so it picks up the new receiver immediately.
     curl -sf -X POST http://localhost:9093/-/reload >/dev/null 2>&1 \
-        && log "alertmanager reloaded with Telegram receiver" \
+        && log "alertmanager reloaded with Pushover receiver" \
         || log "WARN: alertmanager reload failed (may not be running yet)"
 else
-    log "WARN: failed to fetch Telegram credentials — alertmanager.yml left as no-op"
+    log "WARN: failed to fetch Pushover credentials — alertmanager.yml left as no-op"
     ERRORS=$((ERRORS + 1))
 fi
 

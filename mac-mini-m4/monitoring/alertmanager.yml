@@ -1,3 +1,6 @@
+# Placeholder — inject-secrets.sh overwrites this file on disk with the real Pushover
+# receiver (BWS: pushover-user-key, pushover-alerts-api-key) and reloads Alertmanager.
+# See mac-mini-m4/scripts/inject-secrets.sh. Never put real credentials in this file.
 global:
   resolve_timeout: 5m
 
