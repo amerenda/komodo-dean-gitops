@@ -70,7 +70,12 @@ views:
             entity: automation.security_privacy_monitor_drift_correction
             show_state: true
             tap_action:
-              action: toggle
+              action: call-service
+              service: automation.trigger
+              target:
+                entity_id: automation.security_privacy_monitor_drift_correction
+              data:
+                skip_condition: true
             icon: mdi:sync-alert
 
       - type: grid
