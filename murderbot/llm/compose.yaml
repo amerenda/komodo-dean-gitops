@@ -1,85 +1,104 @@
-# llama.cpp inference stack on murderbot — NVIDIA RTX PRO 4000 Blackwell (SM_120a)
-# Serves huihui-ai/Huihui-Qwen3.6-35B-A3B-abliterated-MTP-GGUF (Q4_K) on port 8088
-# LiteLLM routes to http://10.100.20.19:8088 as model alias "qwen36-35b-a3b"
+# vLLM inference stack on murderbot — NVIDIA RTX PRO 4000 Blackwell (SM_120a)
+# Serves sakamakismile/Qwen3.8-27B-MTP-NVFP4 on port 8088
+# LiteLLM routes to http://10.100.20.19:8088 as model alias "qwen38-27b"
 #
-# Migration note (2026-07-23): replaces the vLLM+Qwen3.6-27B-NVFP4 setup tagged
-# `qwen3.6-27b` in this repo (git checkout qwen3.6-27b -- murderbot/llm/compose.yaml
-# to revert). That setup was NOT the problem being solved here — it worked and was
-# stable. This migration exists because llama.cpp + this model measurably outperforms
-# it on the same hardware: ~120-140 tok/s generation via MTP speculative decoding
-# vs ~25-32 tok/s on vLLM, and 98,304 usable context vs 49,152 — a real, benchmarked
-# win, not a lateral move. See ~/.claude memory `project_murderbot_llm_migration_2026_07`
-# for the full rationale and history (this model+engine combo ran successfully here
-# months before the vLLM switch; the switch away from llama.cpp turned out to have
-# been unnecessary for this model).
+# Migration note (2026-08-19): replaces llama.cpp+Qwen3.6-35B-A3B with vLLM
+# serving the newly-released Qwen3.8-27B dense model in NVFP4. Model upgrade,
+# not an engine regression: Qwen3.8 ships with vLLM-native NVFP4 support, so
+# vLLM is viable again for a model this size. Every flag below was arrived at
+# by actually loading this model on this card and hitting real failures first
+# -- not copied from a vendor doc. See "How these flags were found" below.
 #
-# Why llama.cpp over vLLM for THIS model specifically:
-#   - Same 24GB card, same hybrid Qwen3.5-MoE architecture (linear/gated-delta-net
-#     attention on 30/40 layers, full attention on the other 10), but llama.cpp's
-#     memory accounting and MTP (multi-token-prediction speculative decoding)
-#     support for this architecture is both more memory-efficient and faster here.
-#   - vLLM's NVFP4/compressed-tensors path was tested for this same model on this
-#     same card and topped out around ~12.5K usable context (multimodal encoder-
-#     cache reservation + mamba-state overhead ate the remaining budget) — see the
-#     memory file above for that dead-end. llama.cpp does not carry that overhead.
+# Model: sakamakismile/Qwen3.8-27B-MTP-NVFP4 (20.6 GB on disk)
+#   - Qwen/Qwen3.8-27B (dense, hybrid DeltaNet+full-attention, Qwen3-VL vision
+#     tower, native MTP draft head) quantized NVFP4 W4A4 group-16 via
+#     llm-compressor. lm_head, vision tower, conv1d, and MTP head kept in bf16;
+#     everything else NVFP4. 55.6 GB bf16 -> 20.6 GB.
+#   - Chosen over the two other public NVFP4 quants after checking actual file
+#     sizes via the HF API (not blog claims, which ranged 20.6/23.4/24.6/26.4 GB
+#     for what's nominally "the same" quant): the official vLLM-recipe model
+#     (Inferact/Qwen3.8-27B-NVFP4) is 26.4 GB, does not fit a 24GB card at all;
+#     unsloth/Qwen3.8-27B-NVFP4 is 23.4 GB, fits weights-only with under 1GB
+#     left for anything else -- not viable. This one is 20.6 GB and, per the
+#     load-time accounting below, is the one that actually works here.
+#   - NOT abliterated. Unlike the Qwen3.6-27B setup this replaces, there is no
+#     production-grade weight-level-abliterated NVFP4 quant of Qwen3.8-27B yet
+#     (huihui-ai's Huihui-Qwen3.8-27B-abliterated exists but is bf16-only and
+#     self-described as a "crude proof-of-concept," and nobody has quantized it
+#     to NVFP4). The murderbot-uncensored-* OWU presets on this model rely on
+#     system-prompt-based uncensoring only until a mature abliterated NVFP4
+#     quant exists -- a real capability change from the previous setup, not an
+#     oversight. Revisit if/when one ships.
 #
-# Why this model (huihui-ai abliterated MTP GGUF, Q4_K):
-#   - True weight-level abliteration (not just prompt-based uncensoring like the
-#     old --uncensored flag in ~/claude/projects/murderbot/scripts/start-openclaude.sh)
-#   - MTP draft heads baked directly into this GGUF — no separate draft model needed
-#   - Q4_K (20.22 GiB on disk) is the publisher's own recommended quant tier for
-#     this quant family; larger tiers (Q5_K+) don't leave enough headroom on 24GB
+# Tool calling — yes, this needs the same XML-aware handling Qwen3.6 needed:
+#   --tool-call-parser qwen3_xml is required (generic "hermes" leaves raw XML
+#   in content on this architecture, same class of bug Qwen3.6 had -- see
+#   praetor repo PR #189). This is both the model publisher's own recipe and
+#   what the previous working Qwen3.6-27B compose.yaml in this repo used. No
+#   custom chat template file needed (unlike the llama.cpp path) -- vLLM's
+#   qwen3_xml parser works directly against the model's stock chat template.
 #
-# Chat template: froggeric's community-maintained Qwen 3.5/3.6 fix (v21.3, see
-# murderbot/llm-llamacpp/chat_template.jinja), NOT the GGUF's baked-in template.
-# The stock Qwen template has documented tool-calling defects (llama.cpp issue
-# #19872: doesn't natively describe tools) and several agentic-loop stalling bugs
-# this template specifically fixes — including the exact "XML tool-call text
-# leaked as content" failure observed live while testing forced-synthesis turns
-# on the vLLM setup (see praetor repo PR #189).
+# MTP speculative decoding — NOT enabled, deliberately:
+#   The checkpoint has an MTP draft head baked in (--speculative-config
+#   '{"method":"qwen3_5_mtp","num_speculative_tokens":3}' is the publisher's
+#   documented way to use it), but loading it added ~3.4 GiB to the resident
+#   footprint (21.08 GiB vs 17.62 GiB without) -- confirmed by diffing
+#   "Model loading took X GiB" between two otherwise-identical loads on this
+#   card. That extra weight left no room for a usable KV cache: even at
+#   --gpu-memory-utilization 0.99 the process OOM'd on a fixed ~2.37 GiB
+#   post-load allocation before ever reaching KV cache sizing. Without MTP,
+#   the same card loads cleanly with 3.95-4.89 GiB left for KV cache. Traded
+#   MTP's throughput win (would have been large, per the publisher's own
+#   TP=4/128k benchmarks) for a model that reliably fits and serves real
+#   context on this single 24GB card. Revisit if a lighter-weight MTP
+#   integration or a bigger card shows up.
 #
-# Context length — empirically determined, NOT calculated (learned the hard way
-# on the vLLM side that KV-cache math for this hybrid architecture is not linear
-# and easy to get wrong; measured every value directly instead of estimating):
-#   65536   -> loads cleanly, ~1.7 GiB VRAM headroom (very safe, low context)
-#   98304   -> loads cleanly, survived a REAL 96,640-token request (98.3% of this
-#              ceiling) with ~850 MiB headroom stable throughout -- THE CHOSEN VALUE
-#   114688  -> loads and reports healthy, but CRASHES (CUDA OOM, exit 139) on a
-#              real large request -- only 517 MiB headroom at idle was not enough
-#              once real compute buffers were needed. "Starts successfully" is not
-#              sufficient evidence of fitting; every candidate here was verified
-#              under an actual large inference request, not just at server startup.
-#   131072  -> fails to allocate KV cache at startup (short by only 256 MiB, in
-#              the MTP draft context specifically)
-#   262144  -> the model's native max; fails to allocate at startup (short by
-#              ~5 GiB) -- nowhere close on this 24GB card with this quant
+# GPU sizing — empirically determined under real requests, NOT calculated or
+# trusted from "server started successfully" alone (a lesson learned the hard
+# way on both the previous vLLM setup and the llama.cpp migration -- KV-cache
+# math for this hybrid architecture is not linear and is easy to get wrong):
+#   --gpu-memory-utilization 0.99 -> loads, reports a KV cache budget, but
+#       OOMs on the very first real chat-completion request (only ~360 MiB
+#       free at runtime once actual generation buffers were needed).
+#       "Available KV cache memory" being reported is not proof of fitting.
+#   --gpu-memory-utilization 0.95 -> loads, and SURVIVES real requests:
+#       tested a 1500-token generation (finish_reason=length, coherent, GPU
+#       had 913 MiB free after) and a real 28,172-token prompt at
+#       max-model-len=32768 (HTTP 200, coherent summary, 637 MiB free after).
+#       THE CHOSEN VALUE.
+#   --max-model-len 32768 -> KV pool reported 99,517 tokens at this setting
+#       (3.04x concurrency for a full-length single request) -- comfortable
+#       margin verified with the 28K-token real-prompt test above, not just
+#       trusted from the startup log.
 #
-# Key flags:
-#   -ngl 99                     : offload all layers to GPU (99 exceeds any real
-#                                  layer count -- llama.cpp clamps to actual depth --
-#                                  zero CPU/disk fallback, confirmed via VRAM usage
-#                                  matching the model's on-disk size almost exactly)
-#   -fa on                      : flash attention, required at this model size
-#   -np 1                       : single concurrent slot -- matches the old vLLM
-#                                  --max-num-seqs 1 setup; this box serves one
-#                                  caller at a time (OWU, opencode, praetor workers
-#                                  all queue through the same backend)
-#   --spec-type draft-mtp
-#   --spec-draft-n-max 6        : MTP speculative decoding, values straight from the
-#                                  model publisher's own README example command
-#   --jinja --chat-template-file: use the froggeric template file, not the GGUF's own
-#   -c 98304                    : see context-length section above
-#   --metrics                   : Prometheus metrics for the smoke test and monitoring
+# How these flags were found (the debugging trail, so it isn't repeated):
+#   1. --enforce-eager is required. Without it, CUDA graph capture after
+#      loading a ~21 GiB model tries to grab ~2.37 GiB more and OOMs before
+#      the server ever starts (matches a previously-resolved incident with
+#      the older nvidia/Qwen3.6-27B-NVFP4 model on this same card).
+#   2. --skip-mm-profiling and --limit-mm-per-prompt '{"image":0,"video":0}'
+#      are both set for text-only serving (this model's vision tower is
+#      unused here; OWU/OpenHands/praetor only send text). Belt-and-suspenders
+#      with the fixes above, doesn't hurt.
+#   3. PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True materially reduced
+#      allocator fragmentation waste -- the fixed post-load allocation that
+#      OOM'd went from needing ~2.37 GiB free to needing ~20 MiB free once
+#      this was set (still not enough on its own without also dropping MTP,
+#      but part of what got the final config across the line).
+#   4. --quantization is NOT set -- compressed-tensors is auto-detected from
+#      the checkpoint's quantization_config.
+#
+# Zero CPU offload confirmed (hard requirement for this deployment): no
+# --cpu-offload-gb flag is set (default 0), nvidia-smi showed the full model
+# resident in GPU memory (23,890 MiB used, matching weights+KV), and the
+# server's own /metrics reported num_cpu_blocks="None" -- zero CPU-side KV
+# blocks too. Verified directly, not inferred from flags alone.
 name: llm-murderbot
 
 services:
-  llama-server:
-    build:
-      context: ../llm-llamacpp
-      dockerfile: Dockerfile
-    image: llama-cpp-blackwell:b10092
-    pull_policy: build
-    container_name: llama-server
+  vllm-server:
+    image: vllm/vllm-openai:qwen38-cu129
+    container_name: vllm-server
     restart: unless-stopped
     mem_swappiness: 0
     ipc: host
@@ -91,51 +110,62 @@ services:
               count: all
               capabilities: [gpu]
     environment:
+      HUGGING_FACE_HUB_TOKEN: ${HF_TOKEN}
+      HF_HOME: /mnt/models/hf-cache
       NVIDIA_VISIBLE_DEVICES: all
       NVIDIA_DRIVER_CAPABILITIES: compute,utility
+      PYTHONUNBUFFERED: "1"
+      PYTORCH_CUDA_ALLOC_CONF: expandable_segments:True
+    entrypoint: ["python3", "-m", "vllm.entrypoints.openai.api_server"]
     command:
-      - "-m"
-      - "/mnt/models/hf/Huihui-Qwen3.6-35B-A3B-abliterated-MTP-GGUF/Huihui-Qwen3.6-35B-A3B-abliterated-ggml-model-Q4_K.gguf"
+      - "--model"
+      - "sakamakismile/Qwen3.8-27B-MTP-NVFP4"
       - "--host"
       - "0.0.0.0"
       - "--port"
       - "8088"
-      - "--alias"
-      - "qwen36-35b-a3b"
-      - "-ngl"
-      - "99"
-      - "-fa"
-      - "on"
-      - "-np"
+      - "--served-model-name"
+      - "qwen38-27b"
+      - "--trust-remote-code"
+      - "--tensor-parallel-size"
       - "1"
-      - "--spec-type"
-      - "draft-mtp"
-      - "--spec-draft-n-max"
-      - "6"
-      - "--jinja"
-      - "--chat-template-file"
-      - "/chat_template.jinja"
-      - "-c"
-      - "98304"
-      - "--metrics"
+      - "--reasoning-parser"
+      - "qwen3"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "qwen3_xml"
+      - "--limit-mm-per-prompt"
+      - '{"image":0,"video":0}'
+      - "--skip-mm-profiling"
+      - "--max-model-len"
+      - "32768"
+      - "--max-num-seqs"
+      - "1"
+      - "--gpu-memory-utilization"
+      - "0.95"
+      - "--kv-cache-dtype"
+      - "fp8"
+      - "--enforce-eager"
+      - "--default-chat-template-kwargs"
+      - '{"enable_thinking": false}'
+      - "--no-enable-log-requests"
     ports:
       - "8088:8088"
     volumes:
       - /mnt/storage/models:/mnt/models
-      - ../llm-llamacpp/chat_template.jinja:/chat_template.jinja:ro
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:8088/health"]
       interval: 30s
       timeout: 10s
       retries: 5
-      # Cold start: reading a 20GB GGUF from disk + full GPU upload + KV cache
-      # allocation took ~1m28s in testing on an otherwise-idle host; generous
-      # margin here for a busier host or a cold page cache.
-      start_period: 600s
+      # Cold start: ~20GB checkpoint download (first run only, cached after)
+      # + load + KV cache allocation took ~75-90s once cached in testing;
+      # generous margin here for a cold HF cache or a busier host.
+      start_period: 1200s
 
-  # Smoke test — runs once after llama-server is healthy, validates the deployment.
-  # Checks: model loaded, tool calling (JSON not XML), SearXNG search, synthesis
-  #         after tool turn, token throughput (MTP should land 80-140+ tok/s).
+  # Smoke test — runs once after vllm-server is healthy, validates the deployment.
+  # Checks: model loaded, GPU KV cache, tool calling (JSON not XML), SearXNG search,
+  #         synthesis after tool turn, token throughput.
   # Logs: docker logs llm-murderbot-smoke-test
   # Exit code: docker inspect llm-murderbot-smoke-test --format='{{.State.ExitCode}}'
   smoke-test:
@@ -145,11 +175,12 @@ services:
     labels:
       komodo.skip:
     depends_on:
-      llama-server:
-        condition: service_started
+      vllm-server:
+        condition: service_healthy
     environment:
-      LLAMA_URL: "http://llama-server:8088"
+      VLLM_URL: "http://vllm-server:8088"
       SEARXNG_URL: "https://searxng.amer.dev"
+      EXPECTED_MODEL: "qwen38-27b"
     volumes:
       - ./smoke-test.py:/smoke-test.py:ro
     command: ["python3", "/smoke-test.py"]
