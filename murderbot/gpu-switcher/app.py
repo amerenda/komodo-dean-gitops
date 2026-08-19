@@ -138,6 +138,60 @@ async def switch(config_name: str, authorization: Optional[str] = Header(None)):
     return {"status": "switching", "target": config_name}
 
 
+async def wait_for_stack_idle(stack: str, timeout_s: float = 120, poll_s: float = 2) -> None:
+    """Poll GetStackActionState until Komodo/Periphery is done with a prior
+    operation on this stack. Required before issuing another action --
+    firing DeployStack immediately after DestroyStack races Periphery's own
+    teardown and fails with "Resource is busy" (observed directly)."""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        s = await komodo_call("read", "GetStackActionState", {"stack": stack})
+        if not any(s.values()):
+            return
+        await asyncio.sleep(poll_s)
+    raise RuntimeError(f"timed out waiting for {stack} to go idle")
+
+
+async def wait_for_update_result(stack: str, after_ts: float, timeout_s: float = 600, poll_s: float = 3) -> dict:
+    """DeployStack/DestroyStack return success=true as soon as Komodo *accepts*
+    the request -- the actual outcome (container built/started, or a failure
+    like "Resource is busy") only shows up later in the stack's update
+    history. Poll for the update record created by this specific call and
+    return it, so callers can check its real `success` field."""
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        updates = await komodo_call(
+            "read", "ListUpdates", {"query": {"target": {"type": "Stack", "id": await get_stack_id(stack)}}}
+        )
+        candidates = [u for u in updates if u.get("start_ts", 0) >= after_ts * 1000 and u.get("status") == "Complete"]
+        if candidates:
+            return max(candidates, key=lambda u: u["start_ts"])
+        await asyncio.sleep(poll_s)
+    raise RuntimeError(f"timed out waiting for an update result on {stack}")
+
+
+_stack_id_cache: dict[str, str] = {}
+
+
+async def get_stack_id(stack_name: str) -> str:
+    if stack_name not in _stack_id_cache:
+        stacks = await komodo_call("read", "ListStacks", {})
+        for s in stacks:
+            _stack_id_cache[s["name"]] = s["id"]
+    return _stack_id_cache[stack_name]
+
+
+async def run_stack_action(kind: str, action: str, stack: str) -> None:
+    """Issue a Stack action and wait for its *real* outcome, not just
+    Komodo's immediate accept response."""
+    t0 = time.time()
+    await komodo_call(kind, action, {"stack": stack})
+    result = await wait_for_update_result(stack, t0)
+    if not result.get("success"):
+        raise RuntimeError(f"{action} on {stack} failed -- see Komodo update history for logs")
+    await wait_for_stack_idle(stack)
+
+
 async def _do_switch(config_name: str) -> None:
     async with _lock:
         cfg = CONFIGS[config_name]
@@ -145,12 +199,12 @@ async def _do_switch(config_name: str) -> None:
         try:
             running = await get_running_gpu_stacks()
             for stack in running:
-                await komodo_call("execute", "DestroyStack", {"stack": stack})
+                await run_stack_action("execute", "DestroyStack", stack)
 
             if cfg["variable"]:
                 await komodo_call("write", "UpdateVariableValue", {"name": cfg["variable"], "value": cfg["value"]})
 
-            await komodo_call("execute", "DeployStack", {"stack": cfg["stack"]})
+            await run_stack_action("execute", "DeployStack", cfg["stack"])
 
             state.update(status="idle", finished_at=time.time())
         except Exception as e:
