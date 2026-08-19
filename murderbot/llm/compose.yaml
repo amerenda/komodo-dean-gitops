@@ -1,54 +1,37 @@
 # llama.cpp inference stack on murderbot — NVIDIA RTX PRO 4000 Blackwell (SM_120a)
-# Serves ggml-org/Qwen3.8-27B-GGUF (Q4_K_M) + MTP draft head on port 8088
-# LiteLLM routes to http://10.100.20.19:8088 as model alias "qwen38-27b"
 #
-# Migration note (2026-08-19): replaces vLLM+Qwen3.8-27B-NVFP4 (tagged nothing
-# yet in this repo -- see git log for murderbot/llm/compose.yaml, commit
-# 0506b18 has the vLLM version to revert to) with llama.cpp. Not a model
-# change -- same Qwen3.8-27B, different engine and quant. The vLLM setup
-# worked but couldn't fit MTP speculative decoding on this 24GB card (its
-# NVFP4 quant's ~21GB resident weight footprint left no room for the MTP
-# head's ~3.4GiB alongside a usable KV cache) -- served without MTP at
-# ~8.3 tok/s and 32,768 max context. This mirrors exactly the same lesson
-# already learned once for Qwen3.6-27B/35B-A3B on this card (see the vLLM
-# PR this compose.yaml replaced, and project_murderbot_llm_migration_2026_07
-# in ~/.claude memory): llama.cpp's memory accounting fits this model family
-# with MTP where vLLM's does not.
+# SWITCHABLE MODEL PROFILES (2026-08-19): this file defines two Docker Compose
+# *profiles* -- qwen36 and qwen38 -- both serving under the same
+# --alias murderbot-primary on port 8088. Which profile actually runs is
+# selected by the Komodo Variable MURDERBOT_LLM_PROFILE, read by
+# murderbot/llm/pre-deploy.sh and written into COMPOSE_PROFILES in llm/.env
+# BEFORE `docker compose up` runs -- NOT by editing this file. Switching
+# models (or switching this GPU to the image-gen stack in murderbot/img/) is
+# a runtime action via murderbot/gpu-switcher/, not a gitops PR. See that
+# service for the switch mechanism itself.
 #
-# Why this specific GGUF combo:
-#   - Qwen3.8-27B-Q4_K_M.gguf (18.97 GB) + mtp-Qwen3.8-27B-Q4_0.gguf (1.68 GB)
-#     = ~20.65 GB combined resident weight footprint -- almost identical to
-#     the Qwen3.6-35B-A3B Q4_K GGUF (20.22 GB) that got 98,304 usable context
-#     and 120-140 tok/s with MTP on this exact card. Chosen over other quant
-#     tiers for the same reason: enough headroom for real KV cache, not
-#     because it's the largest available (Q5_K_M/Q6_K/Q8_0 all exist and are
-#     bigger, would eat into that headroom for no clear benefit here).
-#   - Published by ggml-org (the llama.cpp project itself) -- MTP file is
-#     packaged as a separate GGUF specifically meant to be loaded alongside
-#     the main model via --model-draft, unlike Qwen3.6's setup where MTP
-#     tensors were baked into one file. Confirmed both files are official
-#     ggml-org releases, not third-party repacks.
+# This file (the profile definitions, flags, quant choices) is still the
+# place to make actual configuration CHANGES to either profile -- adding a
+# third profile, bumping a quant, changing context size. Only the *selection*
+# of which profile runs right now lives outside git.
 #
-# llama.cpp build — bumped to a fresh commit for this migration:
-#   A real, documented bug exists on older llama.cpp CUDA builds where
-#   Qwen3.8's DeltaNet/Gated-DeltaNet layers produce silently corrupted
-#   output: loads fine, uses expected VRAM, runs at full speed, no crash or
-#   CUDA error -- just garbage text (ggml-org/llama.cpp discussion #27164).
-#   The underlying CUDA coalescing fix landed well before this migration's
-#   build tag, but this was verified directly (real coherent-output test on
-#   this card) before deploying, not assumed safe from the tag being new.
-#   See murderbot/llm-llamacpp/Dockerfile for the exact tag and reasoning.
+# Both profiles share the same llama.cpp build and chat template (froggeric's
+# v22.2 covers Qwen3.5/3.6/3.8 in one file) -- only the model, MTP draft
+# setup, and context size differ per profile.
 #
-# Chat template: froggeric's community-maintained fix, v22.2 (adds full
-# Qwen3.8 support on top of the same Qwen3.5/3.6 fixes the previous llama.cpp
-# setup used) -- same file path as before
-# (murderbot/llm-llamacpp/chat_template.jinja), just a newer version pulled
-# fresh from froggeric/Qwen-Fixed-Chat-Templates for this migration. Same
-# rationale as before: the stock Qwen chat template has documented
-# tool-calling and agentic-loop defects this template fixes.
+# ── qwen38 profile: Qwen3.8-27B-GGUF+MTP ─────────────────────────────────────
+# Model: ggml-org/Qwen3.8-27B-Q4_K_M.gguf (18.97GB) + mtp-Qwen3.8-27B-Q4_0.gguf
+# (1.68GB) separate MTP draft head, loaded via --spec-draft-model
+# (this architecture ships MTP as a standalone file, unlike qwen36 below).
 #
-# Context length -- empirically determined, NOT calculated (same lesson as
-# every prior context-sizing table in this repo's history: KV-cache math for
+# llama.cpp build note: a real, documented bug exists on older llama.cpp CUDA
+# builds where Qwen3.8's DeltaNet/Gated-DeltaNet layers produce silently
+# corrupted output (loads fine, full speed, no error, just garbage text) --
+# see ggml-org/llama.cpp discussion #27164. Confirmed coherent output
+# directly on the b10502 build in murderbot/llm-llamacpp/Dockerfile before
+# ever deploying this profile, not assumed safe from the tag being new.
+#
+# Context length -- empirically determined, NOT calculated (KV-cache math for
 # hybrid attention architectures is not linear and is easy to get wrong):
 #   16384  -> loads cleanly, ~3.4 GiB headroom (very safe, low context)
 #   65536  -> loads cleanly, survived a REAL 58,912-token request (90% of
@@ -56,71 +39,88 @@
 #             uncomfortably close to the edge for production stability
 #   49152  -> loads cleanly, survived a REAL 43,419-token request (88% of
 #             this ceiling) with 1.19 GiB headroom remaining -- THE CHOSEN
-#             VALUE, same "verify under real load, not just startup" method
-#             as every other context decision in this file's history. Still
-#             1.5x the vLLM setup's 32,768 while carrying real safety margin.
+#             VALUE
 #
-# Throughput -- measured, not assumed to match the old Qwen3.6-35B-A3B llama.cpp
-# setup's 120-140 tok/s: that model was a 35B **MoE** (only ~3B params active
-# per token). This is a **dense** 27B model -- full param count active every
-# token, inherently more expensive per token regardless of engine or MTP.
-# Measured here: ~40 tok/s sustained (700-token real generation), MTP draft
-# acceptance ~63-100% depending on content predictability. Still a real win
-# over the vLLM setup's ~8.3 tok/s (no MTP fit there) -- about 5x.
+# Throughput -- measured, not assumed to match the qwen36 profile below: that
+# model is a 35B **MoE** (only ~3B params active per token). This is a
+# **dense** 27B model -- full param count active every token, inherently
+# more expensive per token regardless of engine or MTP. Measured: ~40 tok/s
+# sustained (700-token real generation), MTP draft acceptance ~63-100%.
 #
-# Key flags:
-#   -ngl 99                     : offload all layers to GPU (99 exceeds any
-#                                  real layer count -- llama.cpp clamps to
-#                                  actual depth -- zero CPU/disk fallback,
-#                                  confirmed via VRAM usage matching the
-#                                  model's on-disk size almost exactly)
+# ── qwen36 profile: Qwen3.6-35B-A3B-MTP-GGUF ─────────────────────────────────
+# Model: huihui-ai/Huihui-Qwen3.6-35B-A3B-abliterated-MTP-GGUF (Q4_K,
+# 20.22 GiB, MTP tensors baked into the single file -- --spec-type draft-mtp
+# alone finds them, no --spec-draft-model needed, unlike qwen38 above).
+# True weight-level abliteration (huihui-ai), not just prompt-based
+# uncensoring -- unlike the qwen38 profile, which has no abliterated NVFP4/
+# GGUF quant available yet (see k3s-dean-gitops litellm configmap).
+#
+# Context length 98,304 and the -ngl/-fa/-np/--spec-draft-n-max values below
+# are carried over from this profile's original 2026-07-23 deployment
+# (~120-140 tok/s with MTP, ~850 MiB headroom at 98,304 verified under a real
+# 96,640-token request at the time) -- re-verify these numbers empirically on
+# the current build/template combo before fully trusting them again; the
+# llama.cpp version and chat template have both changed since this profile
+# last actually ran (see the PR that reintroduced this profile for the
+# revalidation results).
+#
+# Key flags shared by both profiles:
+#   -ngl 99 / -ngld 99          : offload all layers to GPU, main + draft
+#                                  model (99 exceeds any real layer count --
+#                                  llama.cpp clamps to actual depth -- zero
+#                                  CPU/disk fallback)
 #   -fa on                      : flash attention, required at this model size
 #   -np 1                       : single concurrent slot -- this box serves
-#                                  one caller at a time (OWU, opencode,
-#                                  praetor workers all queue through the same
-#                                  backend)
-#   --spec-draft-model            : the separate MTP GGUF (see above) --
-#                                  ggml-org's Qwen3.8 release packages MTP as
-#                                  a standalone draft model rather than
-#                                  tensors baked into the main file
-#   --spec-type draft-mtp        : tells llama.cpp to treat the draft model as
-#                                  MTP heads sharing the main model's
-#                                  embeddings, not an independent draft model
-#   --spec-draft-n-max/-n-min    : MTP speculative decoding tuning
-#   --jinja --chat-template-file: froggeric's fixed template, not the GGUF's own
-#   --reasoning-format deepseek  : extracts <think> blocks into the API's
+#                                  one caller at a time
+#   --jinja --chat-template-file: froggeric's v22.2 fixed template (fixes
+#                                  documented tool-calling and agentic-loop
+#                                  defects in the stock Qwen templates)
+#   --reasoning-format deepseek : extracts <think> blocks into the API's
 #                                  reasoning_content field instead of leaking
-#                                  them into visible content -- documented
-#                                  requirement of the v22.2 template for
-#                                  agentic tool-calling clients
-#   --reasoning-preserve         : 100% prefix KV-cache retention across turns
-#                                  that include reasoning -- the template's
-#                                  own startup log recommended this
-#   -c 49152                     : see context-length section above
+#                                  them into visible content
+#   --reasoning-preserve        : 100% prefix KV-cache retention across turns
+#                                  that include reasoning
 #   --metrics                   : Prometheus metrics for the smoke test and monitoring
 name: llm-murderbot
 
+x-llama-common: &llama-common
+  build:
+    context: ../llm-llamacpp
+    dockerfile: Dockerfile
+  image: llama-cpp-blackwell:b10502
+  pull_policy: build
+  container_name: llama-server
+  restart: unless-stopped
+  mem_swappiness: 0
+  ipc: host
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+  environment:
+    NVIDIA_VISIBLE_DEVICES: all
+    NVIDIA_DRIVER_CAPABILITIES: compute,utility
+  ports:
+    - "8088:8088"
+  volumes:
+    - /mnt/storage/models:/mnt/models
+    - ../llm-llamacpp/chat_template.jinja:/chat_template.jinja:ro
+  healthcheck:
+    test: ["CMD", "curl", "-sf", "http://localhost:8088/health"]
+    interval: 30s
+    timeout: 10s
+    retries: 5
+    # Cold start: reading a ~20GB GGUF from disk + full GPU upload + KV cache
+    # allocation. Generous margin here for a busier host or a cold page cache.
+    start_period: 600s
+
 services:
-  llama-server:
-    build:
-      context: ../llm-llamacpp
-      dockerfile: Dockerfile
-    image: llama-cpp-blackwell:b10502
-    pull_policy: build
-    container_name: llama-server
-    restart: unless-stopped
-    mem_swappiness: 0
-    ipc: host
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
-    environment:
-      NVIDIA_VISIBLE_DEVICES: all
-      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+  llama-server-qwen38:
+    <<: *llama-common
+    profiles: ["qwen38"]
     command:
       - "-m"
       - "/mnt/models/hf-cache/hub/models--ggml-org--Qwen3.8-27B-GGUF/snapshots/0669b98607d47046c7c2b3f801011d54a08cfccf/Qwen3.8-27B-Q4_K_M.gguf"
@@ -133,7 +133,7 @@ services:
       - "--port"
       - "8088"
       - "--alias"
-      - "qwen38-27b"
+      - "murderbot-primary"
       - "-ngl"
       - "99"
       - "-ngld"
@@ -155,39 +155,63 @@ services:
       - "-c"
       - "49152"
       - "--metrics"
-    ports:
-      - "8088:8088"
-    volumes:
-      - /mnt/storage/models:/mnt/models
-      - ../llm-llamacpp/chat_template.jinja:/chat_template.jinja:ro
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:8088/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      # Cold start: reading a ~20GB combined GGUF from disk + full GPU upload
-      # + KV cache allocation. Generous margin here for a busier host or a
-      # cold page cache.
-      start_period: 600s
+
+  llama-server-qwen36:
+    <<: *llama-common
+    profiles: ["qwen36"]
+    command:
+      - "-m"
+      - "/mnt/models/hf/Huihui-Qwen3.6-35B-A3B-abliterated-MTP-GGUF/Huihui-Qwen3.6-35B-A3B-abliterated-ggml-model-Q4_K.gguf"
+      - "--spec-type"
+      - "draft-mtp"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8088"
+      - "--alias"
+      - "murderbot-primary"
+      - "-ngl"
+      - "99"
+      - "-fa"
+      - "on"
+      - "-np"
+      - "1"
+      - "--spec-draft-n-max"
+      - "6"
+      - "--jinja"
+      - "--chat-template-file"
+      - "/chat_template.jinja"
+      - "--reasoning-format"
+      - "deepseek"
+      - "--reasoning-preserve"
+      - "-c"
+      - "98304"
+      - "--metrics"
 
   # Smoke test — runs once after llama-server is healthy, validates the deployment.
   # Checks: model loaded, tool calling (JSON not XML), SearXNG search, synthesis
-  #         after tool turn, token throughput (MTP should land well above no-MTP baseline).
+  #         after tool turn, token throughput. Works against either profile since
+  #         both serve under --alias murderbot-primary.
   # Logs: docker logs llm-murderbot-smoke-test
   # Exit code: docker inspect llm-murderbot-smoke-test --format='{{.State.ExitCode}}'
   smoke-test:
     image: python:3.12-alpine
     container_name: llm-murderbot-smoke-test
     restart: "no"
+    profiles: ["qwen38", "qwen36"]
     labels:
       komodo.skip:
     depends_on:
-      llama-server:
+      llama-server-qwen38:
         condition: service_started
+        required: false
+      llama-server-qwen36:
+        condition: service_started
+        required: false
     environment:
       LLAMA_URL: "http://llama-server:8088"
       SEARXNG_URL: "https://searxng.amer.dev"
-      EXPECTED_MODEL_SUBSTR: "qwen38-27b"
+      EXPECTED_MODEL_SUBSTR: "murderbot-primary"
     volumes:
       - ./smoke-test.py:/smoke-test.py:ro
     command: ["python3", "/smoke-test.py"]

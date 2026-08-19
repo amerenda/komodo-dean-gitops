@@ -25,7 +25,7 @@ LLAMA_URL = os.environ.get("LLAMA_URL", "http://llama-server:8088")
 SEARXNG_URL = os.environ.get("SEARXNG_URL", "https://searxng.amer.dev")
 # llama-server reports whatever --alias was set to as its "id" in /v1/models
 # (murderbot/llm/compose.yaml sets --alias qwen36-35b-a3b) rather than the raw GGUF path.
-EXPECTED_MODEL_SUBSTR = os.environ.get("EXPECTED_MODEL_SUBSTR", "qwen38-27b")
+EXPECTED_MODEL_SUBSTR = os.environ.get("EXPECTED_MODEL_SUBSTR", "murderbot-primary")
 
 PASS: list[str] = []
 WARN: list[str] = []
