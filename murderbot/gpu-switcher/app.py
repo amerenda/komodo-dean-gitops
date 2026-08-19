@@ -160,9 +160,10 @@ async def wait_for_update_result(stack: str, after_ts: float, timeout_s: float =
     return it, so callers can check its real `success` field."""
     deadline = time.time() + timeout_s
     while time.time() < deadline:
-        updates = await komodo_call(
+        resp = await komodo_call(
             "read", "ListUpdates", {"query": {"target": {"type": "Stack", "id": await get_stack_id(stack)}}}
         )
+        updates = resp["updates"]  # {"updates": [...], "next_page": ...} -- not a bare list
         candidates = [u for u in updates if u.get("start_ts", 0) >= after_ts * 1000 and u.get("status") == "Complete"]
         if candidates:
             return max(candidates, key=lambda u: u["start_ts"])
