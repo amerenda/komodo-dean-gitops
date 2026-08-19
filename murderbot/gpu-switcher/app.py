@@ -45,18 +45,21 @@ CONFIGS = {
         "variable": "MURDERBOT_LLM_PROFILE",
         "value": "qwen36",
         "description": "Qwen3.6-35B-A3B-MTP-GGUF, ~120-140 tok/s, 98,304 ctx, true weight-level abliteration",
+        "health_url": "http://10.100.20.19:8088/health",
     },
     "qwen38": {
         "stack": "llm-murderbot",
         "variable": "MURDERBOT_LLM_PROFILE",
         "value": "qwen38",
         "description": "Qwen3.8-27B-GGUF+MTP, ~40 tok/s, 49,152 ctx, no abliterated quant available yet",
+        "health_url": "http://10.100.20.19:8088/health",
     },
     "imagegen": {
         "stack": "img-murderbot",
         "variable": None,
         "value": None,
         "description": "ComfyUI + FLUX image generation",
+        "health_url": "http://10.100.20.19:8188/system_stats",
     },
 }
 
@@ -193,6 +196,26 @@ async def run_stack_action(kind: str, action: str, stack: str) -> None:
     await wait_for_stack_idle(stack)
 
 
+async def wait_for_health(url: str, timeout_s: float = 300, poll_s: float = 5) -> None:
+    """DeployStack succeeding only means `docker compose up -d` returned --
+    for an LLM profile that's ~1.5-2 minutes before weights are actually
+    loaded and the service can serve a request. Poll the target's own health
+    endpoint (reachable since gpu-switcher and the GPU stacks share the host)
+    so /status only reports "idle" once the config is genuinely ready, not
+    just "the container exists"."""
+    deadline = time.time() + timeout_s
+    async with httpx.AsyncClient(timeout=10) as client:
+        while time.time() < deadline:
+            try:
+                r = await client.get(url)
+                if r.status_code == 200:
+                    return
+            except httpx.HTTPError:
+                pass
+            await asyncio.sleep(poll_s)
+    raise RuntimeError(f"timed out waiting for {url} to report healthy")
+
+
 async def _do_switch(config_name: str) -> None:
     async with _lock:
         cfg = CONFIGS[config_name]
@@ -206,6 +229,8 @@ async def _do_switch(config_name: str) -> None:
                 await komodo_call("write", "UpdateVariableValue", {"name": cfg["variable"], "value": cfg["value"]})
 
             await run_stack_action("execute", "DeployStack", cfg["stack"])
+            state.update(status="waiting_healthy")
+            await wait_for_health(cfg["health_url"])
 
             state.update(status="idle", finished_at=time.time())
         except Exception as e:
