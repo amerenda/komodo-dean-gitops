@@ -6,9 +6,11 @@
 # LoRAs: klein_anatomy_fixer (0.7), Flux_Skin_Texture_V2 (0.6), Flux_Portrait_Realism (0.5)
 #
 # MUTUALLY EXCLUSIVE with llm-murderbot:
-#   Running both would OOM the 24GB VRAM (vLLM uses ~23.5GB, FLUX uses ~16-18GB w/ LoRAs).
-#   Switch via: manual_runs/switch-llm-to-image.sh / switch-image-to-llm.sh
-#   Or: Komodo → DestroyStack llm-murderbot → DeployStack img-murderbot
+#   Running both would OOM the 24GB VRAM (llama.cpp uses ~20-23GB depending on
+#   model profile, FLUX uses ~16-18GB w/ LoRAs).
+#   Switch via: murderbot/gpu-switcher/ (POST /switch/imagegen) -- calls
+#   Komodo's DestroyStack llm-murderbot -> DeployStack img-murderbot under the
+#   hood, no git commit needed.
 #
 # Port 8188 is exposed on the host so the imggen k3s service can reach ComfyUI
 # at http://10.100.20.19:8188 regardless of whether imggen runs in k3s or on-host.

@@ -267,11 +267,15 @@ enabled = true
 insecure_tls = true
 passkey = ""
 
-# ── LLM: vLLM inference (murderbot) ─────────────────────────────────────────
+# ── LLM: llama.cpp inference, switchable model profiles (murderbot) ─────────
+# Model profile (qwen36 | qwen38) is selected by the Komodo Variable
+# MURDERBOT_LLM_PROFILE, NOT by this file -- see murderbot/llm/compose.yaml
+# and murderbot/gpu-switcher/ for the full mechanism. Switching models is a
+# runtime action (change the Variable, redeploy this stack), not a gitops PR.
 
 [[stack]]
 name = "llm-murderbot"
-description = "vLLM serving nvidia/Qwen3.6-27B-NVFP4 on port 8088 — LiteLLM primary backend"
+description = "llama.cpp serving a switchable Qwen model profile (see MURDERBOT_LLM_PROFILE Komodo Variable) on port 8088 — LiteLLM primary backend"
 tags = ["murderbot", "llm"]
 deploy = true
 [stack.config]
@@ -285,13 +289,40 @@ ignore_services = ["smoke-test"]
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
+export MURDERBOT_LLM_PROFILE="[[MURDERBOT_LLM_PROFILE]]"
 bash murderbot/llm/pre-deploy.sh
+"""
+
+# ── GPU workload switcher (murderbot) ────────────────────────────────────────
+# Always-on, no GPU needed. Switches which GPU-owning stack is active
+# (llm-murderbot's qwen36/qwen38 profile, or img-murderbot below) via the
+# Komodo API -- POST http://10.100.20.19:8090/switch/{qwen36,qwen38,imagegen}
+# (bearer auth, see gpu-switcher-bearer-token in BWS). No git commit needed
+# to switch -- see murderbot/gpu-switcher/app.py.
+
+[[stack]]
+name = "gpu-switcher"
+description = "Switches murderbot's GPU between llm-murderbot model profiles and img-murderbot via the Komodo API"
+tags = ["murderbot"]
+deploy = true
+[stack.config]
+server = "murderbot"
+repo = "amerenda/komodo-dean-gitops"
+branch = "main"
+file_paths = ["murderbot/gpu-switcher/compose.yaml"]
+git_account = "amerenda"
+project_name = "gpu-switcher"
+[stack.config.pre_deploy]
+command = """
+export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
+bash murderbot/gpu-switcher/pre-deploy.sh
 """
 
 # ── Image generation: ComfyUI (murderbot) ────────────────────────────────────
 # MUTUALLY EXCLUSIVE with llm-murderbot — both cannot run simultaneously (VRAM limit).
-# deploy = false: managed manually via mode switch scripts, not auto-deployed.
-# Switch: manual_runs/switch-llm-to-image.sh / switch-image-to-llm.sh
+# deploy = false: not auto-deployed on push; started/stopped by the gpu-switcher
+# service (murderbot/gpu-switcher/) via the Komodo API, same mechanism it uses
+# to flip llm-murderbot's model profile.
 
 [[stack]]
 name = "img-murderbot"

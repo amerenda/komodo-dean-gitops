@@ -1,0 +1,34 @@
+# gpu-switcher — always-on HTTP service on murderbot, no GPU needed.
+#
+# Switches which of the GPU-owning stacks (llm-murderbot's qwen36/qwen38
+# profile, or img-murderbot) is active. Drives Komodo's own API under the
+# hood (DestroyStack/DeployStack, UpdateVariableValue) so Komodo never loses
+# track of what's running -- this service never touches docker directly.
+# See app.py for the switch logic and the known-configs list.
+#
+# Port 8090 (llm-murderbot is 8088, img-murderbot/ComfyUI is 8188).
+#
+# This is the seam a future UI calls: POST /switch/{qwen36,qwen38,imagegen},
+# GET /status to poll. Auth via a bearer token (gpu-switcher-bearer-token in
+# BWS) -- it can stop/start GPU workloads, so even for a homelab tool it
+# shouldn't be open with no auth. LAN-only, no external ingress.
+name: gpu-switcher
+
+services:
+  gpu-switcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: gpu-switcher:latest
+    pull_policy: build
+    container_name: gpu-switcher
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8090:8090"
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
