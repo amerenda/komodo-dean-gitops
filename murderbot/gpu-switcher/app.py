@@ -1,13 +1,13 @@
 """
 gpu-switcher: switches murderbot's single GPU between mutually-exclusive
-"known configurations" -- currently two llm-murderbot model profiles
-(qwen36, qwen38) and the img-murderbot image-generation stack.
+"known configurations" -- currently three llm-murderbot model profiles
+(qwen36, qwen38, qwen3coder) and the img-murderbot image-generation stack.
 
 Drives Komodo's own API to do the actual work (DestroyStack/DeployStack,
 UpdateVariableValue) rather than touching docker directly, so Komodo never
 loses track of what's running. Switching a config is a runtime action via
 this service's HTTP API -- never a git commit. See murderbot/llm/compose.yaml
-and resource-sync/stacks.toml for how the qwen36/qwen38 profile selection
+and resource-sync/stacks.toml for how the LLM profile selection
 (the MURDERBOT_LLM_PROFILE Komodo Variable) actually reaches docker compose.
 
 CONFIGS is the git-tracked source of truth for what configurations exist.
@@ -52,6 +52,13 @@ CONFIGS = {
         "variable": "MURDERBOT_LLM_PROFILE",
         "value": "qwen38",
         "description": "Qwen3.8-27B-GGUF+MTP, ~40 tok/s, 49,152 ctx, no abliterated quant available yet",
+        "health_url": "http://10.100.20.19:8088/health",
+    },
+    "qwen3coder": {
+        "stack": "llm-murderbot",
+        "variable": "MURDERBOT_LLM_PROFILE",
+        "value": "qwen3coder",
+        "description": "Qwen3-Coder-30B-A3B-Instruct, ~156 tok/s (no MTP), 49,152 ctx, coding-specialized",
         "health_url": "http://10.100.20.19:8088/health",
     },
     "imagegen": {
@@ -105,7 +112,7 @@ async def get_active_config() -> Optional[str]:
         return "imagegen"
     if "llm-murderbot" in running:
         profile = await get_active_llm_profile()
-        if profile in ("qwen36", "qwen38"):
+        if profile in ("qwen36", "qwen38", "qwen3coder"):
             return profile
     return None
 
