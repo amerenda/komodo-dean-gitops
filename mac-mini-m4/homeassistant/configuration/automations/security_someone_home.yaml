@@ -1,11 +1,16 @@
 alias: "Security: Someone Home — Cameras Off"
 id: security_someone_home
+description: >
+  30s debounce (2026-08-20): matches ha_someone_arrived — a GPS glitch
+  briefly flipped anyone_home off/on with nobody having left, flipping
+  camera privacy needlessly. See ha_someone_arrived.yaml for the full story.
 mode: restart
 trigger:
   - platform: state
     entity_id: binary_sensor.anyone_home
     to: "on"
     from: "off"
+    for: "00:00:30"
 condition:
   - condition: state
     entity_id: input_boolean.master_automation_pause

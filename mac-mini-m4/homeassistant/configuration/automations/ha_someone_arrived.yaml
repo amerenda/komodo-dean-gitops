@@ -7,12 +7,20 @@ description: >
   so it does NOT refire when the second person also gets home (per-person
   triggers like the old "Alex Arrived" automation missed Eirill arriving
   alone and could double-fire welcome lights).
+
+  30s debounce (2026-08-20): a phone GPS fix briefly jumped ~350m away and
+  back within 14s (fused-location-provider glitch, not a real departure),
+  flipping anyone_home off/on and firing this with nobody having left. The
+  "left" side already debounces this way (ha_everyone_left: 1 min,
+  security_everyone_left: 5 min) — this brings "arrived" in line, short
+  enough to still feel instant for a real arrival.
 mode: single
 trigger:
   - platform: state
     entity_id: binary_sensor.anyone_home
     from: "off"
     to: "on"
+    for: "00:00:30"
 condition:
   - condition: state
     entity_id: input_boolean.ha_automation_enabled
