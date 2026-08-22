@@ -45,12 +45,21 @@ template:
       - name: "Anyone Home"
         unique_id: anyone_home
         device_class: occupancy
+        # Reads group.members + group.guests (groups.yaml) rather than
+        # hardcoding person.* entities — 2026-08-22: found this sensor only
+        # ever checked Alex + Eirill, so an approved guest present alone
+        # (neither of them home) wasn't counted as occupied, and arrival
+        # automations (ha_someone_arrived, security_someone_home) would
+        # incorrectly fire "welcome home" behaviors for whoever arrived
+        # next even though someone was already there. Adding a new approved
+        # guest is now just adding their tracker to group.guests in
+        # groups.yaml — no template change needed.
         availability: >
-          {{ not (is_state('person.alex_merenda', 'unavailable')
-                  and is_state('person.eirill', 'unavailable')) }}
+          {{ not (is_state('group.members', 'unavailable')
+                  and is_state('group.guests', 'unavailable')) }}
         state: >
-          {{ is_state('person.alex_merenda', 'home')
-             or is_state('person.eirill', 'home') }}
+          {{ is_state('group.members', 'home')
+             or is_state('group.guests', 'home') }}
   # Smart Lighting v2 — template sensor for current time window
   - sensor:
       - name: "SL: Current Window"
