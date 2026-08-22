@@ -1,23 +1,25 @@
 # llama.cpp inference stack on murderbot — NVIDIA RTX PRO 4000 Blackwell (SM_120a)
 #
-# SWITCHABLE MODEL PROFILES (2026-08-19): this file defines two Docker Compose
-# *profiles* -- qwen36 and qwen38 -- both serving under the same
-# --alias murderbot-primary on port 8088. Which profile actually runs is
-# selected by the Komodo Variable MURDERBOT_LLM_PROFILE, read by
-# murderbot/llm/pre-deploy.sh and written into COMPOSE_PROFILES in llm/.env
-# BEFORE `docker compose up` runs -- NOT by editing this file. Switching
-# models (or switching this GPU to the image-gen stack in murderbot/img/) is
-# a runtime action via murderbot/gpu-switcher/, not a gitops PR. See that
-# service for the switch mechanism itself.
+# SWITCHABLE MODEL PROFILES (2026-08-19, extended 2026-08-20): this file
+# defines three Docker Compose *profiles* -- qwen36, qwen38, qwen3coder --
+# all serving under the same --alias murderbot-primary on port 8088. Which
+# profile actually runs is selected by the Komodo Variable
+# MURDERBOT_LLM_PROFILE, read by murderbot/llm/pre-deploy.sh and written into
+# COMPOSE_PROFILES in llm/.env BEFORE `docker compose up` runs -- NOT by
+# editing this file. Switching models (or switching this GPU to the image-gen
+# stack in murderbot/img/) is a runtime action via murderbot/gpu-switcher/,
+# not a gitops PR. See that service for the switch mechanism itself.
 #
 # This file (the profile definitions, flags, quant choices) is still the
-# place to make actual configuration CHANGES to either profile -- adding a
-# third profile, bumping a quant, changing context size. Only the *selection*
+# place to make actual configuration CHANGES to any profile -- adding a
+# fourth profile, bumping a quant, changing context size. Only the *selection*
 # of which profile runs right now lives outside git.
 #
-# Both profiles share the same llama.cpp build and chat template (froggeric's
-# v22.2 covers Qwen3.5/3.6/3.8 in one file) -- only the model, MTP draft
-# setup, and context size differ per profile.
+# qwen36/qwen38 share the same chat template (froggeric's v22.2 covers
+# Qwen3.5/3.6/3.8 in one file). qwen3coder is a different-enough architecture
+# generation (predates the 3.5/3.6/3.8 hybrid-attention line, not covered by
+# froggeric's repo) that it uses its own GGUF-baked chat template instead --
+# see the qwen3coder section below for why that's safe here.
 #
 # ── qwen38 profile: Qwen3.8-27B-GGUF+MTP ─────────────────────────────────────
 # Model: ggml-org/Qwen3.8-27B-Q4_K_M.gguf (18.97GB) + mtp-Qwen3.8-27B-Q4_0.gguf
@@ -64,7 +66,56 @@
 # last actually ran (see the PR that reintroduced this profile for the
 # revalidation results).
 #
-# Key flags shared by both profiles:
+# ── qwen3coder profile: Qwen3-Coder-30B-A3B-Instruct ─────────────────────────
+# Model: unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF, Q4_K_M (18.56GB). Same
+# architectural class as qwen36 (sparse MoE, ~3.3B active params/token out of
+# 30.5B total) but a DIFFERENT, older architecture generation than
+# qwen36/qwen38 -- predates the Qwen3.5/3.6/3.8 hybrid-attention line, so none
+# of that line's assumptions were trusted here without reverifying:
+#
+#   - No MTP: this model has no MTP draft head (baked-in or separate) --
+#     don't add --spec-type/--spec-draft-model, there's nothing to find.
+#     Doesn't matter in practice: measured 155-157 tok/s WITHOUT speculative
+#     decoding, matching/beating the MTP-boosted qwen36 profile above, because
+#     the MoE active-param count is what actually drives llama.cpp throughput
+#     on this card, not MTP specifically.
+#
+#   - Chat template: uses the model's own GGUF-baked template (--jinja, no
+#     --chat-template-file), NOT froggeric's fixed template -- froggeric's
+#     Qwen-Fixed-Chat-Templates repo explicitly scopes itself to "Qwen 3.5,
+#     3.6 & 3.8" and does not cover this architecture. Qwen3-Coder had a real,
+#     now-fixed tool-calling bug in its shipped chat template (XML leaking
+#     into content instead of clean JSON tool_calls -- see ggml-org/llama.cpp
+#     issue #15012 and Unsloth's Aug 2025 "we fixed tool-calling for
+#     Qwen3-Coder" post). Verified directly against this exact GGUF
+#     (unsloth's build, downloaded 2026-08-20): tool_choice=required returns
+#     finish_reason=tool_calls with a clean JSON arguments string and zero XML
+#     in content -- the fix is baked into this download's chat_template
+#     metadata, froggeric fallback was not needed.
+#
+#   - Quant tier: Q5_K_M (21.73GB) and even 32,768 context left only 19 MiB
+#     free on this 24GB card -- effectively zero safety margin, would have
+#     OOM'd on the first real large request (measured directly, not assumed).
+#     Q5_K_S (21.08GB) was not separately downloaded/tested -- it only saves
+#     0.65GB over Q5_K_M, nowhere near enough to close a ~2.4GB deficit, so
+#     spending another 21GB download to confirm the obvious wasn't worth it.
+#     Went straight to Q4_K_M (18.56GB), which is the shipped config.
+#
+#   - Context length -- empirically determined:
+#       65536 -> Q4_K_M: FAILS to load -- "cudaMalloc failed: out of memory"
+#                during compute-buffer allocation. This model's per-token KV/
+#                compute cost is higher than qwen38's (a dense 27B model) at
+#                this context length, despite qwen3coder having fewer active
+#                params -- don't extrapolate context ceilings across model
+#                families even within "MoE" as a category.
+#       49152  -> Q4_K_M: loads cleanly, survived a REAL 42,020-token request
+#                (85% of this ceiling) with 1.43 GiB headroom remaining --
+#                THE CHOSEN VALUE. Notably the same context size that ended up
+#                working for qwen38 (a different model/quant) -- coincidence,
+#                not a shortcut taken (65536 was tried and measured to fail
+#                before landing here).
+#
+# Key flags shared by all three profiles:
 #   -ngl 99 / -ngld 99          : offload all layers to GPU, main + draft
 #                                  model (99 exceeds any real layer count --
 #                                  llama.cpp clamps to actual depth -- zero
@@ -72,14 +123,27 @@
 #   -fa on                      : flash attention, required at this model size
 #   -np 1                       : single concurrent slot -- this box serves
 #                                  one caller at a time
-#   --jinja --chat-template-file: froggeric's v22.2 fixed template (fixes
-#                                  documented tool-calling and agentic-loop
-#                                  defects in the stock Qwen templates)
-#   --reasoning-format deepseek : extracts <think> blocks into the API's
-#                                  reasoning_content field instead of leaking
-#                                  them into visible content
-#   --reasoning-preserve        : 100% prefix KV-cache retention across turns
-#                                  that include reasoning
+#   --jinja                     : required for tool-calling on all profiles.
+#                                  qwen36/qwen38 also pass
+#                                  --chat-template-file for froggeric's v22.2
+#                                  fixed template (documented tool-calling/
+#                                  agentic-loop fixes for that architecture
+#                                  line). qwen3coder omits that flag and uses
+#                                  its own GGUF-baked template instead (see
+#                                  above -- froggeric's repo doesn't cover
+#                                  this architecture, and the model's own
+#                                  template was verified clean).
+#   --reasoning-format deepseek : (qwen36/qwen38 only) extracts <think> blocks
+#                                  into the API's reasoning_content field
+#                                  instead of leaking them into visible
+#                                  content. Not passed for qwen3coder -- an
+#                                  "-Instruct" (non-thinking) variant, and
+#                                  untested with this flag, so left out rather
+#                                  than assumed safe.
+#   --reasoning-preserve        : (qwen36/qwen38 only) 100% prefix KV-cache
+#                                  retention across turns that include
+#                                  reasoning. Same "untested for qwen3coder,
+#                                  don't assume" reasoning as above.
 #   --metrics                   : Prometheus metrics for the smoke test and monitoring
 name: llm-murderbot
 
@@ -188,17 +252,40 @@ services:
       - "98304"
       - "--metrics"
 
+  llama-server-qwen3coder:
+    <<: *llama-common
+    profiles: ["qwen3coder"]
+    command:
+      - "-m"
+      - "/mnt/models/hf-cache/hub/models--unsloth--Qwen3-Coder-30B-A3B-Instruct-GGUF/snapshots/b17cb02dd882d5b6ab62fc777ad2995f19668350/Qwen3-Coder-30B-A3B-Instruct-Q4_K_M.gguf"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8088"
+      - "--alias"
+      - "murderbot-primary"
+      - "-ngl"
+      - "99"
+      - "-fa"
+      - "on"
+      - "-np"
+      - "1"
+      - "--jinja"
+      - "-c"
+      - "49152"
+      - "--metrics"
+
   # Smoke test — runs once after llama-server is healthy, validates the deployment.
   # Checks: model loaded, tool calling (JSON not XML), SearXNG search, synthesis
-  #         after tool turn, token throughput. Works against either profile since
-  #         both serve under --alias murderbot-primary.
+  #         after tool turn, token throughput. Works against any profile since
+  #         all three serve under --alias murderbot-primary.
   # Logs: docker logs llm-murderbot-smoke-test
   # Exit code: docker inspect llm-murderbot-smoke-test --format='{{.State.ExitCode}}'
   smoke-test:
     image: python:3.12-alpine
     container_name: llm-murderbot-smoke-test
     restart: "no"
-    profiles: ["qwen38", "qwen36"]
+    profiles: ["qwen38", "qwen36", "qwen3coder"]
     labels:
       komodo.skip:
     depends_on:
@@ -206,6 +293,9 @@ services:
         condition: service_started
         required: false
       llama-server-qwen36:
+        condition: service_started
+        required: false
+      llama-server-qwen3coder:
         condition: service_started
         required: false
     environment:

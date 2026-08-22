@@ -13,8 +13,8 @@ set -euo pipefail
 : "${MURDERBOT_LLM_PROFILE:?MURDERBOT_LLM_PROFILE required (set via Komodo Variable)}"
 
 case "$MURDERBOT_LLM_PROFILE" in
-  qwen36|qwen38) ;;
-  *) echo "pre-deploy: unknown MURDERBOT_LLM_PROFILE '$MURDERBOT_LLM_PROFILE' (expected qwen36 or qwen38)" >&2; exit 1 ;;
+  qwen36|qwen38|qwen3coder) ;;
+  *) echo "pre-deploy: unknown MURDERBOT_LLM_PROFILE '$MURDERBOT_LLM_PROFILE' (expected qwen36, qwen38, or qwen3coder)" >&2; exit 1 ;;
 esac
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
