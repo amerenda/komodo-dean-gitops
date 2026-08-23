@@ -348,7 +348,11 @@ fi
 
 # ── alertmanager.yml — written with real Pushover credentials (overwrites git template) ─
 # alertmanager.yml in git is a no-op placeholder; this writes the live config with secrets.
-# Alertmanager is reloaded immediately after so alerts can be delivered via Pushover.
+# NOTE: like monitoring/.env and ha-token above, this host-repo copy is for manual/local
+# `docker compose up` runs only. The actually-deployed container is created by Komodo from
+# its OWN separate stack clone (~/komodo/stacks/monitoring/...), whose alertmanager.yml is
+# written by resource-sync/stacks.toml's pre_deploy for the "monitoring" stack — that's the
+# real source of truth; keep both in sync when editing either.
 # This is mini's PRIMARY Alertmanager — every rule group in monitoring/rules/ routes here.
 # k3s runs its own independent secondary Alertmanager (k3s-dean-gitops) whose only job is
 # alerting if mini itself goes unreachable — see MacMiniPrometheusDown there.
