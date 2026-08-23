@@ -615,13 +615,29 @@ class SmartLighting {
         return cmd;
     }
 
+    // Individual bulbs first, group topic only as a fallback — 2026-08-23.
+    // The room/group topic (e.g. "Kitchen") is fed by our OWN outgoing group
+    // commands, which Z2M echoes back optimistically without waiting for any
+    // bulb to actually acknowledge (Zigbee group addressing has no per-member
+    // ack). If a bulb has no power, that echo still says "ON", and everything
+    // downstream — this cache, the dashboard, the next button press — believes
+    // a dark room is lit. Individual bulb topics only update from the bulb's
+    // own real status reports, so they stay correct through exactly this
+    // failure. Real incident: kitchen bulbs lost power, the group topic said
+    // ON on the very first press, and every press after that alternated
+    // between two commands that could never reach an unpowered bulb.
     _roomAnyOn(roomDisplayName) {
+        const roomConfig = this.config && this.config.rooms ? this.config.rooms[roomDisplayName] : null;
+        if (roomConfig && roomConfig.lights && roomConfig.lights.length > 0) {
+            const known = roomConfig.lights.filter(l => this._deviceStateCache[l] !== undefined);
+            if (known.length > 0) {
+                return known.some(l => this._deviceStateCache[l] === 'ON');
+            }
+        }
         if (this._deviceStateCache[roomDisplayName] !== undefined) {
             return this._deviceStateCache[roomDisplayName] === 'ON';
         }
-        const roomConfig = this.config && this.config.rooms ? this.config.rooms[roomDisplayName] : null;
-        if (!roomConfig) return false;
-        return (roomConfig.lights || []).some(l => this._deviceStateCache[l] === 'ON');
+        return false;
     }
 
     _loadCache() {

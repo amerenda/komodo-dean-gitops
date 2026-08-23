@@ -310,6 +310,27 @@ describe('Toggle Room — power-on path sends a plain-integer scene_recall', () 
         expect(typeof sent[1].payload.scene_recall).toBe('number');
         expect(sent[1].payload.scene_recall).toBe(1); // morning = 1
     });
+
+    // Real incident, 2026-08-23: kitchen bulbs lost power. The group topic
+    // ("Living Room" here) still said ON — Z2M echoes group commands
+    // optimistically with no per-bulb ack — while the actual bulb never
+    // got the memo and correctly kept reporting OFF. Toggle Room must trust
+    // the bulb's real report over the group's assumption, or it sends OFF
+    // into a room that was never actually on, and the press does nothing.
+    test('group topic optimistically says ON but the real bulb says OFF → toggle still turns it on', () => {
+        const sl = makeConfiguredInstance();
+        sl.currentWindow = 'night';
+        sl._deviceStateCache['Living Room'] = 'ON'; // stale optimistic echo from a prior command
+        sl._deviceStateCache['living_room_1'] = 'OFF'; // the bulb's own real report
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._executeAction('Toggle Room', sl.config.switches['living_room_s_1']);
+
+        expect(sent).toHaveLength(1);
+        expect(typeof sent[0].payload.scene_recall).toBe('number');
+        expect(sent[0].payload.scene_recall).toBe(4); // night = 4
+    });
 });
 
 // ── _cycleScenesForRoom — uses scene_recall ──────────────────────────────────
