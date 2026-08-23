@@ -32,7 +32,10 @@ services:
 
   # ============================================================
   # Alertmanager — Receives firing alerts from Prometheus, manages silences and notifications.
-  # No receivers configured yet — alerts visible in UI only for now.
+  # Primary Alertmanager for the whole homelab — routes to Pushover. The real config with
+  # credentials is written by scripts/inject-secrets.sh (BWS), not by the file in git; see
+  # alertmanager.yml for the placeholder. k3s runs its own independent secondary Alertmanager
+  # whose only job is alerting if this instance (or mini's Prometheus) becomes unreachable.
   # ============================================================
   alertmanager:
     image: prom/alertmanager:v0.28.1
