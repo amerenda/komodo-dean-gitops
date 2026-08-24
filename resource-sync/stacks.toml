@@ -117,28 +117,28 @@ printf 'MONITORING_DIR=%s/mac-mini-m4/monitoring\n' "$(pwd)" >> mac-mini-m4/moni
 bws secret get c7ccdb87-b04e-428e-bbcf-b4340156edf6 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value > mac-mini-m4/monitoring/ha-token
 PUSHOVER_USER_KEY=$(bws secret get 16d79345-5721-4173-9e14-b49a00ce1cb3 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)
 PUSHOVER_TOKEN=$(bws secret get 45c01263-f879-4cb7-ad01-b49a00d0b2d0 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)
-cat > mac-mini-m4/monitoring/alertmanager.yml << ALERTMANAGER_EOF
-global:
-  resolve_timeout: 5m
-route:
-  receiver: 'pushover'
-  group_by: ['alertname', 'stack']
-  group_wait: 30s
-  group_interval: 5m
-  repeat_interval: 4h
-receivers:
-  - name: 'pushover'
-    pushover_configs:
-      - user_key: '${PUSHOVER_USER_KEY}'
-        token: '${PUSHOVER_TOKEN}'
-        title: '{{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'
-        message: |-
-          {{ .CommonAnnotations.summary }}
-          {{ .CommonAnnotations.description }}
-        url: 'https://alertmanager.amer.dev'
-        priority: '0'
-        send_resolved: true
-ALERTMANAGER_EOF
+{
+printf 'global:\n'
+printf '  resolve_timeout: 5m\n'
+printf 'route:\n'
+printf '  receiver: '"'"'pushover'"'"'\n'
+printf '  group_by: ['"'"'alertname'"'"', '"'"'stack'"'"']\n'
+printf '  group_wait: 30s\n'
+printf '  group_interval: 5m\n'
+printf '  repeat_interval: 4h\n'
+printf 'receivers:\n'
+printf '  - name: '"'"'pushover'"'"'\n'
+printf '    pushover_configs:\n'
+printf '      - user_key: '"'"'%s'"'"'\n' "$PUSHOVER_USER_KEY"
+printf '        token: '"'"'%s'"'"'\n' "$PUSHOVER_TOKEN"
+printf '        title: '"'"'{{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'"'"'\n'
+printf '        message: |-\n'
+printf '          {{ .CommonAnnotations.summary }}\n'
+printf '          {{ .CommonAnnotations.description }}\n'
+printf '        url: '"'"'https://alertmanager.amer.dev'"'"'\n'
+printf '        priority: '"'"'0'"'"'\n'
+printf '        send_resolved: true\n'
+} > mac-mini-m4/monitoring/alertmanager.yml
 curl -sf -X POST http://localhost:9093/-/reload >/dev/null 2>&1 || true
 """
 
