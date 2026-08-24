@@ -117,28 +117,26 @@ printf 'MONITORING_DIR=%s/mac-mini-m4/monitoring\n' "$(pwd)" >> mac-mini-m4/moni
 bws secret get c7ccdb87-b04e-428e-bbcf-b4340156edf6 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value > mac-mini-m4/monitoring/ha-token
 PUSHOVER_USER_KEY=$(bws secret get 16d79345-5721-4173-9e14-b49a00ce1cb3 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)
 PUSHOVER_TOKEN=$(bws secret get 45c01263-f879-4cb7-ad01-b49a00d0b2d0 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)
-{
-printf 'global:\n'
-printf '  resolve_timeout: 5m\n'
-printf 'route:\n'
-printf '  receiver: '"'"'pushover'"'"'\n'
-printf '  group_by: ['"'"'alertname'"'"', '"'"'stack'"'"']\n'
-printf '  group_wait: 30s\n'
-printf '  group_interval: 5m\n'
-printf '  repeat_interval: 4h\n'
-printf 'receivers:\n'
-printf '  - name: '"'"'pushover'"'"'\n'
-printf '    pushover_configs:\n'
-printf '      - user_key: '"'"'%s'"'"'\n' "$PUSHOVER_USER_KEY"
-printf '        token: '"'"'%s'"'"'\n' "$PUSHOVER_TOKEN"
-printf '        title: '"'"'{{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'"'"'\n'
-printf '        message: |-\n'
-printf '          {{ .CommonAnnotations.summary }}\n'
-printf '          {{ .CommonAnnotations.description }}\n'
-printf '        url: '"'"'https://alertmanager.amer.dev'"'"'\n'
-printf '        priority: '"'"'0'"'"'\n'
-printf '        send_resolved: true\n'
-} > mac-mini-m4/monitoring/alertmanager.yml
+printf 'global:\n' > mac-mini-m4/monitoring/alertmanager.yml
+printf '  resolve_timeout: 5m\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf 'route:\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '  receiver: '"'"'pushover'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '  group_by: ['"'"'alertname'"'"', '"'"'stack'"'"']\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '  group_wait: 30s\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '  group_interval: 5m\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '  repeat_interval: 4h\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf 'receivers:\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '  - name: '"'"'pushover'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '    pushover_configs:\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '      - user_key: '"'"'%s'"'"'\n' "$PUSHOVER_USER_KEY" >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        token: '"'"'%s'"'"'\n' "$PUSHOVER_TOKEN" >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        title: '"'"'{{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        message: |-\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '          {{ .CommonAnnotations.summary }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '          {{ .CommonAnnotations.description }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        url: '"'"'https://alertmanager.amer.dev'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        priority: '"'"'0'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        send_resolved: true\n' >> mac-mini-m4/monitoring/alertmanager.yml
 curl -sf -X POST http://localhost:9093/-/reload >/dev/null 2>&1 || true
 """
 
