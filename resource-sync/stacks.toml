@@ -137,7 +137,7 @@ printf '          {{ .CommonAnnotations.description }}\n' >> mac-mini-m4/monitor
 printf '        url: '"'"'https://alertmanager.amer.dev'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '        priority: '"'"'0'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '        send_resolved: true\n' >> mac-mini-m4/monitoring/alertmanager.yml
-curl -sf -X POST http://localhost:9093/-/reload >/dev/null 2>&1 || true
+curl -sf -X POST http://10.100.20.18:9093/-/reload >/dev/null 2>&1 || true
 """
 
 # ── OpenWebUI: Chat interface — claw.amer.dev ─────────────────────────────
