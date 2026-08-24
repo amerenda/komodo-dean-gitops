@@ -23,6 +23,7 @@ sl_bedroom_auto_transition:
 sl_bedroom_smooth_transition:
   name: "SL: Bedroom — Smooth Transition"
   icon: mdi:blur-linear
+  initial: true
 
 sl_bedroom_override:
   name: "SL: Bedroom — Override Active"

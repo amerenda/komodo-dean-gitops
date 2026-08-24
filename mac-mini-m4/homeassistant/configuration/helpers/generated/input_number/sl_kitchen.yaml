@@ -13,9 +13,9 @@ sl_kitchen_motion_timeout:
 sl_kitchen_smooth_transition_duration:
   name: "SL: Kitchen — Transition Duration (min)"
   min: 1
-  max: 30
+  max: 90
   step: 1
-  initial: 10
+  initial: 60
   unit_of_measurement: min
   icon: mdi:timer-sand
   mode: box

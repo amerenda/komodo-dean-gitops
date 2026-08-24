@@ -58,7 +58,7 @@ sl_push_config:
           {% macro room_config(room_key, room_name, lights) %}
             {% set spo = false if is_guest else is_state('input_boolean.sl_' ~ room_key ~ '_smart_power_on', 'on') %}
             {% set auto_t = is_state('input_boolean.sl_' ~ room_key ~ '_auto_transition', 'on') %}
-            {% set trans_min = states('input_number.sl_' ~ room_key ~ '_smooth_transition_duration') | float(10) %}
+            {% set trans_min = states('input_number.sl_' ~ room_key ~ '_smooth_transition_duration') | float(60) %}
             {% set trans_secs = (trans_min * 60) | int if is_state('input_boolean.sl_' ~ room_key ~ '_smooth_transition', 'on') else 0 %}
             {% set motion_night = is_state('input_boolean.sl_' ~ room_key ~ '_motion_night', 'on') %}
             {

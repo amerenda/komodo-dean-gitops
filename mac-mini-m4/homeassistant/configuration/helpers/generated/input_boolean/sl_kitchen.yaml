@@ -23,6 +23,7 @@ sl_kitchen_auto_transition:
 sl_kitchen_smooth_transition:
   name: "SL: Kitchen — Smooth Transition"
   icon: mdi:blur-linear
+  initial: true
 
 sl_kitchen_override:
   name: "SL: Kitchen — Override Active"

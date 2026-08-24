@@ -23,6 +23,7 @@ sl_bathroom_auto_transition:
 sl_bathroom_smooth_transition:
   name: "SL: Bathroom — Smooth Transition"
   icon: mdi:blur-linear
+  initial: true
 
 sl_bathroom_override:
   name: "SL: Bathroom — Override Active"

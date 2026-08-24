@@ -23,6 +23,7 @@ sl_hallway_auto_transition:
 sl_hallway_smooth_transition:
   name: "SL: Hallway — Smooth Transition"
   icon: mdi:blur-linear
+  initial: true
 
 sl_hallway_override:
   name: "SL: Hallway — Override Active"

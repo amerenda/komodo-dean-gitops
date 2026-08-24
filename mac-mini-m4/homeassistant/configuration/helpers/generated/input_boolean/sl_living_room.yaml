@@ -23,6 +23,7 @@ sl_living_room_auto_transition:
 sl_living_room_smooth_transition:
   name: "SL: Living Room — Smooth Transition"
   icon: mdi:blur-linear
+  initial: true
 
 sl_living_room_override:
   name: "SL: Living Room — Override Active"

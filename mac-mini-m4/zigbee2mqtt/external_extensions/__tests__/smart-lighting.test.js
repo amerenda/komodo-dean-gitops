@@ -84,19 +84,19 @@ describe('WINDOW_SCENE_ID', () => {
     });
 });
 
-// ── _buildDirectScenePayload ─────────────────────────────────────────────────
+// ── _buildScenePayload — pure scene values, no transition ───────────────────
 
-describe('_buildDirectScenePayload', () => {
+describe('_buildScenePayload', () => {
     test('returns color_temp payload for CT scene', () => {
         const sl = makeInstance();
-        const payload = sl._buildDirectScenePayload('evening', BASE_CONFIG.rooms['Living Room']);
+        const payload = sl._buildScenePayload('evening', BASE_CONFIG.rooms['Living Room']);
         expect(payload).toMatchObject({ state: 'ON', brightness: 150, color_temp: 370 });
         expect(payload.color).toBeUndefined();
     });
 
     test('returns xy color payload for XY scene', () => {
         const sl = makeInstance();
-        const payload = sl._buildDirectScenePayload('evening', BASE_CONFIG.rooms['Bedroom']);
+        const payload = sl._buildScenePayload('evening', BASE_CONFIG.rooms['Bedroom']);
         expect(payload).toMatchObject({ state: 'ON', brightness: 100, color: { x: 0.37, y: 0.20 } });
         expect(payload.color_temp).toBeUndefined();
     });
@@ -107,7 +107,7 @@ describe('_buildDirectScenePayload', () => {
             scenes: { morning: { brightness: 100 } },
             transition_secs: 0,
         };
-        const payload = sl._buildDirectScenePayload('morning', roomConfig);
+        const payload = sl._buildScenePayload('morning', roomConfig);
         expect(payload).toMatchObject({ state: 'ON', brightness: 100 });
         expect(payload.color).toBeUndefined();
         expect(payload.color_temp).toBeUndefined();
@@ -115,24 +115,92 @@ describe('_buildDirectScenePayload', () => {
 
     test('returns null for missing window', () => {
         const sl = makeInstance();
-        const payload = sl._buildDirectScenePayload('evening', { scenes: {} });
+        const payload = sl._buildScenePayload('evening', { scenes: {} });
         expect(payload).toBeNull();
     });
 
-    test('includes transition when transition_secs > 0', () => {
+    test('never includes a transition field — that is _transition\'s job', () => {
         const sl = makeInstance();
         const roomConfig = {
             scenes: { morning: { brightness: 200, color_temp: 250 } },
             transition_secs: 30,
         };
-        const payload = sl._buildDirectScenePayload('morning', roomConfig);
-        expect(payload.transition).toBe(30);
+        const payload = sl._buildScenePayload('morning', roomConfig);
+        expect(payload.transition).toBeUndefined();
+    });
+});
+
+// ── _transitionDurationSecs ───────────────────────────────────────────────────
+
+describe('_transitionDurationSecs', () => {
+    test('returns the configured value when positive', () => {
+        const sl = makeInstance();
+        expect(sl._transitionDurationSecs({ transition_secs: 3600 })).toBe(3600);
     });
 
-    test('omits transition when transition_secs is 0', () => {
+    test('returns 0 when transition_secs is 0', () => {
         const sl = makeInstance();
-        const payload = sl._buildDirectScenePayload('morning', BASE_CONFIG.rooms['Living Room']);
-        expect(payload.transition).toBeUndefined();
+        expect(sl._transitionDurationSecs({ transition_secs: 0 })).toBe(0);
+    });
+
+    test('returns 0 when transition_secs is missing/non-numeric', () => {
+        const sl = makeInstance();
+        expect(sl._transitionDurationSecs({})).toBe(0);
+        expect(sl._transitionDurationSecs({ transition_secs: 'unknown' })).toBe(0);
+    });
+
+    test('returns 0 for a negative value (defensive, should never happen upstream)', () => {
+        const sl = makeInstance();
+        expect(sl._transitionDurationSecs({ transition_secs: -5 })).toBe(0);
+    });
+});
+
+// ── _transition — the isolated, swappable fade seam (backend contract §1a) ──
+
+describe('_transition', () => {
+    test('sends direct command with transition field when duration > 0', () => {
+        const sl = makeInstance();
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        const roomConfig = BASE_CONFIG.rooms['Living Room'];
+        const result = sl._transition('Living Room', 'evening', roomConfig, 3600);
+
+        expect(sent).toHaveLength(1);
+        expect(sent[0].topic).toBe('Living Room/set');
+        expect(sent[0].payload).toMatchObject({ state: 'ON', brightness: 150, color_temp: 370, transition: 3600 });
+        expect(result).toEqual(sent[0].payload);
+    });
+
+    test('omits transition field when duration is 0 (instant)', () => {
+        const sl = makeInstance();
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._transition('Living Room', 'evening', BASE_CONFIG.rooms['Living Room'], 0);
+
+        expect(sent[0].payload.transition).toBeUndefined();
+    });
+
+    test('returns null and sends nothing when the window has no scene', () => {
+        const sl = makeInstance();
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        const result = sl._transition('Living Room', 'evening', { scenes: {} }, 3600);
+
+        expect(result).toBeNull();
+        expect(sent).toHaveLength(0);
+    });
+
+    test('preserves color/color_temp scene values alongside the transition field', () => {
+        const sl = makeInstance();
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._transition('Bedroom', 'evening', BASE_CONFIG.rooms['Bedroom'], 1800);
+
+        expect(sent[0].payload).toMatchObject({ brightness: 100, color: { x: 0.37, y: 0.20 }, transition: 1800 });
     });
 });
 
@@ -427,6 +495,19 @@ describe('_recallSceneIfOn — uses direct command (smooth transition support)',
         sl._recallSceneIfOn('Living Room', BASE_CONFIG.rooms['Living Room'], 'morning');
 
         expect(sent).toHaveLength(0);
+    });
+
+    test('end-to-end: a room configured with transition_secs (e.g. the new 3600s default) fades via _transition', () => {
+        const sl = makeInstance(JSON.parse(JSON.stringify(BASE_CONFIG)));
+        sl._deviceStateCache = { 'Living Room': 'ON' };
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+        const roomConfig = { ...BASE_CONFIG.rooms['Living Room'], transition_secs: 3600 };
+
+        sl._recallSceneIfOn('Living Room', roomConfig, 'evening');
+
+        expect(sent).toHaveLength(1);
+        expect(sent[0].payload).toMatchObject({ state: 'ON', brightness: 150, color_temp: 370, transition: 3600 });
     });
 });
 

@@ -372,11 +372,10 @@ class SmartLighting {
             return;
         }
         if (!this._roomAnyOn(roomName)) return;
-        const payload = this._buildDirectScenePayload(window, roomConfig);
+        const durationSecs = this._transitionDurationSecs(roomConfig);
+        const payload = this._transition(roomName, window, roomConfig, durationSecs);
         if (!payload) return;
-        const secs = payload.transition ?? 'default';
-        this.logger.info(`[SL] Recalling ${window} scene on ${roomName} (lights on, transition=${secs})`);
-        this._sendCommand(`${roomName}/set`, payload);
+        this.logger.info(`[SL] Recalling ${window} scene on ${roomName} (lights on, transition=${durationSecs || 'instant'})`);
     }
 
     // ── Device announce (wall switch power-on) ───────────────
@@ -604,15 +603,35 @@ class SmartLighting {
     // ── Helpers ──────────────────────────────────────────────
 
     /** @returns {object | null} */
-    _buildDirectScenePayload(windowKey, roomConfig) {
+    _buildScenePayload(windowKey, roomConfig) {
         const scene = roomConfig.scenes && roomConfig.scenes[windowKey];
         if (!scene) return null;
         const cmd = { state: 'ON', brightness: scene.brightness };
         if (scene.color) cmd.color = scene.color;
         else if (scene.color_temp !== undefined) cmd.color_temp = scene.color_temp;
-        const secs = Number(roomConfig.transition_secs) > 0 ? Number(roomConfig.transition_secs) : 0;
-        if (secs > 0) cmd.transition = secs;
         return cmd;
+    }
+
+    _transitionDurationSecs(roomConfig) {
+        const secs = Number(roomConfig.transition_secs);
+        return secs > 0 ? secs : 0;
+    }
+
+    // ── Transition seam (backend contract §1a) ────────────────
+    // The ONLY place that knows how a room fades from its current values to
+    // a target scene. Swap this one function to change the mechanism (e.g. a
+    // future stepped/eased curve engine sending intermediate commands on a
+    // timer) without touching scheduling, mode gating, scene storage, or
+    // button handling anywhere else. Today it delegates 100% to the bulb's
+    // own firmware: one Zigbee command carrying a `transition` param, linear
+    // interpolation done on-device.
+    /** @returns {object | null} the payload sent, or null if no scene exists for windowKey */
+    _transition(roomName, windowKey, roomConfig, durationSecs) {
+        const payload = this._buildScenePayload(windowKey, roomConfig);
+        if (!payload) return null;
+        if (durationSecs > 0) payload.transition = durationSecs;
+        this._sendCommand(`${roomName}/set`, payload);
+        return payload;
     }
 
     // Individual bulbs first, group topic only as a fallback — 2026-08-23.

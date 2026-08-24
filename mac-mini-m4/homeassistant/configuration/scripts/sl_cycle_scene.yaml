@@ -32,7 +32,7 @@ sl_cycle_scene:
         use_xy: "{{ cx > 0 and cy > 0 }}"
         has_ct: "{{ not use_xy and ct_state not in ['unknown', 'unavailable', ''] and ct_state | int(0) > 0 }}"
         ct_kelvin: "{{ (1000000 / ct_state | int) | int if has_ct else 0 }}"
-        transition_secs: "{{ (states('input_number.sl_' ~ room ~ '_smooth_transition_duration') | float(0)) * 60 | int if is_state('input_boolean.sl_' ~ room ~ '_smooth_transition', 'on') else 0 }}"
+        transition_secs: "{{ (states('input_number.sl_' ~ room ~ '_smooth_transition_duration') | float(60)) * 60 | int if is_state('input_boolean.sl_' ~ room ~ '_smooth_transition', 'on') else 0 }}"
     - choose:
         - conditions:
             - condition: template
