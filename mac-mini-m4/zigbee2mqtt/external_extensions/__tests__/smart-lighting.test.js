@@ -455,6 +455,82 @@ describe('_cycleScenesForRoom — uses scene_recall, not direct command', () => 
             expect(payload).not.toHaveProperty('state', 'ON');
         }
     });
+
+    test('falls back to the 4 windows when cycle_list is missing (older cached config)', () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        delete config.rooms['Living Room'].cycle_list;
+        const sl = makeInstance(config);
+        sl.currentWindow = 'morning';
+        sl._switchLastScene = {};
+        const sent = [];
+        sl._sendCommand = (_, payload) => sent.push(payload);
+
+        sl._cycleScenesForRoom('Living Room');
+
+        expect(sent[0].scene_recall).toBe(1); // morning
+    });
+
+    test('falls back to the 4 windows when cycle_list is empty (every entry unchecked)', () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        config.rooms['Living Room'].cycle_list = [];
+        const sl = makeInstance(config);
+        sl.currentWindow = 'day';
+        sl._switchLastScene = {};
+        const sent = [];
+        sl._sendCommand = (_, payload) => sent.push(payload);
+
+        sl._cycleScenesForRoom('Living Room');
+
+        expect(sent[0].scene_recall).toBe(2); // day
+    });
+
+    test('respects a configured cycle_list — skips windows excluded from it', () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        config.rooms['Living Room'].cycle_list = ['morning', 'night']; // day/evening excluded
+        const sl = makeInstance(config);
+        sl.currentWindow = 'morning';
+        sl._switchLastScene = {};
+        const ids = [];
+        sl._sendCommand = (_, payload) => { if (typeof payload.scene_recall === 'number') ids.push(payload.scene_recall); };
+
+        for (let i = 0; i < 4; i++) sl._cycleScenesForRoom('Living Room');
+
+        expect(ids).toEqual([1, 4, 1, 4]); // morning, night, morning, night — day/evening never appear
+    });
+
+    test('cycles into a named custom scene included in cycle_list', () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        config.rooms['Living Room'].cycle_list = ['night', 'custom1'];
+        config.rooms['Living Room'].custom_scenes = {
+            custom1: { name: 'Movie Night', brightness: 60, color_temp: 454 },
+        };
+        const sl = makeInstance(config);
+        sl.currentWindow = 'night';
+        sl._switchLastScene = { 'Living Room': 'night' };
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._cycleScenesForRoom('Living Room');
+
+        expect(sent[0].payload).toEqual({ scene_recall: 5 }); // custom1 = ID 5
+        expect(sl._switchLastScene['Living Room']).toBe('custom1');
+    });
+
+    test('skips a custom slot in cycle_list with no name configured (stale/inconsistent config)', () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        config.rooms['Living Room'].cycle_list = ['custom1'];
+        config.rooms['Living Room'].custom_scenes = {
+            custom1: { name: '', brightness: 60 }, // toggled into cycle_list but never actually named
+        };
+        const sl = makeInstance(config);
+        sl._switchLastScene = {};
+        const sent = [];
+        sl._sendCommand = (_, payload) => sent.push(payload);
+
+        sl._cycleScenesForRoom('Living Room');
+
+        expect(sent).toHaveLength(0);
+    });
 });
 
 // ── _recallSceneIfOn — keeps direct command for smooth window transitions ────
@@ -611,6 +687,35 @@ describe('Startup scene push — scene_recall correctness', () => {
         for (const { payload } of sceneAdds) {
             expect(payload.scene_add).toHaveProperty('state', 'ON');
         }
+    });
+
+    test('_fullScenePush stores named custom scenes at their fixed Zigbee scene IDs', async () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        config.rooms['Living Room'].custom_scenes = {
+            custom1: { name: 'Movie Night', brightness: 60, color_temp: 454 },
+            custom2: { name: '', brightness: 200 }, // unused slot — must be skipped
+        };
+        const sl = makeInstance(config);
+        sl.currentWindow = 'evening';
+        sl._getEffectiveWindow = () => 'evening';
+        sl._savePushedHash = jest.fn();
+        sl._publishStatus = jest.fn();
+
+        const commands = [];
+        sl._sendCommandsStaggered = jest.fn(async (cmds) => { commands.push(...cmds); });
+
+        await sl._fullScenePush();
+
+        const customAdds = commands.filter(c => c.payload && c.payload.scene_add && c.payload.scene_add.ID >= 5);
+        expect(customAdds).toHaveLength(1); // only the named slot, not the empty one
+        expect(customAdds[0].topic).toBe('Living Room/set');
+        expect(customAdds[0].payload.scene_add).toMatchObject({
+            ID: 5,
+            name: 'Movie Night',
+            state: 'ON',
+            brightness: 60,
+            color_temp: 454,
+        });
     });
 
     test('_handleStartupPush always calls _fullScenePush even when config hash matches last push', () => {

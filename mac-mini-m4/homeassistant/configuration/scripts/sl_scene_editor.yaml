@@ -10,11 +10,10 @@ sl_preview_scene:
         select:
           options: [living_room, bedroom, bathroom, kitchen, hallway]
     window:
-      description: "Time window (morning, day, evening, night)"
+      description: "Time window (morning, day, evening, night) or custom scene slot (custom1, custom2, custom3)"
       required: true
       selector:
-        select:
-          options: [morning, day, evening, night]
+        text:
   sequence:
     - variables:
         light_map:
