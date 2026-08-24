@@ -6,7 +6,7 @@ groups:
       # This is the lowest-level signal: if this fires, LiteLLM and OWU will
       # lose all models within seconds.
       - alert: LLMBackendDown
-        expr: up{job="murderbot-vllm"} == 0
+        expr: up{job="murderbot-llm"} == 0
         for: 3m
         labels:
           severity: critical
@@ -17,7 +17,7 @@ groups:
             Prometheus cannot scrape the llama-server metrics endpoint at 10.100.20.19:8088.
             LiteLLM will return errors for all model requests.
 
-            Check: systemctl status llama-server  (or the vLLM/llama.cpp process)
+            Check: systemctl status llama-server  (or the llama.cpp process)
             Check: curl http://10.100.20.19:8088/v1/models
 
       # LiteLLM readiness endpoint returning non-2xx — usually means postgres is down.
@@ -56,13 +56,28 @@ groups:
             Check: kubectl get pods -n openwebui
             Check: kubectl logs -n openwebui -l app=openwebui --tail=50
 
-      # Generation speed has dropped well below normal (non-MTP ~56 t/s, MTP ~150 t/s).
+      # Generation speed has dropped well below normal for every murderbot profile
+      # (qwen38 ~40 t/s, qwen36 ~120-140 t/s MTP, qwen3coder ~156 t/s no-MTP).
       # Below 30 t/s means CPU offload kicked in, the model is partially on disk,
       # or something else is competing for VRAM. Not expected during normal operation.
-      # Gated on rate(tokens_predicted_total) > 0 so it doesn't fire when idle.
+      #
+      # Computed as a windowed ratio of the two cumulative counters
+      # (tokens generated / seconds spent generating), NOT the server's own
+      # llamacpp:predicted_tokens_seconds gauge -- that gauge was verified (2026-08-24)
+      # to read 0 even mid-generation on the current llama.cpp build (b10502), so any
+      # alert built directly on it is a permanent false positive once real traffic
+      # keeps rate(tokens_predicted_total) > 0 satisfied continuously (e.g. an agentic
+      # coding session's frequent short bursts, as opposed to sparse interactive chat).
+      # This ratio form is engine/model-agnostic -- it'll read correctly no matter
+      # which of the three switchable profiles (or a future one) is active, since it's
+      # derived from the same two counters every profile increments identically.
+      #
+      # Gated on rate(tokens_predicted_total) > 0 so it doesn't fire when idle
+      # (both counters go flat during idle, which would otherwise divide 0/0 -> NaN).
       - alert: LlamaGenerationSlow
         expr: >
-          llamacpp:predicted_tokens_seconds{node="murderbot"} < 30
+          (rate(llamacpp:tokens_predicted_total{node="murderbot"}[5m])
+            / rate(llamacpp:tokens_predicted_seconds_total{node="murderbot"}[5m])) < 30
           AND rate(llamacpp:tokens_predicted_total{node="murderbot"}[5m]) > 0
         for: 5m
         labels:
@@ -70,8 +85,8 @@ groups:
         annotations:
           summary: "llama-server generation speed is below 30 t/s on murderbot"
           description: |
-            Current average generation speed: {{ $value | printf "%.1f" }} tokens/s.
-            Normal: ~56 t/s (no-MTP) or ~150 t/s (MTP).
+            Current windowed average generation speed: {{ $value | printf "%.1f" }} tokens/s.
+            Normal: ~40 t/s (qwen38), ~120-140 t/s (qwen36, MTP), ~156 t/s (qwen3coder, no-MTP).
 
             Possible causes:
               - Another GPU workload (ComfyUI, FLUX) is sharing VRAM
@@ -80,6 +95,7 @@ groups:
               - OOM killer reduced GPU memory
 
             Check: nvidia-smi, check for running ComfyUI/FLUX processes.
+            Check: gpu-switcher /status to confirm which profile is actually active.
 
       # The highest token count seen by the server since startup has crossed 85% of
       # the context window. This is the leading indicator for the overflow/timeout
