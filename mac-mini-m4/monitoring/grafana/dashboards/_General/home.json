@@ -940,7 +940,7 @@
     },
     {
       "type": "stat",
-      "title": "Pi-hole",
+      "title": "UniFi",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -952,99 +952,6 @@
         "y": 25
       },
       "id": 17,
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed"
-          },
-          "mappings": [
-            {
-              "type": "range",
-              "options": {
-                "from": 1,
-                "to": 999,
-                "result": {
-                  "text": "",
-                  "color": "green"
-                }
-              }
-            },
-            {
-              "type": "range",
-              "options": {
-                "from": 0,
-                "to": 0,
-                "result": {
-                  "text": "DOWN",
-                  "color": "red"
-                }
-              }
-            },
-            {
-              "type": "special",
-              "options": {
-                "match": "null",
-                "result": {
-                  "text": "DOWN",
-                  "color": "red"
-                }
-              }
-            }
-          ],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "options": {
-        "colorMode": "background_solid",
-        "graphMode": "none",
-        "justifyMode": "center",
-        "orientation": "auto",
-        "textMode": "value",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "count(kube_pod_status_phase{namespace=\"pihole\",phase=\"Running\"}) OR vector(0)",
-          "legendFormat": "",
-          "refId": "A",
-          "instant": true
-        }
-      ]
-    },
-    {
-      "type": "stat",
-      "title": "UniFi",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "h": 3,
-        "w": 4,
-        "x": 12,
-        "y": 25
-      },
-      "id": 18,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1134,10 +1041,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 16,
+        "x": 12,
         "y": 25
       },
-      "id": 19,
+      "id": 18,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1227,10 +1134,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 20,
+        "x": 16,
         "y": 25
       },
-      "id": 20,
+      "id": 19,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1320,10 +1227,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 0,
-        "y": 28
+        "x": 20,
+        "y": 25
       },
-      "id": 21,
+      "id": 20,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1413,10 +1320,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 4,
+        "x": 0,
         "y": 28
       },
-      "id": 22,
+      "id": 21,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1506,10 +1413,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 8,
+        "x": 4,
         "y": 28
       },
-      "id": 23,
+      "id": 22,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1599,10 +1506,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 12,
+        "x": 8,
         "y": 28
       },
-      "id": 24,
+      "id": 23,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1692,10 +1599,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 16,
+        "x": 12,
         "y": 28
       },
-      "id": 25,
+      "id": 24,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1785,10 +1692,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 20,
+        "x": 16,
         "y": 28
       },
-      "id": 26,
+      "id": 25,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1878,10 +1785,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 0,
-        "y": 31
+        "x": 20,
+        "y": 28
       },
-      "id": 27,
+      "id": 26,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -1971,10 +1878,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 4,
+        "x": 0,
         "y": 31
       },
-      "id": 28,
+      "id": 27,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2064,10 +1971,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 8,
+        "x": 4,
         "y": 31
       },
-      "id": 29,
+      "id": 28,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2157,10 +2064,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 12,
+        "x": 8,
         "y": 31
       },
-      "id": 30,
+      "id": 29,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2250,10 +2157,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 16,
+        "x": 12,
         "y": 31
       },
-      "id": 31,
+      "id": 30,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2343,10 +2250,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 20,
+        "x": 16,
         "y": 31
       },
-      "id": 32,
+      "id": 31,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2436,10 +2343,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 0,
-        "y": 34
+        "x": 20,
+        "y": 31
       },
-      "id": 33,
+      "id": 32,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2529,10 +2436,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 4,
+        "x": 0,
         "y": 34
       },
-      "id": 34,
+      "id": 33,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2622,10 +2529,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 8,
+        "x": 4,
         "y": 34
       },
-      "id": 35,
+      "id": 34,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2715,10 +2622,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 12,
+        "x": 8,
         "y": 34
       },
-      "id": 36,
+      "id": 35,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2808,10 +2715,10 @@
       "gridPos": {
         "h": 3,
         "w": 4,
-        "x": 16,
+        "x": 12,
         "y": 34
       },
-      "id": 37,
+      "id": 36,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -2901,7 +2808,7 @@
         "x": 0,
         "y": 37
       },
-      "id": 38,
+      "id": 37,
       "panels": []
     },
     {
@@ -2917,7 +2824,7 @@
         "x": 0,
         "y": 38
       },
-      "id": 39,
+      "id": 38,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3010,7 +2917,7 @@
         "x": 4,
         "y": 38
       },
-      "id": 40,
+      "id": 39,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3103,7 +3010,7 @@
         "x": 8,
         "y": 38
       },
-      "id": 41,
+      "id": 40,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3196,7 +3103,7 @@
         "x": 12,
         "y": 38
       },
-      "id": 42,
+      "id": 41,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3289,7 +3196,7 @@
         "x": 16,
         "y": 38
       },
-      "id": 43,
+      "id": 42,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3382,7 +3289,7 @@
         "x": 20,
         "y": 38
       },
-      "id": 44,
+      "id": 43,
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -3446,7 +3353,7 @@
         "x": 0,
         "y": 42
       },
-      "id": 45,
+      "id": 44,
       "panels": []
     },
     {
@@ -3462,7 +3369,7 @@
         "x": 0,
         "y": 43
       },
-      "id": 46,
+      "id": 45,
       "fieldConfig": {
         "defaults": {
           "custom": {
