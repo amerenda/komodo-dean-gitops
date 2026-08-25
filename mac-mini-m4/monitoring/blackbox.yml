@@ -1,3 +1,5 @@
+# Modules loaded once at process start (no --web.enable-lifecycle) — see
+# sync-stacks.sh, which restarts blackbox-exporter specifically on changes here.
 modules:
   https_2xx:
     prober: http
