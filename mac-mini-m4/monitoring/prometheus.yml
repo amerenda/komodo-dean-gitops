@@ -247,3 +247,114 @@ scrape_configs:
         target_label: instance
       - replacement: localhost:9115
         target_label: __address__
+
+  # mem0 probe — memory service used by every praetor agent (search_memory/add_memory)
+  - job_name: https-probes-mem0
+    metrics_path: /probe
+    params:
+      module: [https_2xx]
+    static_configs:
+      - targets: ["mem0.amer.dev"]
+        labels:
+          stack: llm
+          service: mem0
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - replacement: localhost:9115
+        target_label: __address__
+
+  # CouchDB probe — Obsidian Self-hosted LiveSync backend (vault sync)
+  - job_name: https-probes-couchdb
+    metrics_path: /probe
+    params:
+      module: [https_2xx]
+    static_configs:
+      - targets: ["couchdb.amer.dev"]
+        labels:
+          stack: db
+          service: couchdb
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - replacement: localhost:9115
+        target_label: __address__
+
+  # Qdrant probe — vector store backing mem0/RAG. No ingress; plain TCP check
+  # against the LAN port (network_mode: host on the mini).
+  - job_name: tcp-probes-qdrant
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets: ["10.100.20.18:6333"]
+        labels:
+          stack: db
+          service: qdrant
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - replacement: localhost:9115
+        target_label: __address__
+
+  # libsync-redis probe — dedicated Redis for KOReader kosync (k3s libsync app).
+  - job_name: tcp-probes-libsync-redis
+    metrics_path: /probe
+    params:
+      module: [tcp_connect]
+    static_configs:
+      - targets: ["10.100.20.18:6379"]
+        labels:
+          stack: db
+          service: libsync-redis
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - replacement: localhost:9115
+        target_label: __address__
+
+  # Ollama (mini) probe — dashboard health signal only, no dedicated alert
+  # (paired with murderbot-llm as the two "LLM backend" health tiles).
+  - job_name: http-probe-ollama-mini
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets: ["10.100.20.18:11434"]
+        labels:
+          stack: llm
+          service: ollama-mini
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - replacement: localhost:9115
+        target_label: __address__
+
+  # Technitium real DNS-resolution probe (queries the resolver on :5354
+  # directly) — distinct from mac-mini-dns (exporter/admin-API scrape), which
+  # can read "up" while the resolver itself is dead. See blackbox.yml.
+  - job_name: dns-resolution-probe
+    metrics_path: /probe
+    params:
+      module: [dns_technitium]
+    static_configs:
+      - targets: ["127.0.0.1:5354"]
+        labels:
+          service: technitium
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - replacement: localhost:9115
+        target_label: __address__
