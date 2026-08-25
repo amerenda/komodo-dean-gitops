@@ -132,6 +132,15 @@ if echo "$CHANGED" | grep -qE '^mac-mini-m4/monitoring/'; then
     "$DOCKER" restart grafana >> "$LOG" 2>&1 || true
 fi
 
+# blackbox-exporter has no --web.enable-lifecycle flag set, so it only ever reads
+# blackbox.yml once at process start — unlike prometheus above, changes to it
+# silently never take effect without an explicit restart (found 2026-08-25: new
+# probe modules kept 400ing until this was added).
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/monitoring/blackbox\.yml$'; then
+    echo "$(date): blackbox.yml changed — restarting blackbox-exporter" >> "$LOG"
+    "$DOCKER" restart blackbox-exporter >> "$LOG" 2>&1 || true
+fi
+
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/homeassistant/'; then
     echo "$(date): homeassistant config changed, restarting homeassistant" >> "$LOG"
     "$DOCKER" restart homeassistant 2>/dev/null || true
