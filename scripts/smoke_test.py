@@ -23,6 +23,10 @@ API_SECRET = os.environ.get("KOMODO_API_SECRET", "")
 STACK_BAD_STATES = {"dead", "restarting", "paused", "unknown"}
 # Stack states that mean "not yet deployed / intentionally stopped — skip"
 STACK_SKIP_STATES = {"not_deployed", None}
+# Stacks that are run on-demand and are not expected to be always-on — skip
+# regardless of state. llm-archlinux is started manually for local inference
+# on that GPU and is normally stopped; that's not a health problem.
+EPHEMERAL_STACKS = {"llm-archlinux"}
 
 
 def komodo(path: str, body: dict | None = None) -> object:
@@ -68,6 +72,10 @@ def main() -> int:
         name = st["name"]
         info = st.get("info", {})
         state = info.get("state")
+
+        if name in EPHEMERAL_STACKS:
+            print(f"skip  stack/{name}  (ephemeral, state={state!r})")
+            continue
 
         if state in STACK_SKIP_STATES:
             print(f"skip  stack/{name}  (state={state!r})")
