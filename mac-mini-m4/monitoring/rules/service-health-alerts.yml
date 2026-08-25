@@ -1,0 +1,148 @@
+groups:
+  - name: service-health-alerts
+    rules:
+
+      # ---------------------------------------------------------------
+      # Home Assistant
+      # ---------------------------------------------------------------
+      - alert: HomeAssistantDown
+        expr: up{job="mac-mini-homeassistant"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Home Assistant is unreachable"
+          description: |
+            Prometheus cannot scrape Home Assistant's /api/prometheus endpoint
+            on the mini. Automations, dashboards, and voice control are down.
+
+            Check: docker logs homeassistant --tail=50 (on mac-mini-m4)
+
+      # ---------------------------------------------------------------
+      # DNS (Technitium)
+      # ---------------------------------------------------------------
+      # Exporter/admin-API reachability only. Does NOT prove DNS actually
+      # resolves — see TechnitiumDNSResolutionFailing below for that.
+      - alert: TechnitiumExporterDown
+        expr: up{job="mac-mini-dns"} == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Technitium DNS exporter/admin API is unreachable"
+          description: |
+            Prometheus cannot scrape the technitium-exporter (port 9105).
+            This does not necessarily mean DNS resolution is broken — check
+            TechnitiumDNSResolutionFailing too.
+
+      # The real signal. 2026-07-19: the DNS listener silently stopped
+      # answering while the admin port kept responding — Docker reported
+      # "healthy" for 35+ hours while every client got query timeouts. This
+      # probe queries the actual resolver (127.0.0.1:5354), same as the
+      # container healthcheck.
+      - alert: TechnitiumDNSResolutionFailing
+        expr: probe_success{job="dns-resolution-probe"} == 0
+        for: 3m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Technitium is not resolving DNS queries"
+          description: |
+            A live query against the Technitium resolver (127.0.0.1:5354) has
+            been failing for more than 3 minutes. Every client on the LAN
+            using this resolver (including Tailscale's pushed DNS) will see
+            timeouts, even if the admin UI/API looks fine.
+
+            Check: dig @127.0.0.1 -p 5354 ha.amer.dev +time=3 +tries=1
+            Check: docker logs technitium --tail=50 (on mac-mini-m4)
+
+      # ---------------------------------------------------------------
+      # mem0 — memory service used by every praetor agent
+      # ---------------------------------------------------------------
+      - alert: Mem0Down
+        expr: probe_success{job="https-probes-mem0"} == 0
+        for: 3m
+        labels:
+          severity: critical
+          stack: llm
+        annotations:
+          summary: "mem0 (mem0.amer.dev) is unreachable"
+          description: |
+            mem0's HTTPS probe has been failing for more than 3 minutes.
+            Every praetor agent's search_memory/add_memory calls will fail.
+
+            Check: kubectl get pods -n mem0
+            Check: kubectl logs -n mem0 -l app=mem0-server --tail=50
+
+      # ---------------------------------------------------------------
+      # Databases (all on the mini)
+      # ---------------------------------------------------------------
+      - alert: PostgresDown
+        expr: up{job="mac-mini-postgres"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          stack: db
+        annotations:
+          summary: "Postgres (mini) is unreachable"
+          description: |
+            postgres-exporter cannot reach the shared Postgres instance on
+            the mini (pgvector, port 5432). LiteLLM, OpenWebUI, agent-kb, and
+            the Obsidian todo DB all depend on this.
+
+            Check: docker logs postgres --tail=50 (on mac-mini-m4)
+
+      - alert: MongoDBDown
+        expr: up{job="mac-mini-mongodb"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          stack: db
+        annotations:
+          summary: "MongoDB (mini) is unreachable"
+          description: |
+            mongodb-exporter cannot reach the shared MongoDB instance on the
+            mini (port 27017). UniFi Network Application depends on this.
+
+            Check: docker logs mongo --tail=50 (on mac-mini-m4)
+
+      - alert: CouchDBDown
+        expr: probe_success{job="https-probes-couchdb"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          stack: db
+        annotations:
+          summary: "CouchDB (couchdb.amer.dev) is unreachable"
+          description: |
+            CouchDB backs the Obsidian Self-hosted LiveSync vault (Dean).
+            Vault sync across devices will stall until this recovers.
+
+            Check: docker logs couchdb --tail=50 (on mac-mini-m4)
+
+      - alert: QdrantDown
+        expr: probe_success{job="tcp-probes-qdrant"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          stack: db
+        annotations:
+          summary: "Qdrant (mini, :6333) is unreachable"
+          description: |
+            TCP probe to Qdrant's REST port has been failing for 5+ minutes.
+
+            Check: docker logs qdrant --tail=50 (on mac-mini-m4)
+
+      - alert: LibsyncRedisDown
+        expr: probe_success{job="tcp-probes-libsync-redis"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          stack: db
+        annotations:
+          summary: "libsync-redis (mini, :6379) is unreachable"
+          description: |
+            TCP probe to the dedicated libsync (KOReader kosync) Redis has
+            been failing for 5+ minutes.
+
+            Check: docker logs libsync-redis --tail=50 (on mac-mini-m4)

@@ -17,3 +17,30 @@ modules:
   tcp_connect:
     prober: tcp
     timeout: 5s
+
+  # Internal HTTP targets that don't terminate TLS (e.g. Ollama on the mini,
+  # bare LAN ports). https_2xx forces fail_if_not_ssl, which makes it unusable here.
+  http_2xx:
+    prober: http
+    timeout: 10s
+    http:
+      preferred_ip_protocol: ip4
+      follow_redirects: true
+      valid_http_versions: ["HTTP/2.0", "HTTP/1.1"]
+      valid_status_codes: []
+      headers:
+        User-Agent: "blackbox-health-probe/1.0"
+
+  # Queries the actual Technitium resolver (UDP/5354), not the admin API.
+  # 2026-07-19 incident: the DNS listener silently stopped answering while the
+  # admin port (5380, what technitium-exporter scrapes) kept responding fine —
+  # Docker/exporter both reported healthy for 35+ hours. Only a real query
+  # against the resolver port catches that failure mode.
+  dns_technitium:
+    prober: dns
+    timeout: 5s
+    dns:
+      query_name: "ha.amer.dev"
+      query_type: "A"
+      valid_rcodes:
+        - NOERROR
