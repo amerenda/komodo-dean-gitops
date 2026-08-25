@@ -45,6 +45,23 @@ template:
       - name: "Anyone Home"
         unique_id: anyone_home
         device_class: occupancy
+        # 2026-08-25: a UniFi tracker-refresh hiccup flipped every
+        # device_tracker (and the AP entity itself) to unavailable for
+        # ~16s, which briefly zeroed group.members/group.guests and
+        # dropped this sensor to off, then back on 16s later — nobody
+        # actually left. ha_someone_arrived/security_someone_home already
+        # debounce the on-side (30s "for" on the off→on trigger), but
+        # that only guards against short-lived ON blips: once back on
+        # "on" and holding (which it did — presence was real), the 30s
+        # timer is satisfied and it fires as a fresh arrival regardless
+        # of how brief the preceding off-blip was. delay_off absorbs the
+        # spurious off at the source instead, so it never reaches the
+        # consumer automations. Real departures are unaffected —
+        # ha_everyone_left/security_everyone_left already require this
+        # sensor to stay off for 1min/5min before acting, well past this
+        # delay — and real arrivals see zero added latency, since
+        # delay_off only guards the off state, not the transition to on.
+        delay_off: "00:01:00"
         # Reads group.members + group.guests (groups.yaml) rather than
         # hardcoding person.* entities — 2026-08-22: found this sensor only
         # ever checked Alex + Eirill, so an approved guest present alone
