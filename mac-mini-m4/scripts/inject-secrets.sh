@@ -374,7 +374,7 @@ route:
   group_by: ['alertname', 'stack']
   group_wait: 30s
   group_interval: 5m
-  repeat_interval: 4h
+  repeat_interval: 6h
 
 receivers:
   - name: 'pushover'

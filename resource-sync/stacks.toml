@@ -124,7 +124,7 @@ printf '  receiver: '"'"'pushover'"'"'\n' >> mac-mini-m4/monitoring/alertmanager
 printf '  group_by: ['"'"'alertname'"'"', '"'"'stack'"'"']\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '  group_wait: 30s\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '  group_interval: 5m\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '  repeat_interval: 4h\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '  repeat_interval: 6h\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf 'receivers:\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '  - name: '"'"'pushover'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '    pushover_configs:\n' >> mac-mini-m4/monitoring/alertmanager.yml
