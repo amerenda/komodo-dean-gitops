@@ -35,20 +35,54 @@ groups:
             Check: curl -v https://argocd.amer.dev (should fail the same way)
 
       # Comparison signal for TraefikVipUnreachable above — see that alert's
-      # description. Not expected to fire on its own; if it does without the
-      # VIP alert, that's a plain node reachability issue unrelated to Traefik.
+      # description. Fires per-node ($labels.node) across all 5 k3s nodes,
+      # not just whichever one happens to host Traefik — scoping this to a
+      # single node both goes stale the moment that pod is rescheduled and
+      # makes the alert name a lie. Not expected to fire on its own; if one
+      # or more nodes fire without the VIP alert, that's a plain node/segment
+      # reachability issue unrelated to Traefik. If several fire together
+      # with the VIP alert, that's a broader network-segment issue.
       - alert: K3sNodeUnreachable
-        expr: probe_success{job="icmp-probe-k3s-node"} == 0
+        expr: probe_success{job="icmp-probe-k3s-nodes"} == 0
         for: 2m
         labels:
           severity: warning
         annotations:
-          summary: "k3s node rpi5-1 (10.100.20.11) is unreachable via ICMP"
+          summary: "k3s node {{ $labels.node }} ({{ $labels.instance }}) is unreachable via ICMP"
           description: |
-            Direct ping to a plain k3s node IP has been failing for 2+
-            minutes. Correlate with TraefikVipUnreachable: if both fire
-            together, this is a network-segment issue, not something
-            specific to Traefik/MetalLB.
+            Direct ping to k3s node {{ $labels.node }} has been failing for
+            2+ minutes. Correlate with TraefikVipUnreachable and with how
+            many *other* nodes are also firing this same alert: one node
+            alone points at that node specifically; several at once (or
+            alongside the VIP alert) points at a broader network-segment
+            issue.
+
+      # Every alert built on probe_success (WebServiceDown, LiteLLMDown,
+      # Mem0Down, CouchDBDown, TraefikVipUnreachable, K3sNodeUnreachable,
+      # etc. — effectively the entire probe-based half of this monitoring
+      # stack) silently stops firing if blackbox-exporter itself is down,
+      # because Prometheus's `== 0` comparisons only match a metric that IS
+      # present with value 0 — they don't match a metric that's gone
+      # entirely absent. This alert is evaluated on `up{job="blackbox-
+      # exporter"}`, a direct Prometheus scrape of blackbox-exporter's own
+      # /metrics — independent of the /probe indirection every other check
+      # here goes through — so it doesn't share that blind spot.
+      - alert: BlackboxExporterDown
+        expr: up{job="blackbox-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "blackbox-exporter is down — every probe-based alert is blind right now"
+          description: |
+            Prometheus cannot scrape blackbox-exporter (localhost:9115) for
+            2+ minutes. WebServiceDown, LiteLLMDown, Mem0Down, CouchDBDown,
+            TraefikVipUnreachable, K3sNodeUnreachable, and every other
+            probe_success-based alert will NOT fire while this is true, no
+            matter what's actually happening to the services they check.
+
+            Check: docker logs blackbox-exporter --tail=50 (on mac-mini-m4)
+            Check: docker ps | grep blackbox-exporter
 
       # 2026-08-26: found 9 lifetime Pushover delivery failures
       # (alertmanager_notifications_failed_total{reason="other"}) with no
