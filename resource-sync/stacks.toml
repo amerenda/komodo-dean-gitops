@@ -135,7 +135,7 @@ printf '  - name: '"'"'pushover'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.y
 printf '    pushover_configs:\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '      - user_key: '"'"'%s'"'"'\n' "$PUSHOVER_USER_KEY" >> mac-mini-m4/monitoring/alertmanager.yml
 printf '        token: '"'"'%s'"'"'\n' "$PUSHOVER_TOKEN" >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        title: '"'"'{{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        title: '"'"'[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '        message: |-\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '          {{ .CommonAnnotations.summary }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '          {{ .CommonAnnotations.description }}\n' >> mac-mini-m4/monitoring/alertmanager.yml

@@ -109,6 +109,54 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9115"]
 
+  # Alertmanager's own metrics — was not monitored at all before 2026-08-26,
+  # meaning a run of Pushover delivery failures (alertmanager_notifications_
+  # failed_total) was invisible. See AlertmanagerNotificationsFailing rule.
+  - job_name: mac-mini-alertmanager
+    static_configs:
+      - targets: ["localhost:9093"]
+
+  # ICMP reachability to the k3s Traefik ingress VIP — isolates "can't reach
+  # the VIP at all" (L3) from "reached it, HTTP failed" (L7). Added after the
+  # 2026-08-26 incident where every https-probes-* target failed together for
+  # exactly 06:03-06:17 UTC with no corresponding signal anywhere else
+  # (Traefik logs clean, MetalLB stable, node network counters clean).
+  - job_name: icmp-probe-traefik-vip
+    metrics_path: /probe
+    params:
+      module: [icmp]
+    static_configs:
+      - targets: ["10.100.20.203"]
+        labels:
+          service: traefik-vip
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - replacement: localhost:9115
+        target_label: __address__
+
+  # ICMP reachability to a plain k3s node IP (rpi5-1, currently hosting the
+  # Traefik pod) — a comparison point. If this ALSO drops while the VIP probe
+  # above drops, the problem is the network segment, not the VIP/MetalLB
+  # layer specifically.
+  - job_name: icmp-probe-k3s-node
+    metrics_path: /probe
+    params:
+      module: [icmp]
+    static_configs:
+      - targets: ["10.100.20.11"]
+        labels:
+          service: k3s-node-rpi5-1
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - replacement: localhost:9115
+        target_label: __address__
+
   # HTTPS probes for core web services — one job per target to carry unique {service} labels for alerting
   - job_name: https-probes-media
     metrics_path: /probe

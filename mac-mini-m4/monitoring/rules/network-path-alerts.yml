@@ -1,0 +1,71 @@
+groups:
+  - name: network-path-alerts
+    rules:
+
+      # Incident 2026-08-26 06:03-06:17 UTC: every single https-probes-*
+      # target (argocd, grafana, komodo, litellm, jellyfin, mem0, couchdb,
+      # openwebui, argo-workflows, zigbee2mqtt) went down together for
+      # exactly 14 minutes. Traefik's pod never restarted and logged zero
+      # errors; MetalLB's VIP announcement never changed (no failover, no
+      # gratuitous ARP); the node's own network-interface counters showed no
+      # errors/drops. Everything checked via direct IP/port on the mini
+      # itself (Postgres, Mongo, HA, Technitium's real resolver, Qdrant,
+      # libsync-redis) stayed clean throughout. The only thing every failing
+      # target shared was "reachable via the Traefik ingress VIP" — but there
+      # was no direct signal for that path itself, only its symptoms. This
+      # alert is that direct signal.
+      - alert: TraefikVipUnreachable
+        expr: probe_success{job="icmp-probe-traefik-vip"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "k3s Traefik ingress VIP (10.100.20.203) is unreachable"
+          description: |
+            ICMP to the Traefik VIP has been failing for 2+ minutes. Every
+            *.amer.dev service (regardless of which host actually backs it)
+            will appear down during this — check WebServiceDown/LiteLLMDown/
+            Mem0Down/etc. firing together as the fingerprint of this exact
+            failure mode before troubleshooting each app individually.
+
+            Check: does K3sNodeUnreachable also fire? If yes, this is a
+            broader network-segment issue, not MetalLB/VIP-specific.
+            Check: kubectl get pods -n metallb-system
+            Check: curl -v https://argocd.amer.dev (should fail the same way)
+
+      # Comparison signal for TraefikVipUnreachable above — see that alert's
+      # description. Not expected to fire on its own; if it does without the
+      # VIP alert, that's a plain node reachability issue unrelated to Traefik.
+      - alert: K3sNodeUnreachable
+        expr: probe_success{job="icmp-probe-k3s-node"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "k3s node rpi5-1 (10.100.20.11) is unreachable via ICMP"
+          description: |
+            Direct ping to a plain k3s node IP has been failing for 2+
+            minutes. Correlate with TraefikVipUnreachable: if both fire
+            together, this is a network-segment issue, not something
+            specific to Traefik/MetalLB.
+
+      # 2026-08-26: found 9 lifetime Pushover delivery failures
+      # (alertmanager_notifications_failed_total{reason="other"}) with no
+      # way to tell when they happened, because Alertmanager's own /metrics
+      # was never scraped. This closes that blind spot — a run of failed
+      # deliveries (e.g. resolved-notifications silently not arriving) is
+      # now itself alertable, instead of only discoverable by noticing a
+      # cumulative counter looks too high days later.
+      - alert: AlertmanagerNotificationsFailing
+        expr: increase(alertmanager_notifications_failed_total[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Alertmanager failed to deliver {{ $value | printf \"%.0f\" }} notification(s) via {{ $labels.integration }}"
+          description: |
+            alertmanager_notifications_failed_total{integration="{{ $labels.integration }}"}
+            increased in the last 15 minutes. This means some alert
+            (possibly a RESOLVED notification) silently did not reach
+            Pushover. Check Alertmanager's own logs on mac-mini-m4 for the
+            actual error — this alert only proves failures happened, not why.

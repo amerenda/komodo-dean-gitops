@@ -153,6 +153,13 @@ services:
     container_name: blackbox-exporter
     restart: unless-stopped
     network_mode: host
+    # icmp module needs raw ICMP sockets (NET_RAW) — added for network-path
+    # diagnostics after the 2026-08-26 Traefik-path outage. Docker's default
+    # capability set already includes NET_RAW for root containers, so this is
+    # currently a no-op in practice; kept explicit so the requirement doesn't
+    # silently break if capabilities are ever hardened (cap_drop: ALL, etc.).
+    cap_add:
+      - NET_RAW
     volumes:
       - ${MONITORING_DIR:-.}/blackbox.yml:/etc/blackbox/blackbox.yml:ro
     command:

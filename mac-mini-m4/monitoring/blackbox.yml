@@ -33,6 +33,17 @@ modules:
       headers:
         User-Agent: "blackbox-health-probe/1.0"
 
+  # ICMP reachability — isolates L3 network-path failures from L7 (HTTP)
+  # failures. Requires NET_RAW on the blackbox-exporter container (see
+  # compose.yaml). Added 2026-08-26 after a 14-minute outage where every
+  # Traefik-ingress-routed service failed simultaneously but Traefik itself,
+  # MetalLB, node health, and node network-interface counters all looked
+  # clean — there was no signal available to tell "can't even reach the VIP"
+  # apart from "reached it, but the HTTP response failed."
+  icmp:
+    prober: icmp
+    timeout: 5s
+
   # Queries the actual Technitium resolver (UDP/5354), not the admin API.
   # 2026-07-19 incident: the DNS listener silently stopped answering while the
   # admin port (5380, what technitium-exporter scrapes) kept responding fine —
