@@ -1,0 +1,69 @@
+# Smart Lighting v3 — Custom scene names (Button 4 Cycle Scenes, per room)
+# 3 fixed slots per room. Empty name = slot unused — excluded from scene_add,
+# scene_recall, and the Cycle Scenes list regardless of the sl_<room>_cycle_customN
+# toggle in input_boolean/sl_<room>.yaml.
+
+sl_living_room_custom1_name:
+  name: "SL: Living Room — Custom Scene 1 Name"
+  max: 30
+  icon: mdi:tag-outline
+sl_living_room_custom2_name:
+  name: "SL: Living Room — Custom Scene 2 Name"
+  max: 30
+  icon: mdi:tag-outline
+sl_living_room_custom3_name:
+  name: "SL: Living Room — Custom Scene 3 Name"
+  max: 30
+  icon: mdi:tag-outline
+
+sl_bedroom_custom1_name:
+  name: "SL: Bedroom — Custom Scene 1 Name"
+  max: 30
+  icon: mdi:tag-outline
+sl_bedroom_custom2_name:
+  name: "SL: Bedroom — Custom Scene 2 Name"
+  max: 30
+  icon: mdi:tag-outline
+sl_bedroom_custom3_name:
+  name: "SL: Bedroom — Custom Scene 3 Name"
+  max: 30
+  icon: mdi:tag-outline
+
+sl_bathroom_custom1_name:
+  name: "SL: Bathroom — Custom Scene 1 Name"
+  max: 30
+  icon: mdi:tag-outline
+sl_bathroom_custom2_name:
+  name: "SL: Bathroom — Custom Scene 2 Name"
+  max: 30
+  icon: mdi:tag-outline
+sl_bathroom_custom3_name:
+  name: "SL: Bathroom — Custom Scene 3 Name"
+  max: 30
+  icon: mdi:tag-outline
+
+sl_kitchen_custom1_name:
+  name: "SL: Kitchen — Custom Scene 1 Name"
+  max: 30
+  icon: mdi:tag-outline
+sl_kitchen_custom2_name:
+  name: "SL: Kitchen — Custom Scene 2 Name"
+  max: 30
+  icon: mdi:tag-outline
+sl_kitchen_custom3_name:
+  name: "SL: Kitchen — Custom Scene 3 Name"
+  max: 30
+  icon: mdi:tag-outline
+
+sl_hallway_custom1_name:
+  name: "SL: Hallway — Custom Scene 1 Name"
+  max: 30
+  icon: mdi:tag-outline
+sl_hallway_custom2_name:
+  name: "SL: Hallway — Custom Scene 2 Name"
+  max: 30
+  icon: mdi:tag-outline
+sl_hallway_custom3_name:
+  name: "SL: Hallway — Custom Scene 3 Name"
+  max: 30
+  icon: mdi:tag-outline

@@ -147,6 +147,22 @@ views:
               name: Smooth Transition
             - entity: input_number.sl_bathroom_smooth_transition_duration
               name: Transition Duration (min)
+            - type: section
+              label: "Cycle Scenes (Button 4)"
+            - entity: input_boolean.sl_bathroom_cycle_morning
+              name: Morning
+            - entity: input_boolean.sl_bathroom_cycle_day
+              name: Day
+            - entity: input_boolean.sl_bathroom_cycle_evening
+              name: Evening
+            - entity: input_boolean.sl_bathroom_cycle_night
+              name: Night
+            - entity: input_boolean.sl_bathroom_cycle_custom1
+              name: "Custom Scene 1 (named in Scene Editor tab)"
+            - entity: input_boolean.sl_bathroom_cycle_custom2
+              name: "Custom Scene 2 (named in Scene Editor tab)"
+            - entity: input_boolean.sl_bathroom_cycle_custom3
+              name: "Custom Scene 3 (named in Scene Editor tab)"
 
       # ── Room Settings: Bedroom ─────────────────────────────
       - type: conditional
@@ -171,6 +187,22 @@ views:
               name: Smooth Transition
             - entity: input_number.sl_bedroom_smooth_transition_duration
               name: Transition Duration (min)
+            - type: section
+              label: "Cycle Scenes (Button 4)"
+            - entity: input_boolean.sl_bedroom_cycle_morning
+              name: Morning
+            - entity: input_boolean.sl_bedroom_cycle_day
+              name: Day
+            - entity: input_boolean.sl_bedroom_cycle_evening
+              name: Evening
+            - entity: input_boolean.sl_bedroom_cycle_night
+              name: Night
+            - entity: input_boolean.sl_bedroom_cycle_custom1
+              name: "Custom Scene 1 (named in Scene Editor tab)"
+            - entity: input_boolean.sl_bedroom_cycle_custom2
+              name: "Custom Scene 2 (named in Scene Editor tab)"
+            - entity: input_boolean.sl_bedroom_cycle_custom3
+              name: "Custom Scene 3 (named in Scene Editor tab)"
 
 
       # ── Room Settings: Hallway ─────────────────────────────
@@ -196,6 +228,22 @@ views:
               name: Smooth Transition
             - entity: input_number.sl_hallway_smooth_transition_duration
               name: Transition Duration (min)
+            - type: section
+              label: "Cycle Scenes (Button 4)"
+            - entity: input_boolean.sl_hallway_cycle_morning
+              name: Morning
+            - entity: input_boolean.sl_hallway_cycle_day
+              name: Day
+            - entity: input_boolean.sl_hallway_cycle_evening
+              name: Evening
+            - entity: input_boolean.sl_hallway_cycle_night
+              name: Night
+            - entity: input_boolean.sl_hallway_cycle_custom1
+              name: "Custom Scene 1 (named in Scene Editor tab)"
+            - entity: input_boolean.sl_hallway_cycle_custom2
+              name: "Custom Scene 2 (named in Scene Editor tab)"
+            - entity: input_boolean.sl_hallway_cycle_custom3
+              name: "Custom Scene 3 (named in Scene Editor tab)"
 
       # ── Room Settings: Kitchen ─────────────────────────────
       - type: conditional
@@ -220,6 +268,22 @@ views:
               name: Smooth Transition
             - entity: input_number.sl_kitchen_smooth_transition_duration
               name: Transition Duration (min)
+            - type: section
+              label: "Cycle Scenes (Button 4)"
+            - entity: input_boolean.sl_kitchen_cycle_morning
+              name: Morning
+            - entity: input_boolean.sl_kitchen_cycle_day
+              name: Day
+            - entity: input_boolean.sl_kitchen_cycle_evening
+              name: Evening
+            - entity: input_boolean.sl_kitchen_cycle_night
+              name: Night
+            - entity: input_boolean.sl_kitchen_cycle_custom1
+              name: "Custom Scene 1 (named in Scene Editor tab)"
+            - entity: input_boolean.sl_kitchen_cycle_custom2
+              name: "Custom Scene 2 (named in Scene Editor tab)"
+            - entity: input_boolean.sl_kitchen_cycle_custom3
+              name: "Custom Scene 3 (named in Scene Editor tab)"
 
       # ── Room Settings: Living Room ─────────────────────────
       - type: conditional
@@ -244,6 +308,22 @@ views:
               name: Smooth Transition
             - entity: input_number.sl_living_room_smooth_transition_duration
               name: Transition Duration (min)
+            - type: section
+              label: "Cycle Scenes (Button 4)"
+            - entity: input_boolean.sl_living_room_cycle_morning
+              name: Morning
+            - entity: input_boolean.sl_living_room_cycle_day
+              name: Day
+            - entity: input_boolean.sl_living_room_cycle_evening
+              name: Evening
+            - entity: input_boolean.sl_living_room_cycle_night
+              name: Night
+            - entity: input_boolean.sl_living_room_cycle_custom1
+              name: "Custom Scene 1 (named in Scene Editor tab)"
+            - entity: input_boolean.sl_living_room_cycle_custom2
+              name: "Custom Scene 2 (named in Scene Editor tab)"
+            - entity: input_boolean.sl_living_room_cycle_custom3
+              name: "Custom Scene 3 (named in Scene Editor tab)"
 
   # ════════════════════════════════════════════════════════════
   # Scene Editor Tab
@@ -362,6 +442,90 @@ views:
                     data:
                       room: living_room
                       window: night
+            - type: custom:mushroom-title-card
+              title: Custom Scenes (Button 4 Cycle)
+              subtitle: Name a slot, set the lights how you want, then Save. Toggle whether it's in the cycle under Room Settings.
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_living_room_custom1_name
+                  name: "Slot 1 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 1
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: living_room
+                      window: custom1
+                - type: button
+                  name: Save Slot 1
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: living_room
+                      window: custom1
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_living_room_custom2_name
+                  name: "Slot 2 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 2
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: living_room
+                      window: custom2
+                - type: button
+                  name: Save Slot 2
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: living_room
+                      window: custom2
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_living_room_custom3_name
+                  name: "Slot 3 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 3
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: living_room
+                      window: custom3
+                - type: button
+                  name: Save Slot 3
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: living_room
+                      window: custom3
             - type: entities
               show_header_toggle: false
               entities:
@@ -500,6 +664,90 @@ views:
                     data:
                       room: bedroom
                       window: night
+            - type: custom:mushroom-title-card
+              title: Custom Scenes (Button 4 Cycle)
+              subtitle: Name a slot, set the lights how you want, then Save. Toggle whether it's in the cycle under Room Settings.
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_bedroom_custom1_name
+                  name: "Slot 1 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 1
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: bedroom
+                      window: custom1
+                - type: button
+                  name: Save Slot 1
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: bedroom
+                      window: custom1
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_bedroom_custom2_name
+                  name: "Slot 2 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 2
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: bedroom
+                      window: custom2
+                - type: button
+                  name: Save Slot 2
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: bedroom
+                      window: custom2
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_bedroom_custom3_name
+                  name: "Slot 3 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 3
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: bedroom
+                      window: custom3
+                - type: button
+                  name: Save Slot 3
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: bedroom
+                      window: custom3
             - type: entities
               show_header_toggle: false
               entities:
@@ -635,6 +883,90 @@ views:
                     data:
                       room: bathroom
                       window: night
+            - type: custom:mushroom-title-card
+              title: Custom Scenes (Button 4 Cycle)
+              subtitle: Name a slot, set the lights how you want, then Save. Toggle whether it's in the cycle under Room Settings.
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_bathroom_custom1_name
+                  name: "Slot 1 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 1
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: bathroom
+                      window: custom1
+                - type: button
+                  name: Save Slot 1
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: bathroom
+                      window: custom1
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_bathroom_custom2_name
+                  name: "Slot 2 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 2
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: bathroom
+                      window: custom2
+                - type: button
+                  name: Save Slot 2
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: bathroom
+                      window: custom2
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_bathroom_custom3_name
+                  name: "Slot 3 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 3
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: bathroom
+                      window: custom3
+                - type: button
+                  name: Save Slot 3
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: bathroom
+                      window: custom3
             - type: entities
               show_header_toggle: false
               entities:
@@ -772,6 +1104,90 @@ views:
                     data:
                       room: kitchen
                       window: night
+            - type: custom:mushroom-title-card
+              title: Custom Scenes (Button 4 Cycle)
+              subtitle: Name a slot, set the lights how you want, then Save. Toggle whether it's in the cycle under Room Settings.
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_kitchen_custom1_name
+                  name: "Slot 1 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 1
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: kitchen
+                      window: custom1
+                - type: button
+                  name: Save Slot 1
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: kitchen
+                      window: custom1
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_kitchen_custom2_name
+                  name: "Slot 2 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 2
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: kitchen
+                      window: custom2
+                - type: button
+                  name: Save Slot 2
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: kitchen
+                      window: custom2
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_kitchen_custom3_name
+                  name: "Slot 3 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 3
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: kitchen
+                      window: custom3
+                - type: button
+                  name: Save Slot 3
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: kitchen
+                      window: custom3
             - type: entities
               show_header_toggle: false
               entities:
@@ -907,6 +1323,90 @@ views:
                     data:
                       room: hallway
                       window: night
+            - type: custom:mushroom-title-card
+              title: Custom Scenes (Button 4 Cycle)
+              subtitle: Name a slot, set the lights how you want, then Save. Toggle whether it's in the cycle under Room Settings.
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_hallway_custom1_name
+                  name: "Slot 1 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 1
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: hallway
+                      window: custom1
+                - type: button
+                  name: Save Slot 1
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: hallway
+                      window: custom1
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_hallway_custom2_name
+                  name: "Slot 2 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 2
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: hallway
+                      window: custom2
+                - type: button
+                  name: Save Slot 2
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: hallway
+                      window: custom2
+            - type: entities
+              show_header_toggle: false
+              entities:
+                - entity: input_text.sl_hallway_custom3_name
+                  name: "Slot 3 Name"
+            - type: horizontal-stack
+              cards:
+                - type: button
+                  name: Load Slot 3
+                  icon: mdi:play
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_preview_scene
+                    data:
+                      room: hallway
+                      window: custom3
+                - type: button
+                  name: Save Slot 3
+                  icon: mdi:content-save
+                  show_state: false
+                  tap_action:
+                    action: call-service
+                    service: script.sl_save_current_as_scene
+                    data:
+                      room: hallway
+                      window: custom3
             - type: entities
               show_header_toggle: false
               entities:

@@ -23,6 +23,7 @@ sl_bedroom_auto_transition:
 sl_bedroom_smooth_transition:
   name: "SL: Bedroom — Smooth Transition"
   icon: mdi:blur-linear
+  initial: true
 
 sl_bedroom_override:
   name: "SL: Bedroom — Override Active"
@@ -31,3 +32,35 @@ sl_bedroom_override:
 sl_bedroom_override_scenes:
   name: "SL: Bedroom — Override Window Scenes"
   icon: mdi:palette-outline
+
+sl_bedroom_cycle_morning:
+  name: "SL: Bedroom — Cycle: Morning"
+  icon: mdi:weather-sunset-up
+  initial: true
+
+sl_bedroom_cycle_day:
+  name: "SL: Bedroom — Cycle: Day"
+  icon: mdi:weather-sunny
+  initial: true
+
+sl_bedroom_cycle_evening:
+  name: "SL: Bedroom — Cycle: Evening"
+  icon: mdi:weather-sunset-down
+  initial: true
+
+sl_bedroom_cycle_night:
+  name: "SL: Bedroom — Cycle: Night"
+  icon: mdi:weather-night
+  initial: true
+
+sl_bedroom_cycle_custom1:
+  name: "SL: Bedroom — Cycle: Custom Scene 1"
+  icon: mdi:creation
+
+sl_bedroom_cycle_custom2:
+  name: "SL: Bedroom — Cycle: Custom Scene 2"
+  icon: mdi:creation
+
+sl_bedroom_cycle_custom3:
+  name: "SL: Bedroom — Cycle: Custom Scene 3"
+  icon: mdi:creation

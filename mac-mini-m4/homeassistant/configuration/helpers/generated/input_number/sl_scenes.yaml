@@ -408,3 +408,313 @@ sl_bathroom_night_color_y:
   step: 0.0001
   initial: 0
   mode: box
+
+# Custom Scenes (Button 4 Cycle Scenes slots) — 3 fixed slots per room,
+# same shape as the 4 window scenes above. Empty name (input_text, see
+# sl_custom_scenes.yaml) means the slot is unused regardless of these values.
+
+# Living Room (ambiance: brightness + color_temp)
+sl_living_room_custom1_brightness:
+  name: "SL: Living Room Custom 1 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_living_room_custom1_color_temp:
+  name: "SL: Living Room Custom 1 Color Temp"
+  min: 153
+  max: 500
+  step: 1
+  initial: 300
+  mode: slider
+sl_living_room_custom2_brightness:
+  name: "SL: Living Room Custom 2 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_living_room_custom2_color_temp:
+  name: "SL: Living Room Custom 2 Color Temp"
+  min: 153
+  max: 500
+  step: 1
+  initial: 300
+  mode: slider
+sl_living_room_custom3_brightness:
+  name: "SL: Living Room Custom 3 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_living_room_custom3_color_temp:
+  name: "SL: Living Room Custom 3 Color Temp"
+  min: 153
+  max: 500
+  step: 1
+  initial: 300
+  mode: slider
+
+# Bedroom (ambiance: brightness + color_temp)
+sl_bedroom_custom1_brightness:
+  name: "SL: Bedroom Custom 1 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_bedroom_custom1_color_temp:
+  name: "SL: Bedroom Custom 1 Color Temp"
+  min: 153
+  max: 500
+  step: 1
+  initial: 300
+  mode: slider
+sl_bedroom_custom2_brightness:
+  name: "SL: Bedroom Custom 2 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_bedroom_custom2_color_temp:
+  name: "SL: Bedroom Custom 2 Color Temp"
+  min: 153
+  max: 500
+  step: 1
+  initial: 300
+  mode: slider
+sl_bedroom_custom3_brightness:
+  name: "SL: Bedroom Custom 3 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_bedroom_custom3_color_temp:
+  name: "SL: Bedroom Custom 3 Color Temp"
+  min: 153
+  max: 500
+  step: 1
+  initial: 300
+  mode: slider
+
+# Bathroom (ambiance: brightness + color_temp)
+sl_bathroom_custom1_brightness:
+  name: "SL: Bathroom Custom 1 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_bathroom_custom1_color_temp:
+  name: "SL: Bathroom Custom 1 Color Temp"
+  min: 153
+  max: 500
+  step: 1
+  initial: 300
+  mode: slider
+sl_bathroom_custom2_brightness:
+  name: "SL: Bathroom Custom 2 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_bathroom_custom2_color_temp:
+  name: "SL: Bathroom Custom 2 Color Temp"
+  min: 153
+  max: 500
+  step: 1
+  initial: 300
+  mode: slider
+sl_bathroom_custom3_brightness:
+  name: "SL: Bathroom Custom 3 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_bathroom_custom3_color_temp:
+  name: "SL: Bathroom Custom 3 Color Temp"
+  min: 153
+  max: 500
+  step: 1
+  initial: 300
+  mode: slider
+
+# Kitchen (brightness only, no color capability)
+sl_kitchen_custom1_brightness:
+  name: "SL: Kitchen Custom 1 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_kitchen_custom2_brightness:
+  name: "SL: Kitchen Custom 2 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_kitchen_custom3_brightness:
+  name: "SL: Kitchen Custom 3 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+
+# Hallway (brightness only, no color capability)
+sl_hallway_custom1_brightness:
+  name: "SL: Hallway Custom 1 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_hallway_custom2_brightness:
+  name: "SL: Hallway Custom 2 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+sl_hallway_custom3_brightness:
+  name: "SL: Hallway Custom 3 Brightness"
+  min: 1
+  max: 255
+  step: 1
+  initial: 200
+  mode: slider
+
+# Custom Scenes — color_x/y (Living Room, Bedroom, Bathroom only)
+sl_living_room_custom1_color_x:
+  name: "SL: Living Room Custom 1 Color X"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_living_room_custom1_color_y:
+  name: "SL: Living Room Custom 1 Color Y"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_living_room_custom2_color_x:
+  name: "SL: Living Room Custom 2 Color X"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_living_room_custom2_color_y:
+  name: "SL: Living Room Custom 2 Color Y"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_living_room_custom3_color_x:
+  name: "SL: Living Room Custom 3 Color X"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_living_room_custom3_color_y:
+  name: "SL: Living Room Custom 3 Color Y"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_bedroom_custom1_color_x:
+  name: "SL: Bedroom Custom 1 Color X"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_bedroom_custom1_color_y:
+  name: "SL: Bedroom Custom 1 Color Y"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_bedroom_custom2_color_x:
+  name: "SL: Bedroom Custom 2 Color X"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_bedroom_custom2_color_y:
+  name: "SL: Bedroom Custom 2 Color Y"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_bedroom_custom3_color_x:
+  name: "SL: Bedroom Custom 3 Color X"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_bedroom_custom3_color_y:
+  name: "SL: Bedroom Custom 3 Color Y"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_bathroom_custom1_color_x:
+  name: "SL: Bathroom Custom 1 Color X"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_bathroom_custom1_color_y:
+  name: "SL: Bathroom Custom 1 Color Y"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_bathroom_custom2_color_x:
+  name: "SL: Bathroom Custom 2 Color X"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_bathroom_custom2_color_y:
+  name: "SL: Bathroom Custom 2 Color Y"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_bathroom_custom3_color_x:
+  name: "SL: Bathroom Custom 3 Color X"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box
+sl_bathroom_custom3_color_y:
+  name: "SL: Bathroom Custom 3 Color Y"
+  min: 0
+  max: 1
+  step: 0.0001
+  initial: 0
+  mode: box

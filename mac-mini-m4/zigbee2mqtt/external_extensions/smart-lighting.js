@@ -13,6 +13,15 @@ const BASE_TOPIC = 'zigbee2mqtt';
 // Zigbee scene IDs: morning=1, day=2, evening=3, night=4
 const WINDOW_SCENE_ID = { morning: 1, day: 2, evening: 3, night: 4 };
 const WINDOWS = ['morning', 'day', 'evening', 'night'];
+
+// Named custom scenes (per-room, HA-editable via the Scene Editor dashboard tab).
+// NOT the same thing as the 'Custom Scene' button action below (SEXYSEX_SCENE /
+// toggle-all-rooms) — these are user-created scenes eligible for the Cycle
+// Scenes list (roomConfig.cycle_list), keyed by a stable slot id (custom1-3)
+// rather than their editable display name, so renaming one never breaks its
+// cycle-list membership or Zigbee scene ID.
+const CUSTOM_SCENE_ID = { custom1: 5, custom2: 6, custom3: 7 };
+const SCENE_ID = { ...WINDOW_SCENE_ID, ...CUSTOM_SCENE_ID };
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 // Stagger delay between Zigbee commands (ms) to avoid flooding
@@ -311,6 +320,26 @@ class SmartLighting {
                 commands.push({ topic: `${roomName}/set`, payload: { scene_add: sceneAdd } });
             }
 
+            for (const [slotKey, customScene] of Object.entries(roomConfig.custom_scenes || {})) {
+                if (!customScene || !customScene.name) continue;
+                const sceneId = CUSTOM_SCENE_ID[slotKey];
+                if (!sceneId) continue;
+
+                const sceneAdd = {
+                    ID: sceneId,
+                    name: customScene.name,
+                    state: 'ON',
+                    transition: 2,
+                    brightness: customScene.brightness,
+                };
+                if (customScene.color) {
+                    sceneAdd.color = customScene.color;
+                } else if (customScene.color_temp !== undefined) {
+                    sceneAdd.color_temp = customScene.color_temp;
+                }
+                commands.push({ topic: `${roomName}/set`, payload: { scene_add: sceneAdd } });
+            }
+
             // For smart_power_on rooms: boot LED-off so the extension can turn it on
             // at exactly the right scene — zero flash. Non-smart rooms boot directly
             // at scene values since the extension won't fire for them on announce.
@@ -372,11 +401,10 @@ class SmartLighting {
             return;
         }
         if (!this._roomAnyOn(roomName)) return;
-        const payload = this._buildDirectScenePayload(window, roomConfig);
+        const durationSecs = this._transitionDurationSecs(roomConfig);
+        const payload = this._transition(roomName, window, roomConfig, durationSecs);
         if (!payload) return;
-        const secs = payload.transition ?? 'default';
-        this.logger.info(`[SL] Recalling ${window} scene on ${roomName} (lights on, transition=${secs})`);
-        this._sendCommand(`${roomName}/set`, payload);
+        this.logger.info(`[SL] Recalling ${window} scene on ${roomName} (lights on, transition=${durationSecs || 'instant'})`);
     }
 
     // ── Device announce (wall switch power-on) ───────────────
@@ -514,23 +542,35 @@ class SmartLighting {
         this.logger.info('[SL] All rooms off');
     }
 
+    // Cycle list is HA-editable (roomConfig.cycle_list) — defaults to the 4
+    // windows, in order, when absent/empty (older cached config, or every
+    // entry unchecked) so the button never goes dead. Entries can be any mix
+    // of window keys and custom-scene slot keys (custom1-3); see CUSTOM_SCENE_ID.
     _cycleScenesForRoom(roomName) {
         if (!this.config || !this.config.rooms) return;
         const roomConfig = this.config.rooms[roomName];
         if (!roomConfig) return;
 
+        const cycleList = (roomConfig.cycle_list && roomConfig.cycle_list.length > 0)
+            ? roomConfig.cycle_list
+            : WINDOWS;
+
         const last = this._switchLastScene[roomName];
         const current = this.currentWindow || 'morning';
-        const targetWindow = (!last || !WINDOWS.includes(last))
-            ? (WINDOWS.includes(current) ? current : 'morning')
-            : WINDOWS[(WINDOWS.indexOf(last) + 1) % WINDOWS.length];
+        const targetKey = (!last || !cycleList.includes(last))
+            ? (cycleList.includes(current) ? current : cycleList[0])
+            : cycleList[(cycleList.indexOf(last) + 1) % cycleList.length];
 
-        if (!roomConfig.scenes || !roomConfig.scenes[targetWindow]) return;
+        const sceneExists = CUSTOM_SCENE_ID[targetKey]
+            ? !!(roomConfig.custom_scenes && roomConfig.custom_scenes[targetKey] && roomConfig.custom_scenes[targetKey].name)
+            : !!(roomConfig.scenes && roomConfig.scenes[targetKey]);
+        if (!sceneExists) return;
 
-        const sceneId = WINDOW_SCENE_ID[targetWindow];
+        const sceneId = SCENE_ID[targetKey];
+        if (!sceneId) return;
         this._sendCommand(`${roomName}/set`, { scene_recall: sceneId });
-        this._switchLastScene[roomName] = targetWindow;
-        this.logger.info(`[SL] cycle scene: ${roomName} → ${targetWindow}`);
+        this._switchLastScene[roomName] = targetKey;
+        this.logger.info(`[SL] cycle scene: ${roomName} → ${targetKey}`);
     }
 
     _customAction(switchConfig) {
@@ -604,15 +644,35 @@ class SmartLighting {
     // ── Helpers ──────────────────────────────────────────────
 
     /** @returns {object | null} */
-    _buildDirectScenePayload(windowKey, roomConfig) {
+    _buildScenePayload(windowKey, roomConfig) {
         const scene = roomConfig.scenes && roomConfig.scenes[windowKey];
         if (!scene) return null;
         const cmd = { state: 'ON', brightness: scene.brightness };
         if (scene.color) cmd.color = scene.color;
         else if (scene.color_temp !== undefined) cmd.color_temp = scene.color_temp;
-        const secs = Number(roomConfig.transition_secs) > 0 ? Number(roomConfig.transition_secs) : 0;
-        if (secs > 0) cmd.transition = secs;
         return cmd;
+    }
+
+    _transitionDurationSecs(roomConfig) {
+        const secs = Number(roomConfig.transition_secs);
+        return secs > 0 ? secs : 0;
+    }
+
+    // ── Transition seam (backend contract §1a) ────────────────
+    // The ONLY place that knows how a room fades from its current values to
+    // a target scene. Swap this one function to change the mechanism (e.g. a
+    // future stepped/eased curve engine sending intermediate commands on a
+    // timer) without touching scheduling, mode gating, scene storage, or
+    // button handling anywhere else. Today it delegates 100% to the bulb's
+    // own firmware: one Zigbee command carrying a `transition` param, linear
+    // interpolation done on-device.
+    /** @returns {object | null} the payload sent, or null if no scene exists for windowKey */
+    _transition(roomName, windowKey, roomConfig, durationSecs) {
+        const payload = this._buildScenePayload(windowKey, roomConfig);
+        if (!payload) return null;
+        if (durationSecs > 0) payload.transition = durationSecs;
+        this._sendCommand(`${roomName}/set`, payload);
+        return payload;
     }
 
     // Individual bulbs first, group topic only as a fallback — 2026-08-23.
