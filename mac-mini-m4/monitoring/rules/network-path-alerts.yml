@@ -15,18 +15,19 @@ groups:
       # was no direct signal for that path itself, only its symptoms. This
       # alert is that direct signal.
       - alert: TraefikVipUnreachable
-        expr: probe_success{job="icmp-probe-traefik-vip"} == 0
+        expr: probe_success{job="tcp-probe-traefik-vip"} == 0
         for: 2m
         labels:
           severity: critical
         annotations:
-          summary: "k3s Traefik ingress VIP (10.100.20.203) is unreachable"
+          summary: "k3s Traefik ingress VIP (10.100.20.203:443) is unreachable"
           description: |
-            ICMP to the Traefik VIP has been failing for 2+ minutes. Every
-            *.amer.dev service (regardless of which host actually backs it)
-            will appear down during this — check WebServiceDown/LiteLLMDown/
-            Mem0Down/etc. firing together as the fingerprint of this exact
-            failure mode before troubleshooting each app individually.
+            A TCP connection to the Traefik VIP's HTTPS port has been failing
+            for 2+ minutes. Every *.amer.dev service (regardless of which
+            host actually backs it) will appear down during this — check
+            WebServiceDown/LiteLLMDown/Mem0Down/etc. firing together as the
+            fingerprint of this exact failure mode before troubleshooting
+            each app individually.
 
             Check: does K3sNodeUnreachable also fire? If yes, this is a
             broader network-segment issue, not MetalLB/VIP-specific.
