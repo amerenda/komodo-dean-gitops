@@ -381,7 +381,7 @@ receivers:
     pushover_configs:
       - user_key: '${PUSHOVER_USER_KEY}'
         token: '${PUSHOVER_TOKEN}'
-        title: '{{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'
+        title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'
         message: |-
           {{ .CommonAnnotations.summary }}
           {{ .CommonAnnotations.description }}
