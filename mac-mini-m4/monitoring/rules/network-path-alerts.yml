@@ -35,13 +35,20 @@ groups:
             Check: curl -v https://argocd.amer.dev (should fail the same way)
 
       # Comparison signal for TraefikVipUnreachable above — see that alert's
-      # description. Fires per-node ($labels.node) across all 5 k3s nodes,
-      # not just whichever one happens to host Traefik — scoping this to a
-      # single node both goes stale the moment that pod is rescheduled and
-      # makes the alert name a lie. Not expected to fire on its own; if one
-      # or more nodes fire without the VIP alert, that's a plain node/segment
-      # reachability issue unrelated to Traefik. If several fire together
-      # with the VIP alert, that's a broader network-segment issue.
+      # description. Fires per-node ($labels.node) across every always-on
+      # k3s node (rpi5-0, rpi5-1, rpi4-0, murderbot) — not just whichever one
+      # happens to host Traefik, since scoping this to a single node both
+      # goes stale the moment that pod is rescheduled and makes the alert
+      # name a lie. archlinux is deliberately excluded from the probe (see
+      # prometheus.yml): it's a node that sleeps by design, so treating its
+      # unreachability as a network incident would page routinely for normal
+      # behavior — confirmed 2026-08-26 when it fired correctly for a real
+      # archlinux outage, but Alex confirmed archlinux going unreachable is
+      # expected/benign, not signal. Not expected to fire on its own; if one
+      # or more of the remaining nodes fire without the VIP alert, that's a
+      # plain node/segment reachability issue unrelated to Traefik. If
+      # several fire together with the VIP alert, that's a broader
+      # network-segment issue.
       - alert: K3sNodeUnreachable
         expr: probe_success{job="icmp-probe-k3s-nodes"} == 0
         for: 2m

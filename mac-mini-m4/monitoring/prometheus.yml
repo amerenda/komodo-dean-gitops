@@ -145,14 +145,17 @@ scrape_configs:
       - replacement: localhost:9115
         target_label: __address__
 
-  # ICMP reachability to every k3s node — a comparison point for
+  # ICMP reachability to every always-on k3s node — a comparison point for
   # TraefikVipUnreachable. If one or more of these ALSO drop while the VIP
   # probe drops, the problem is a broader network segment issue, not the
-  # VIP/MetalLB layer specifically. All 5 nodes are probed, not just
-  # whichever one currently hosts Traefik — pinning this to a single node
-  # would silently go stale the moment that pod gets rescheduled, and
-  # "K3sNodeUnreachable" scoped to 1-of-5 nodes was misleading on its own
-  # terms besides.
+  # VIP/MetalLB layer specifically. archlinux is deliberately excluded: it's
+  # a node that sleeps by design, so it being unreachable is expected/benign,
+  # not a network-path incident — including it here would make this alert
+  # page routinely for normal behavior. (rpi5-0/rpi5-1/rpi4-0/murderbot are
+  # not just "the rest of the nodes" here — TraefikVipUnreachable's
+  # diagnostic value is "does the network segment problem extend beyond the
+  # VIP," and a sleeping node answering that "yes" would be a false
+  # correlation.)
   - job_name: icmp-probe-k3s-nodes
     metrics_path: /probe
     params:
@@ -170,9 +173,6 @@ scrape_configs:
       - targets: ["10.100.20.19"]
         labels:
           node: murderbot
-      - targets: ["10.100.20.25"]
-        labels:
-          node: archlinux
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
