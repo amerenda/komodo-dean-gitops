@@ -116,17 +116,25 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9093"]
 
-  # ICMP reachability to the k3s Traefik ingress VIP — isolates "can't reach
-  # the VIP at all" (L3) from "reached it, HTTP failed" (L7). Added after the
-  # 2026-08-26 incident where every https-probes-* target failed together for
-  # exactly 06:03-06:17 UTC with no corresponding signal anywhere else
-  # (Traefik logs clean, MetalLB stable, node network counters clean).
-  - job_name: icmp-probe-traefik-vip
+  # TCP-connect reachability to the k3s Traefik ingress VIP (port 443) —
+  # isolates "can't reach the VIP at all" (L3/L4) from "reached it, HTTP
+  # failed" (L7). Added after the 2026-08-26 incident where every
+  # https-probes-* target failed together for exactly 06:03-06:17 UTC with no
+  # corresponding signal anywhere else (Traefik logs clean, MetalLB stable,
+  # node network counters clean).
+  #
+  # NOT icmp: confirmed live (2026-08-26) that this MetalLB L2 VIP simply
+  # does not answer ICMP echo at all — even a plain `ping` from another k3s
+  # node gets "Destination Host Unreachable" — while HTTPS to the same VIP
+  # works perfectly at the same moment. An icmp module here would be
+  # permanently false-critical, not a real signal. tcp_connect against the
+  # actual LoadBalancer port is the correct equivalent for a VIP.
+  - job_name: tcp-probe-traefik-vip
     metrics_path: /probe
     params:
-      module: [icmp]
+      module: [tcp_connect]
     static_configs:
-      - targets: ["10.100.20.203"]
+      - targets: ["10.100.20.203:443"]
         labels:
           service: traefik-vip
     relabel_configs:
