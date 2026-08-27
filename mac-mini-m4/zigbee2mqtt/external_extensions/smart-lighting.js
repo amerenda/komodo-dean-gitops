@@ -14,15 +14,26 @@ const BASE_TOPIC = 'zigbee2mqtt';
 const WINDOW_SCENE_ID = { morning: 1, day: 2, evening: 3, night: 4 };
 const WINDOWS = ['morning', 'day', 'evening', 'night'];
 
-// Named custom scenes (per-room, HA-editable via the Scene Editor dashboard tab).
-// NOT the same thing as the 'Custom Scene' button action below (SEXYSEX_SCENE /
-// toggle-all-rooms) — these are user-created scenes eligible for the Cycle
-// Scenes list (roomConfig.cycle_list), keyed by a stable slot id (custom1-3)
-// rather than their editable display name, so renaming one never breaks its
-// cycle-list membership or Zigbee scene ID.
-const CUSTOM_SCENE_ID = { custom1: 5, custom2: 6, custom3: 7 };
-const SCENE_ID = { ...WINDOW_SCENE_ID, ...CUSTOM_SCENE_ID };
+// Named custom scenes (per-room, captured live from each bulb's current state via
+// the Scene Editor tab — see sl_save_custom_scene_lights.py). Automatically
+// included in the Cycle Scenes rotation the moment they're named (see
+// _cycleScenesForRoom) — no separate toggle to opt them in. Also individually
+// recallable via the 'Scene: Custom N' button actions below.
+//
+// Unlike window scenes, a custom scene stores a DIFFERENT value per light in the
+// room (roomConfig.custom_scenes[slot].lights[lightKey]) rather than one uniform
+// room-wide value, so it can't be stored as a single Zigbee group scene and
+// scene_recall'd atomically — see _applyCustomScene, which sends one direct
+// command per light instead.
+const CUSTOM_SLOTS = ['custom1', 'custom2', 'custom3'];
 const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+// Button actions that directly recall one named custom-scene slot.
+const CUSTOM_ACTION_SLOT = {
+    'Scene: Custom 1': 'custom1',
+    'Scene: Custom 2': 'custom2',
+    'Scene: Custom 3': 'custom3',
+};
 
 // Stagger delay between Zigbee commands (ms) to avoid flooding
 const CMD_STAGGER = 200;
@@ -39,7 +50,10 @@ const ACTION_TO_BTN = {
     'off_hold':          'b4_long',
 };
 
-// Default action per button when selector is 'Default' or unset
+// Default action per button when selector is 'Default' or unset. Same for
+// every room — nothing room-specific or hardcoded here. If a room's custom
+// scenes are all unnamed, 'Toggle All Rooms' just no-ops on nothing new;
+// point a switch at 'Scene: Custom N' explicitly once you've saved one.
 const BTN_DEFAULTS = {
     b1_short: 'Toggle Room',
     b1_long:  'Power Off All',
@@ -48,15 +62,8 @@ const BTN_DEFAULTS = {
     b3_short: 'Brightness Down',
     b3_long:  'Brightness Min',
     b4_short: 'Cycle Scenes',
-    b4_long:  'Custom Scene',
+    b4_long:  'Toggle All Rooms',
 };
-
-// bedroom 'Custom Scene' — hardcoded SexySex colors
-const SEXYSEX_SCENE = [
-    { device: 'bedroom_1', cmd: { state: 'ON', brightness: 45, color: { x: 0.37, y: 0.20 }, transition: 1 } },
-    { device: 'bedroom_2', cmd: { state: 'ON', brightness: 45, color: { x: 0.26, y: 0.11 }, transition: 1 } },
-    { device: 'lamp_1',    cmd: { state: 'OFF' } },
-];
 
 class SmartLighting {
     constructor(zigbee, mqtt, state, publishEntityState, eventBus, enableDisableExtension, restartCallback, addExtension, settings, logger) {
@@ -320,25 +327,9 @@ class SmartLighting {
                 commands.push({ topic: `${roomName}/set`, payload: { scene_add: sceneAdd } });
             }
 
-            for (const [slotKey, customScene] of Object.entries(roomConfig.custom_scenes || {})) {
-                if (!customScene || !customScene.name) continue;
-                const sceneId = CUSTOM_SCENE_ID[slotKey];
-                if (!sceneId) continue;
-
-                const sceneAdd = {
-                    ID: sceneId,
-                    name: customScene.name,
-                    state: 'ON',
-                    transition: 2,
-                    brightness: customScene.brightness,
-                };
-                if (customScene.color) {
-                    sceneAdd.color = customScene.color;
-                } else if (customScene.color_temp !== undefined) {
-                    sceneAdd.color_temp = customScene.color_temp;
-                }
-                commands.push({ topic: `${roomName}/set`, payload: { scene_add: sceneAdd } });
-            }
+            // Custom scenes are NOT scene_add'd here — each one can hold a different
+            // value per light, so there's no single group-wide Zigbee scene to store.
+            // _applyCustomScene sends direct per-light commands at recall time instead.
 
             // For smart_power_on rooms: boot LED-off so the extension can turn it on
             // at exactly the right scene — zero flash. Non-smart rooms boot directly
@@ -468,6 +459,11 @@ class SmartLighting {
         const brightStep = Math.round(brightStepPct / 100 * 254);
         const minBright = Math.max(1, Math.round(minBrightPct / 100 * 254));
 
+        if (CUSTOM_ACTION_SLOT[actionName]) {
+            this._recallCustomScene(roomName, CUSTOM_ACTION_SLOT[actionName]);
+            return;
+        }
+
         switch (actionName) {
             case 'Toggle Room':
                 if (this._roomAnyOn(roomName)) {
@@ -499,8 +495,8 @@ class SmartLighting {
             case 'Cycle Scenes':
                 this._cycleScenesForRoom(roomName);
                 break;
-            case 'Custom Scene':
-                this._customAction(switchConfig);
+            case 'Toggle All Rooms':
+                this._toggleAllRooms();
                 break;
             case 'Multi-Room Scene':
                 this._multiRoomOn(switchConfig);
@@ -542,18 +538,21 @@ class SmartLighting {
         this.logger.info('[SL] All rooms off');
     }
 
-    // Cycle list is HA-editable (roomConfig.cycle_list) — defaults to the 4
-    // windows, in order, when absent/empty (older cached config, or every
-    // entry unchecked) so the button never goes dead. Entries can be any mix
-    // of window keys and custom-scene slot keys (custom1-3); see CUSTOM_SCENE_ID.
+    // Cycle order is always the 4 windows followed by any named custom scene,
+    // in slot order — derived fresh on every press directly from what
+    // actually exists for the room. Naming a scene in the Scene Editor tab is
+    // the only step needed to add it to rotation; clearing the name removes
+    // it. No separate membership toggle to keep in sync.
     _cycleScenesForRoom(roomName) {
         if (!this.config || !this.config.rooms) return;
         const roomConfig = this.config.rooms[roomName];
         if (!roomConfig) return;
 
-        const cycleList = (roomConfig.cycle_list && roomConfig.cycle_list.length > 0)
-            ? roomConfig.cycle_list
-            : WINDOWS;
+        const cycleList = [
+            ...WINDOWS,
+            ...CUSTOM_SLOTS.filter(slot =>
+                roomConfig.custom_scenes && roomConfig.custom_scenes[slot] && roomConfig.custom_scenes[slot].name),
+        ];
 
         const last = this._switchLastScene[roomName];
         const current = this.currentWindow || 'morning';
@@ -561,29 +560,18 @@ class SmartLighting {
             ? (cycleList.includes(current) ? current : cycleList[0])
             : cycleList[(cycleList.indexOf(last) + 1) % cycleList.length];
 
-        const sceneExists = CUSTOM_SCENE_ID[targetKey]
-            ? !!(roomConfig.custom_scenes && roomConfig.custom_scenes[targetKey] && roomConfig.custom_scenes[targetKey].name)
-            : !!(roomConfig.scenes && roomConfig.scenes[targetKey]);
-        if (!sceneExists) return;
-
-        const sceneId = SCENE_ID[targetKey];
-        if (!sceneId) return;
-        this._sendCommand(`${roomName}/set`, { scene_recall: sceneId });
+        if (CUSTOM_SLOTS.includes(targetKey)) {
+            this._applyCustomScene(roomName, targetKey);
+        } else {
+            const sceneId = WINDOW_SCENE_ID[targetKey];
+            if (!sceneId) return;
+            this._sendCommand(`${roomName}/set`, { scene_recall: sceneId });
+        }
         this._switchLastScene[roomName] = targetKey;
         this.logger.info(`[SL] cycle scene: ${roomName} → ${targetKey}`);
     }
 
-    _customAction(switchConfig) {
-        // bedroom → SexySex scene
-        if (switchConfig.room_key === 'bedroom') {
-            this.logger.info('[SL] SexySex scene activated');
-            for (const { device, cmd } of SEXYSEX_SCENE) {
-                this._sendCommand(`${device}/set`, cmd);
-            }
-            return;
-        }
-
-        // Other rooms → toggle all rooms
+    _toggleAllRooms() {
         if (!this.config || !this.config.rooms) return;
         const anyOn = Object.keys(this.config.rooms).some(r => this._roomAnyOn(r));
         if (anyOn) {
@@ -593,6 +581,44 @@ class SmartLighting {
                 this._switchTurnRoomOn(roomName);
             }
         }
+    }
+
+    // Recalls one named custom-scene slot directly (as opposed to Cycle
+    // Scenes, which steps through all of them in order). No-ops with a
+    // warning if the slot was never named — a button can be pointed at
+    // 'Scene: Custom 2' before that scene exists yet.
+    _recallCustomScene(roomName, slot) {
+        if (!this._applyCustomScene(roomName, slot)) {
+            this.logger.warn(`[SL] ${roomName}: ${slot} has no name configured, ignoring`);
+            return;
+        }
+        this._switchLastScene[roomName] = slot;
+    }
+
+    // Applies a custom scene's per-light snapshot directly — one command per
+    // light, each carrying that light's own state/brightness/color — rather
+    // than a single Zigbee group scene_recall, since (unlike window scenes)
+    // different lights in the same room can hold different values. Returns
+    // false without sending anything if the slot has no name or no captured
+    // lights yet.
+    _applyCustomScene(roomName, slot) {
+        if (!this.config || !this.config.rooms) return false;
+        const roomConfig = this.config.rooms[roomName];
+        const scene = roomConfig && roomConfig.custom_scenes && roomConfig.custom_scenes[slot];
+        if (!scene || !scene.name || !scene.lights) return false;
+
+        for (const [lightKey, entry] of Object.entries(scene.lights)) {
+            let cmd;
+            if (entry.state === 'OFF') {
+                cmd = { state: 'OFF' };
+            } else {
+                cmd = { state: 'ON', brightness: entry.brightness };
+                if (entry.color) cmd.color = entry.color;
+                else if (entry.color_temp !== undefined) cmd.color_temp = entry.color_temp;
+            }
+            this._sendCommand(`${lightKey}/set`, cmd);
+        }
+        return true;
     }
 
     _multiRoomOn(switchConfig) {

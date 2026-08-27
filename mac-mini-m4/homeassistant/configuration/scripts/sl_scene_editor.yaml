@@ -1,3 +1,69 @@
+sl_preview_custom_scene:
+  alias: "SL: Preview Custom Scene (apply stored per-light snapshot)"
+  description: >
+    Applies a saved Custom Scene slot's per-light snapshot directly to the room's
+    bulbs so you can see it — each light gets its own state/brightness/color,
+    unlike sl_preview_scene which applies one uniform value to every light in
+    the room. Does NOT change any stored values.
+  mode: single
+  fields:
+    room:
+      description: "Room key (living_room, bedroom, bathroom, kitchen, hallway)"
+      required: true
+      selector:
+        select:
+          options: [living_room, bedroom, bathroom, kitchen, hallway]
+    slot:
+      description: "Custom scene slot"
+      required: true
+      selector:
+        select:
+          options: [custom1, custom2, custom3]
+  sequence:
+    - variables:
+        raw: "{{ states('input_text.sl_' ~ room ~ '_' ~ slot ~ '_lights') }}"
+        snapshot: "{{ (raw | from_json) if raw not in ['', 'unknown', 'unavailable', none] else {} }}"
+    - repeat:
+        for_each: "{{ snapshot.keys() | list }}"
+        sequence:
+          - variables:
+              light_key: "{{ repeat.item }}"
+              entry: "{{ snapshot[repeat.item] }}"
+          - choose:
+              - conditions:
+                  - condition: template
+                    value_template: "{{ entry.state == 'OFF' }}"
+                sequence:
+                  - service: light.turn_off
+                    target:
+                      entity_id: "light.{{ light_key }}"
+              - conditions:
+                  - condition: template
+                    value_template: "{{ 'color' in entry }}"
+                sequence:
+                  - service: light.turn_on
+                    target:
+                      entity_id: "light.{{ light_key }}"
+                    data:
+                      brightness: "{{ entry.brightness }}"
+                      xy_color: "{{ [entry.color.x, entry.color.y] }}"
+              - conditions:
+                  - condition: template
+                    value_template: "{{ 'color_temp' in entry }}"
+                sequence:
+                  - service: light.turn_on
+                    target:
+                      entity_id: "light.{{ light_key }}"
+                    data:
+                      brightness: "{{ entry.brightness }}"
+                      color_temp_kelvin: "{{ (1000000 / entry.color_temp) | int }}"
+            default:
+              - service: light.turn_on
+                target:
+                  entity_id: "light.{{ light_key }}"
+                data:
+                  brightness: "{{ entry.brightness }}"
+
 sl_preview_scene:
   alias: "SL: Preview Scene (apply stored values to lights)"
   description: "Turns on a room's lights at the currently stored scene values so you can see them. Does NOT change any stored values."

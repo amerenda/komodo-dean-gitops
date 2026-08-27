@@ -33,34 +33,3 @@ sl_living_room_override_scenes:
   name: "SL: Living Room — Override Window Scenes"
   icon: mdi:palette-outline
 
-sl_living_room_cycle_morning:
-  name: "SL: Living Room — Cycle: Morning"
-  icon: mdi:weather-sunset-up
-  initial: true
-
-sl_living_room_cycle_day:
-  name: "SL: Living Room — Cycle: Day"
-  icon: mdi:weather-sunny
-  initial: true
-
-sl_living_room_cycle_evening:
-  name: "SL: Living Room — Cycle: Evening"
-  icon: mdi:weather-sunset-down
-  initial: true
-
-sl_living_room_cycle_night:
-  name: "SL: Living Room — Cycle: Night"
-  icon: mdi:weather-night
-  initial: true
-
-sl_living_room_cycle_custom1:
-  name: "SL: Living Room — Cycle: Custom Scene 1"
-  icon: mdi:creation
-
-sl_living_room_cycle_custom2:
-  name: "SL: Living Room — Cycle: Custom Scene 2"
-  icon: mdi:creation
-
-sl_living_room_cycle_custom3:
-  name: "SL: Living Room — Cycle: Custom Scene 3"
-  icon: mdi:creation
