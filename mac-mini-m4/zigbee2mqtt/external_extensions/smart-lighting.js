@@ -50,9 +50,10 @@ const ACTION_TO_BTN = {
     'off_hold':          'b4_long',
 };
 
-// Default action per button when selector is 'Default' or unset.
-// b4_long has no single default — see _defaultAction (bedroom: 'SexySex
-// Scene', every other room: 'Toggle All Rooms').
+// Default action per button when selector is 'Default' or unset. Same for
+// every room — nothing room-specific or hardcoded here. If a room's custom
+// scenes are all unnamed, 'Toggle All Rooms' just no-ops on nothing new;
+// point a switch at 'Scene: Custom N' explicitly once you've saved one.
 const BTN_DEFAULTS = {
     b1_short: 'Toggle Room',
     b1_long:  'Power Off All',
@@ -61,14 +62,8 @@ const BTN_DEFAULTS = {
     b3_short: 'Brightness Down',
     b3_long:  'Brightness Min',
     b4_short: 'Cycle Scenes',
+    b4_long:  'Toggle All Rooms',
 };
-
-// Bedroom-only 'SexySex Scene' action — hardcoded colors, not dashboard-editable.
-const SEXYSEX_SCENE = [
-    { device: 'bedroom_1', cmd: { state: 'ON', brightness: 45, color: { x: 0.37, y: 0.20 }, transition: 1 } },
-    { device: 'bedroom_2', cmd: { state: 'ON', brightness: 45, color: { x: 0.26, y: 0.11 }, transition: 1 } },
-    { device: 'lamp_1',    cmd: { state: 'OFF' } },
-];
 
 class SmartLighting {
     constructor(zigbee, mqtt, state, publishEntityState, eventBus, enableDisableExtension, restartCallback, addExtension, settings, logger) {
@@ -450,18 +445,11 @@ class SmartLighting {
 
         const configured = switchConfig[btnKey];
         const actionName = (!configured || configured === 'Default')
-            ? this._defaultAction(btnKey, switchConfig)
+            ? BTN_DEFAULTS[btnKey]
             : configured;
 
         this.logger.info(`[SL] switch ${switchName}: ${action} → ${actionName} (room=${switchConfig.room_group})`);
         this._executeAction(actionName, switchConfig);
-    }
-
-    _defaultAction(btnKey, switchConfig) {
-        if (btnKey === 'b4_long') {
-            return switchConfig.room_key === 'bedroom' ? 'SexySex Scene' : 'Toggle All Rooms';
-        }
-        return BTN_DEFAULTS[btnKey];
     }
 
     _executeAction(actionName, switchConfig) {
@@ -509,9 +497,6 @@ class SmartLighting {
                 break;
             case 'Toggle All Rooms':
                 this._toggleAllRooms();
-                break;
-            case 'SexySex Scene':
-                this._sexySexScene();
                 break;
             case 'Multi-Room Scene':
                 this._multiRoomOn(switchConfig);
@@ -595,13 +580,6 @@ class SmartLighting {
             for (const roomName of Object.keys(this.config.rooms)) {
                 this._switchTurnRoomOn(roomName);
             }
-        }
-    }
-
-    _sexySexScene() {
-        this.logger.info('[SL] SexySex scene activated');
-        for (const { device, cmd } of SEXYSEX_SCENE) {
-            this._sendCommand(`${device}/set`, cmd);
         }
     }
 

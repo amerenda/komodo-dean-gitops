@@ -1578,7 +1578,7 @@ views:
           **Button 1 (top):** Short = toggle on/off, Long = power off all
           **Button 2:** Short = brightness up, Long = brightness max
           **Button 3:** Short = brightness down, Long = brightness min
-          **Button 4 (bottom):** Short = cycle scenes (all window scenes + any named custom scene), Long = *(bedroom: SexySex scene; all other rooms: toggles all lights on/off)*. Any button can be reassigned below, including to a specific named custom scene ("Scene: Custom 1/2/3").
+          **Button 4 (bottom):** Short = cycle scenes (all window scenes + any named custom scene), Long = toggles all lights on/off by default — same for every room, nothing hardcoded. Any button can be reassigned below, including to a specific named custom scene ("Scene: Custom 1/2/3") — e.g. point Bedroom's long-press at whichever slot you saved your own scene into.
 
       # ── Living Room ─────────────────────────────────────────
       - type: conditional

@@ -550,28 +550,7 @@ describe('_cycleScenesForRoom — uses scene_recall, not direct command', () => 
     });
 });
 
-// ── Button 4 long-press default resolution ────────────────────────────────────
-
-describe('_defaultAction — b4_long is room-conditional, everything else static', () => {
-    test('bedroom switch defaults b4_long to SexySex Scene', () => {
-        const sl = makeInstance(JSON.parse(JSON.stringify(BASE_CONFIG)));
-        expect(sl._defaultAction('b4_long', { room_key: 'bedroom' })).toBe('SexySex Scene');
-    });
-
-    test('any non-bedroom switch defaults b4_long to Toggle All Rooms', () => {
-        const sl = makeInstance(JSON.parse(JSON.stringify(BASE_CONFIG)));
-        expect(sl._defaultAction('b4_long', { room_key: 'living_room' })).toBe('Toggle All Rooms');
-        expect(sl._defaultAction('b4_long', { room_key: 'kitchen' })).toBe('Toggle All Rooms');
-    });
-
-    test('other buttons resolve from the static BTN_DEFAULTS map regardless of room', () => {
-        const sl = makeInstance(JSON.parse(JSON.stringify(BASE_CONFIG)));
-        expect(sl._defaultAction('b4_short', { room_key: 'bedroom' })).toBe('Cycle Scenes');
-        expect(sl._defaultAction('b1_short', { room_key: 'living_room' })).toBe('Toggle Room');
-    });
-});
-
-// ── Toggle All Rooms / SexySex Scene / Scene: Custom N ────────────────────────
+// ── Toggle All Rooms / Scene: Custom N ──────────────────────────────────────
 
 describe('_executeAction — Toggle All Rooms', () => {
     test('turns every room on when all are off', () => {
@@ -611,19 +590,24 @@ describe('_executeAction — Toggle All Rooms', () => {
     });
 });
 
-describe('_executeAction — SexySex Scene', () => {
-    test('sends the hardcoded bedroom scene regardless of which room the switch belongs to', () => {
-        const sl = makeInstance(JSON.parse(JSON.stringify(BASE_CONFIG)));
-        const sent = [];
-        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+describe('_onSwitchAction — b4_long default is uniform across every room', () => {
+    test('bedroom and non-bedroom switches both default b4_long to Toggle All Rooms — nothing room-specific', () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        config.switches = {
+            bedroom_s_1: { room_group: 'Bedroom', room_key: 'bedroom', b4_long: 'Default' },
+            living_room_s_1: { room_group: 'Living Room', room_key: 'living_room', b4_long: 'Default' },
+        };
+        const sl = makeInstance(config);
+        sl._deviceStateCache['Living Room'] = 'OFF';
+        sl._deviceStateCache['Bedroom'] = 'OFF';
+        sl._switchLastScene = {};
+        const executed = [];
+        sl._executeAction = (actionName) => executed.push(actionName);
 
-        sl._executeAction('SexySex Scene', { room_group: 'Living Room', room_key: 'living_room' });
+        sl._onSwitchAction('bedroom_s_1', sl.config.switches.bedroom_s_1, 'off_hold');
+        sl._onSwitchAction('living_room_s_1', sl.config.switches.living_room_s_1, 'off_hold');
 
-        expect(sent).toEqual([
-            { topic: 'bedroom_1/set', payload: { state: 'ON', brightness: 45, color: { x: 0.37, y: 0.20 }, transition: 1 } },
-            { topic: 'bedroom_2/set', payload: { state: 'ON', brightness: 45, color: { x: 0.26, y: 0.11 }, transition: 1 } },
-            { topic: 'lamp_1/set', payload: { state: 'OFF' } },
-        ]);
+        expect(executed).toEqual(['Toggle All Rooms', 'Toggle All Rooms']);
     });
 });
 
