@@ -14,9 +14,9 @@ sl_living_room_b1_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -34,9 +34,9 @@ sl_living_room_b1_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -54,9 +54,9 @@ sl_living_room_b2_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -74,9 +74,9 @@ sl_living_room_b2_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -94,9 +94,9 @@ sl_living_room_b3_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -114,9 +114,9 @@ sl_living_room_b3_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -134,9 +134,9 @@ sl_living_room_b4_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -154,9 +154,9 @@ sl_living_room_b4_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -176,9 +176,9 @@ sl_bedroom_b1_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -196,9 +196,9 @@ sl_bedroom_b1_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -216,9 +216,9 @@ sl_bedroom_b2_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -236,9 +236,9 @@ sl_bedroom_b2_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -256,9 +256,9 @@ sl_bedroom_b3_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -276,9 +276,9 @@ sl_bedroom_b3_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -296,9 +296,9 @@ sl_bedroom_b4_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -316,9 +316,9 @@ sl_bedroom_b4_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -338,9 +338,9 @@ sl_bathroom_b1_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -358,9 +358,9 @@ sl_bathroom_b1_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -378,9 +378,9 @@ sl_bathroom_b2_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -398,9 +398,9 @@ sl_bathroom_b2_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -418,9 +418,9 @@ sl_bathroom_b3_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -438,9 +438,9 @@ sl_bathroom_b3_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -458,9 +458,9 @@ sl_bathroom_b4_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -478,9 +478,9 @@ sl_bathroom_b4_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -500,9 +500,9 @@ sl_kitchen_b1_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -520,9 +520,9 @@ sl_kitchen_b1_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -540,9 +540,9 @@ sl_kitchen_b2_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -560,9 +560,9 @@ sl_kitchen_b2_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -580,9 +580,9 @@ sl_kitchen_b3_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -600,9 +600,9 @@ sl_kitchen_b3_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -620,9 +620,9 @@ sl_kitchen_b4_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -640,9 +640,9 @@ sl_kitchen_b4_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -662,9 +662,9 @@ sl_hallway_b1_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -682,9 +682,9 @@ sl_hallway_b1_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -702,9 +702,9 @@ sl_hallway_b2_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -722,9 +722,9 @@ sl_hallway_b2_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -742,9 +742,9 @@ sl_hallway_b3_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -762,9 +762,9 @@ sl_hallway_b3_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -782,9 +782,9 @@ sl_hallway_b4_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -802,9 +802,9 @@ sl_hallway_b4_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -825,9 +825,9 @@ sl_hallway_s2_b1_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -845,9 +845,9 @@ sl_hallway_s2_b1_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -865,9 +865,9 @@ sl_hallway_s2_b2_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -885,9 +885,9 @@ sl_hallway_s2_b2_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -905,9 +905,9 @@ sl_hallway_s2_b3_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -925,9 +925,9 @@ sl_hallway_s2_b3_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -945,9 +945,9 @@ sl_hallway_s2_b4_short:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
@@ -965,9 +965,9 @@ sl_hallway_s2_b4_long:
     - Brightness Min
     - Cycle Scenes
     - Toggle All Rooms
-    - Scene: Custom 1
-    - Scene: Custom 2
-    - Scene: Custom 3
+    - "Scene: Custom 1"
+    - "Scene: Custom 2"
+    - "Scene: Custom 3"
     - Multi-Room Scene
     - Do Nothing
   initial: Default
