@@ -55,34 +55,17 @@ sl_push_config:
               {"brightness": {{ b }}}
             {% endif %}
           {% endmacro %}
+          {# Custom scenes hold a per-light snapshot (each light can have its own
+             brightness/color, unlike the uniform window scenes above) — captured
+             live by python_script.sl_save_custom_scene_lights, not set via sliders.
+             input_text.sl_<room>_<slot>_lights already holds the exact JSON shape
+             we want to publish, so this just reads name + that blob straight through. #}
           {% macro custom_scene(room, slot) %}
             {% set nm = states('input_text.sl_' ~ room ~ '_' ~ slot ~ '_name') %}
             {% set name = '' if nm in ['unknown', 'unavailable', none] else nm %}
-            {% set b = states('input_number.sl_' ~ room ~ '_' ~ slot ~ '_brightness') | int(200) %}
-            {% set ct = states('input_number.sl_' ~ room ~ '_' ~ slot ~ '_color_temp') %}
-            {% set cx = states('input_number.sl_' ~ room ~ '_' ~ slot ~ '_color_x') | float(0) %}
-            {% set cy = states('input_number.sl_' ~ room ~ '_' ~ slot ~ '_color_y') | float(0) %}
-            {% if cx > 0 and cy > 0 %}
-              {"name": {{ name | tojson }}, "brightness": {{ b }}, "color": {"x": {{ cx }}, "y": {{ cy }}}}
-            {% elif ct not in ['unknown', 'unavailable', ''] %}
-              {"name": {{ name | tojson }}, "brightness": {{ b }}, "color_temp": {{ ct | int(370) }}}
-            {% else %}
-              {"name": {{ name | tojson }}, "brightness": {{ b }}}
-            {% endif %}
-          {% endmacro %}
-          {% macro cycle_list(room_key) %}
-            {% set c1n = states('input_text.sl_' ~ room_key ~ '_custom1_name') %}
-            {% set c2n = states('input_text.sl_' ~ room_key ~ '_custom2_name') %}
-            {% set c3n = states('input_text.sl_' ~ room_key ~ '_custom3_name') %}
-            {{ (
-              (['morning'] if is_state('input_boolean.sl_' ~ room_key ~ '_cycle_morning', 'on') else []) +
-              (['day'] if is_state('input_boolean.sl_' ~ room_key ~ '_cycle_day', 'on') else []) +
-              (['evening'] if is_state('input_boolean.sl_' ~ room_key ~ '_cycle_evening', 'on') else []) +
-              (['night'] if is_state('input_boolean.sl_' ~ room_key ~ '_cycle_night', 'on') else []) +
-              (['custom1'] if (is_state('input_boolean.sl_' ~ room_key ~ '_cycle_custom1', 'on') and c1n not in ['', 'unknown', 'unavailable']) else []) +
-              (['custom2'] if (is_state('input_boolean.sl_' ~ room_key ~ '_cycle_custom2', 'on') and c2n not in ['', 'unknown', 'unavailable']) else []) +
-              (['custom3'] if (is_state('input_boolean.sl_' ~ room_key ~ '_cycle_custom3', 'on') and c3n not in ['', 'unknown', 'unavailable']) else [])
-            ) | tojson }}
+            {% set lights_raw = states('input_text.sl_' ~ room ~ '_' ~ slot ~ '_lights') %}
+            {% set lights = (lights_raw | from_json) if lights_raw not in ['', 'unknown', 'unavailable', none] else {} %}
+            {"name": {{ name | tojson }}, "lights": {{ lights | tojson }}}
           {% endmacro %}
           {% macro room_config(room_key, room_name, lights) %}
             {% set spo = false if is_guest else is_state('input_boolean.sl_' ~ room_key ~ '_smart_power_on', 'on') %}
@@ -96,7 +79,6 @@ sl_push_config:
               "auto_transition": {{ auto_t | tojson }},
               "transition_secs": {{ trans_secs }},
               "motion_night": {{ motion_night | tojson }},
-              "cycle_list": {{ cycle_list(room_key) | from_json | tojson }},
               "scenes": {
                 "morning": {{ scene(room_key, 'morning') | from_json | tojson }},
                 "day": {{ scene(room_key, 'day') | from_json | tojson }},

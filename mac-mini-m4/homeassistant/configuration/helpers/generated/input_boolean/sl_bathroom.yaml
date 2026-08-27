@@ -33,34 +33,3 @@ sl_bathroom_override_scenes:
   name: "SL: Bathroom — Override Window Scenes"
   icon: mdi:palette-outline
 
-sl_bathroom_cycle_morning:
-  name: "SL: Bathroom — Cycle: Morning"
-  icon: mdi:weather-sunset-up
-  initial: true
-
-sl_bathroom_cycle_day:
-  name: "SL: Bathroom — Cycle: Day"
-  icon: mdi:weather-sunny
-  initial: true
-
-sl_bathroom_cycle_evening:
-  name: "SL: Bathroom — Cycle: Evening"
-  icon: mdi:weather-sunset-down
-  initial: true
-
-sl_bathroom_cycle_night:
-  name: "SL: Bathroom — Cycle: Night"
-  icon: mdi:weather-night
-  initial: true
-
-sl_bathroom_cycle_custom1:
-  name: "SL: Bathroom — Cycle: Custom Scene 1"
-  icon: mdi:creation
-
-sl_bathroom_cycle_custom2:
-  name: "SL: Bathroom — Cycle: Custom Scene 2"
-  icon: mdi:creation
-
-sl_bathroom_cycle_custom3:
-  name: "SL: Bathroom — Cycle: Custom Scene 3"
-  icon: mdi:creation

@@ -33,34 +33,3 @@ sl_hallway_override_scenes:
   name: "SL: Hallway — Override Window Scenes"
   icon: mdi:palette-outline
 
-sl_hallway_cycle_morning:
-  name: "SL: Hallway — Cycle: Morning"
-  icon: mdi:weather-sunset-up
-  initial: true
-
-sl_hallway_cycle_day:
-  name: "SL: Hallway — Cycle: Day"
-  icon: mdi:weather-sunny
-  initial: true
-
-sl_hallway_cycle_evening:
-  name: "SL: Hallway — Cycle: Evening"
-  icon: mdi:weather-sunset-down
-  initial: true
-
-sl_hallway_cycle_night:
-  name: "SL: Hallway — Cycle: Night"
-  icon: mdi:weather-night
-  initial: true
-
-sl_hallway_cycle_custom1:
-  name: "SL: Hallway — Cycle: Custom Scene 1"
-  icon: mdi:creation
-
-sl_hallway_cycle_custom2:
-  name: "SL: Hallway — Cycle: Custom Scene 2"
-  icon: mdi:creation
-
-sl_hallway_cycle_custom3:
-  name: "SL: Hallway — Cycle: Custom Scene 3"
-  icon: mdi:creation

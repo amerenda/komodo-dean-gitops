@@ -456,53 +456,23 @@ describe('_cycleScenesForRoom — uses scene_recall, not direct command', () => 
         }
     });
 
-    test('falls back to the 4 windows when cycle_list is missing (older cached config)', () => {
+    test('cycles just the 4 windows when no custom scenes are named', () => {
         const config = JSON.parse(JSON.stringify(BASE_CONFIG));
-        delete config.rooms['Living Room'].cycle_list;
-        const sl = makeInstance(config);
-        sl.currentWindow = 'morning';
-        sl._switchLastScene = {};
-        const sent = [];
-        sl._sendCommand = (_, payload) => sent.push(payload);
-
-        sl._cycleScenesForRoom('Living Room');
-
-        expect(sent[0].scene_recall).toBe(1); // morning
-    });
-
-    test('falls back to the 4 windows when cycle_list is empty (every entry unchecked)', () => {
-        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
-        config.rooms['Living Room'].cycle_list = [];
-        const sl = makeInstance(config);
-        sl.currentWindow = 'day';
-        sl._switchLastScene = {};
-        const sent = [];
-        sl._sendCommand = (_, payload) => sent.push(payload);
-
-        sl._cycleScenesForRoom('Living Room');
-
-        expect(sent[0].scene_recall).toBe(2); // day
-    });
-
-    test('respects a configured cycle_list — skips windows excluded from it', () => {
-        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
-        config.rooms['Living Room'].cycle_list = ['morning', 'night']; // day/evening excluded
         const sl = makeInstance(config);
         sl.currentWindow = 'morning';
         sl._switchLastScene = {};
         const ids = [];
         sl._sendCommand = (_, payload) => { if (typeof payload.scene_recall === 'number') ids.push(payload.scene_recall); };
 
-        for (let i = 0; i < 4; i++) sl._cycleScenesForRoom('Living Room');
+        for (let i = 0; i < 5; i++) sl._cycleScenesForRoom('Living Room');
 
-        expect(ids).toEqual([1, 4, 1, 4]); // morning, night, morning, night — day/evening never appear
+        expect(ids).toEqual([1, 2, 3, 4, 1]); // morning, day, evening, night, wraps to morning
     });
 
-    test('cycles into a named custom scene included in cycle_list', () => {
+    test('a named custom scene is automatically appended to the cycle, no toggle required', () => {
         const config = JSON.parse(JSON.stringify(BASE_CONFIG));
-        config.rooms['Living Room'].cycle_list = ['night', 'custom1'];
         config.rooms['Living Room'].custom_scenes = {
-            custom1: { name: 'Movie Night', brightness: 60, color_temp: 454 },
+            custom1: { name: 'Movie Night', lights: { living_room_1: { state: 'ON', brightness: 60, color_temp: 454 } } },
         };
         const sl = makeInstance(config);
         sl.currentWindow = 'night';
@@ -512,24 +482,180 @@ describe('_cycleScenesForRoom — uses scene_recall, not direct command', () => 
 
         sl._cycleScenesForRoom('Living Room');
 
-        expect(sent[0].payload).toEqual({ scene_recall: 5 }); // custom1 = ID 5
+        // Custom scenes apply as a direct per-light command, not scene_recall.
+        expect(sent).toEqual([{ topic: 'living_room_1/set', payload: { state: 'ON', brightness: 60, color_temp: 454 } }]);
         expect(sl._switchLastScene['Living Room']).toBe('custom1');
     });
 
-    test('skips a custom slot in cycle_list with no name configured (stale/inconsistent config)', () => {
+    test('an unnamed custom slot never appears in the cycle', () => {
         const config = JSON.parse(JSON.stringify(BASE_CONFIG));
-        config.rooms['Living Room'].cycle_list = ['custom1'];
         config.rooms['Living Room'].custom_scenes = {
-            custom1: { name: '', brightness: 60 }, // toggled into cycle_list but never actually named
+            custom1: { name: '', lights: { living_room_1: { state: 'ON', brightness: 60 } } }, // never named
+        };
+        const sl = makeInstance(config);
+        sl.currentWindow = 'night';
+        sl._switchLastScene = { 'Living Room': 'night' };
+        const ids = [];
+        sl._sendCommand = (_, payload) => { if (typeof payload.scene_recall === 'number') ids.push(payload.scene_recall); };
+
+        sl._cycleScenesForRoom('Living Room'); // from night, should wrap straight to morning, not custom1
+
+        expect(ids).toEqual([1]);
+    });
+
+    test('multiple named custom scenes cycle in slot order, after the 4 windows', () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        config.rooms['Living Room'].custom_scenes = {
+            custom1: { name: 'Movie Night', lights: { living_room_1: { state: 'ON', brightness: 60 } } },
+            custom2: { name: 'Reading', lights: { living_room_1: { state: 'ON', brightness: 180 } } },
+        };
+        const sl = makeInstance(config);
+        sl.currentWindow = 'morning';
+        sl._switchLastScene = {};
+        sl._sendCommand = () => {};
+        const targets = [];
+
+        for (let i = 0; i < 7; i++) {
+            sl._cycleScenesForRoom('Living Room');
+            targets.push(sl._switchLastScene['Living Room']);
+        }
+
+        expect(targets).toEqual(['morning', 'day', 'evening', 'night', 'custom1', 'custom2', 'morning']);
+    });
+
+    test('a custom scene with different values per light applies each independently, not one uniform group command', () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        config.rooms['Bedroom'].custom_scenes = {
+            custom1: {
+                name: 'Movie Night',
+                lights: {
+                    bedroom_1: { state: 'ON', brightness: 38, color: { x: 0.5, y: 0.2 } }, // pink @ 15%
+                    lamp_1: { state: 'ON', brightness: 20, color: { x: 0.3, y: 0.1 } }, // purple @ 8%
+                    bedroom_2: { state: 'OFF' },
+                },
+            },
         };
         const sl = makeInstance(config);
         sl._switchLastScene = {};
         const sent = [];
-        sl._sendCommand = (_, payload) => sent.push(payload);
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
 
-        sl._cycleScenesForRoom('Living Room');
+        sl._recallCustomScene('Bedroom', 'custom1');
+
+        expect(sent).toEqual([
+            { topic: 'bedroom_1/set', payload: { state: 'ON', brightness: 38, color: { x: 0.5, y: 0.2 } } },
+            { topic: 'lamp_1/set', payload: { state: 'ON', brightness: 20, color: { x: 0.3, y: 0.1 } } },
+            { topic: 'bedroom_2/set', payload: { state: 'OFF' } },
+        ]);
+    });
+});
+
+// ── Button 4 long-press default resolution ────────────────────────────────────
+
+describe('_defaultAction — b4_long is room-conditional, everything else static', () => {
+    test('bedroom switch defaults b4_long to SexySex Scene', () => {
+        const sl = makeInstance(JSON.parse(JSON.stringify(BASE_CONFIG)));
+        expect(sl._defaultAction('b4_long', { room_key: 'bedroom' })).toBe('SexySex Scene');
+    });
+
+    test('any non-bedroom switch defaults b4_long to Toggle All Rooms', () => {
+        const sl = makeInstance(JSON.parse(JSON.stringify(BASE_CONFIG)));
+        expect(sl._defaultAction('b4_long', { room_key: 'living_room' })).toBe('Toggle All Rooms');
+        expect(sl._defaultAction('b4_long', { room_key: 'kitchen' })).toBe('Toggle All Rooms');
+    });
+
+    test('other buttons resolve from the static BTN_DEFAULTS map regardless of room', () => {
+        const sl = makeInstance(JSON.parse(JSON.stringify(BASE_CONFIG)));
+        expect(sl._defaultAction('b4_short', { room_key: 'bedroom' })).toBe('Cycle Scenes');
+        expect(sl._defaultAction('b1_short', { room_key: 'living_room' })).toBe('Toggle Room');
+    });
+});
+
+// ── Toggle All Rooms / SexySex Scene / Scene: Custom N ────────────────────────
+
+describe('_executeAction — Toggle All Rooms', () => {
+    test('turns every room on when all are off', () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        const sl = makeInstance(config);
+        sl.currentWindow = 'day';
+        sl._switchLastScene = {};
+        sl._deviceStateCache['Living Room'] = 'OFF';
+        sl._deviceStateCache['Bedroom'] = 'OFF';
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._executeAction('Toggle All Rooms', { room_group: 'Living Room', room_key: 'living_room' });
+
+        const topics = sent.map(s => s.topic);
+        expect(topics).toContain('Living Room/set');
+        expect(topics).toContain('Bedroom/set');
+        for (const { payload } of sent) {
+            expect(typeof payload.scene_recall).toBe('number');
+        }
+    });
+
+    test('turns every room off when any is on', () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        const sl = makeInstance(config);
+        sl._deviceStateCache['Living Room'] = 'ON';
+        sl._deviceStateCache['Bedroom'] = 'OFF';
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._executeAction('Toggle All Rooms', { room_group: 'Living Room', room_key: 'living_room' });
+
+        expect(sent).toEqual([
+            { topic: 'Living Room/set', payload: { state: 'OFF' } },
+            { topic: 'Bedroom/set', payload: { state: 'OFF' } },
+        ]);
+    });
+});
+
+describe('_executeAction — SexySex Scene', () => {
+    test('sends the hardcoded bedroom scene regardless of which room the switch belongs to', () => {
+        const sl = makeInstance(JSON.parse(JSON.stringify(BASE_CONFIG)));
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._executeAction('SexySex Scene', { room_group: 'Living Room', room_key: 'living_room' });
+
+        expect(sent).toEqual([
+            { topic: 'bedroom_1/set', payload: { state: 'ON', brightness: 45, color: { x: 0.37, y: 0.20 }, transition: 1 } },
+            { topic: 'bedroom_2/set', payload: { state: 'ON', brightness: 45, color: { x: 0.26, y: 0.11 }, transition: 1 } },
+            { topic: 'lamp_1/set', payload: { state: 'OFF' } },
+        ]);
+    });
+});
+
+describe('_executeAction — Scene: Custom N', () => {
+    test('recalls the named custom scene as a direct per-light command', () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        config.rooms['Living Room'].custom_scenes = {
+            custom2: { name: 'Reading', lights: { living_room_1: { state: 'ON', brightness: 180 } } },
+        };
+        const sl = makeInstance(config);
+        sl._switchLastScene = {};
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+
+        sl._executeAction('Scene: Custom 2', { room_group: 'Living Room', room_key: 'living_room' });
+
+        expect(sent).toEqual([{ topic: 'living_room_1/set', payload: { state: 'ON', brightness: 180 } }]);
+        expect(sl._switchLastScene['Living Room']).toBe('custom2');
+    });
+
+    test('does nothing and warns when the targeted slot has no name yet', () => {
+        const config = JSON.parse(JSON.stringify(BASE_CONFIG));
+        const sl = makeInstance(config);
+        const sent = [];
+        sl._sendCommand = (topic, payload) => sent.push({ topic, payload });
+        const warnings = [];
+        sl.logger.warn = (msg) => warnings.push(msg);
+
+        sl._executeAction('Scene: Custom 3', { room_group: 'Living Room', room_key: 'living_room' });
 
         expect(sent).toHaveLength(0);
+        expect(warnings).toHaveLength(1);
     });
 });
 
@@ -689,11 +815,14 @@ describe('Startup scene push — scene_recall correctness', () => {
         }
     });
 
-    test('_fullScenePush stores named custom scenes at their fixed Zigbee scene IDs', async () => {
+    test('_fullScenePush never scene_adds custom scenes — they apply as direct per-light commands instead', async () => {
+        // Custom scenes can hold a different value per light, so there's no single
+        // group-wide Zigbee scene to pre-store; _applyCustomScene sends direct
+        // commands at recall time instead (see the _cycleScenesForRoom /
+        // _executeAction — Scene: Custom N tests).
         const config = JSON.parse(JSON.stringify(BASE_CONFIG));
         config.rooms['Living Room'].custom_scenes = {
-            custom1: { name: 'Movie Night', brightness: 60, color_temp: 454 },
-            custom2: { name: '', brightness: 200 }, // unused slot — must be skipped
+            custom1: { name: 'Movie Night', lights: { living_room_1: { state: 'ON', brightness: 60, color_temp: 454 } } },
         };
         const sl = makeInstance(config);
         sl.currentWindow = 'evening';
@@ -707,15 +836,7 @@ describe('Startup scene push — scene_recall correctness', () => {
         await sl._fullScenePush();
 
         const customAdds = commands.filter(c => c.payload && c.payload.scene_add && c.payload.scene_add.ID >= 5);
-        expect(customAdds).toHaveLength(1); // only the named slot, not the empty one
-        expect(customAdds[0].topic).toBe('Living Room/set');
-        expect(customAdds[0].payload.scene_add).toMatchObject({
-            ID: 5,
-            name: 'Movie Night',
-            state: 'ON',
-            brightness: 60,
-            color_temp: 454,
-        });
+        expect(customAdds).toHaveLength(0);
     });
 
     test('_handleStartupPush always calls _fullScenePush even when config hash matches last push', () => {

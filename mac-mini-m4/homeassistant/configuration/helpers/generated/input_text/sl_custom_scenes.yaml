@@ -1,69 +1,129 @@
-# Smart Lighting v3 — Custom scene names (Button 4 Cycle Scenes, per room)
-# 3 fixed slots per room. Empty name = slot unused — excluded from scene_add,
-# scene_recall, and the Cycle Scenes list regardless of the sl_<room>_cycle_customN
-# toggle in input_boolean/sl_<room>.yaml.
+# Smart Lighting v3 — Custom scene names + per-light snapshots (Button 4 Cycle Scenes, per room)
+# 3 fixed slots per room. Empty name = slot unused — excluded from the Cycle Scenes list.
+# The _lights field holds a compact JSON snapshot of each light's own state/brightness/
+# color, captured live by sl_save_custom_scene_lights.py (Scene Editor tab) — not hand-edited.
 
 sl_living_room_custom1_name:
   name: "SL: Living Room — Custom Scene 1 Name"
   max: 30
   icon: mdi:tag-outline
+sl_living_room_custom1_lights:
+  name: "SL: Living Room — Custom Scene 1 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 sl_living_room_custom2_name:
   name: "SL: Living Room — Custom Scene 2 Name"
   max: 30
   icon: mdi:tag-outline
+sl_living_room_custom2_lights:
+  name: "SL: Living Room — Custom Scene 2 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 sl_living_room_custom3_name:
   name: "SL: Living Room — Custom Scene 3 Name"
   max: 30
   icon: mdi:tag-outline
+sl_living_room_custom3_lights:
+  name: "SL: Living Room — Custom Scene 3 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 
 sl_bedroom_custom1_name:
   name: "SL: Bedroom — Custom Scene 1 Name"
   max: 30
   icon: mdi:tag-outline
+sl_bedroom_custom1_lights:
+  name: "SL: Bedroom — Custom Scene 1 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 sl_bedroom_custom2_name:
   name: "SL: Bedroom — Custom Scene 2 Name"
   max: 30
   icon: mdi:tag-outline
+sl_bedroom_custom2_lights:
+  name: "SL: Bedroom — Custom Scene 2 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 sl_bedroom_custom3_name:
   name: "SL: Bedroom — Custom Scene 3 Name"
   max: 30
   icon: mdi:tag-outline
+sl_bedroom_custom3_lights:
+  name: "SL: Bedroom — Custom Scene 3 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 
 sl_bathroom_custom1_name:
   name: "SL: Bathroom — Custom Scene 1 Name"
   max: 30
   icon: mdi:tag-outline
+sl_bathroom_custom1_lights:
+  name: "SL: Bathroom — Custom Scene 1 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 sl_bathroom_custom2_name:
   name: "SL: Bathroom — Custom Scene 2 Name"
   max: 30
   icon: mdi:tag-outline
+sl_bathroom_custom2_lights:
+  name: "SL: Bathroom — Custom Scene 2 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 sl_bathroom_custom3_name:
   name: "SL: Bathroom — Custom Scene 3 Name"
   max: 30
   icon: mdi:tag-outline
+sl_bathroom_custom3_lights:
+  name: "SL: Bathroom — Custom Scene 3 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 
 sl_kitchen_custom1_name:
   name: "SL: Kitchen — Custom Scene 1 Name"
   max: 30
   icon: mdi:tag-outline
+sl_kitchen_custom1_lights:
+  name: "SL: Kitchen — Custom Scene 1 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 sl_kitchen_custom2_name:
   name: "SL: Kitchen — Custom Scene 2 Name"
   max: 30
   icon: mdi:tag-outline
+sl_kitchen_custom2_lights:
+  name: "SL: Kitchen — Custom Scene 2 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 sl_kitchen_custom3_name:
   name: "SL: Kitchen — Custom Scene 3 Name"
   max: 30
   icon: mdi:tag-outline
+sl_kitchen_custom3_lights:
+  name: "SL: Kitchen — Custom Scene 3 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 
 sl_hallway_custom1_name:
   name: "SL: Hallway — Custom Scene 1 Name"
   max: 30
   icon: mdi:tag-outline
+sl_hallway_custom1_lights:
+  name: "SL: Hallway — Custom Scene 1 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 sl_hallway_custom2_name:
   name: "SL: Hallway — Custom Scene 2 Name"
   max: 30
   icon: mdi:tag-outline
+sl_hallway_custom2_lights:
+  name: "SL: Hallway — Custom Scene 2 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json
 sl_hallway_custom3_name:
   name: "SL: Hallway — Custom Scene 3 Name"
   max: 30
   icon: mdi:tag-outline
+sl_hallway_custom3_lights:
+  name: "SL: Hallway — Custom Scene 3 Lights (JSON, internal)"
+  max: 255
+  icon: mdi:code-json

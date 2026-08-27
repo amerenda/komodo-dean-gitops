@@ -147,22 +147,6 @@ views:
               name: Smooth Transition
             - entity: input_number.sl_bathroom_smooth_transition_duration
               name: Transition Duration (min)
-            - type: section
-              label: "Cycle Scenes (Button 4)"
-            - entity: input_boolean.sl_bathroom_cycle_morning
-              name: Morning
-            - entity: input_boolean.sl_bathroom_cycle_day
-              name: Day
-            - entity: input_boolean.sl_bathroom_cycle_evening
-              name: Evening
-            - entity: input_boolean.sl_bathroom_cycle_night
-              name: Night
-            - entity: input_boolean.sl_bathroom_cycle_custom1
-              name: "Custom Scene 1 (named in Scene Editor tab)"
-            - entity: input_boolean.sl_bathroom_cycle_custom2
-              name: "Custom Scene 2 (named in Scene Editor tab)"
-            - entity: input_boolean.sl_bathroom_cycle_custom3
-              name: "Custom Scene 3 (named in Scene Editor tab)"
 
       # ── Room Settings: Bedroom ─────────────────────────────
       - type: conditional
@@ -187,22 +171,6 @@ views:
               name: Smooth Transition
             - entity: input_number.sl_bedroom_smooth_transition_duration
               name: Transition Duration (min)
-            - type: section
-              label: "Cycle Scenes (Button 4)"
-            - entity: input_boolean.sl_bedroom_cycle_morning
-              name: Morning
-            - entity: input_boolean.sl_bedroom_cycle_day
-              name: Day
-            - entity: input_boolean.sl_bedroom_cycle_evening
-              name: Evening
-            - entity: input_boolean.sl_bedroom_cycle_night
-              name: Night
-            - entity: input_boolean.sl_bedroom_cycle_custom1
-              name: "Custom Scene 1 (named in Scene Editor tab)"
-            - entity: input_boolean.sl_bedroom_cycle_custom2
-              name: "Custom Scene 2 (named in Scene Editor tab)"
-            - entity: input_boolean.sl_bedroom_cycle_custom3
-              name: "Custom Scene 3 (named in Scene Editor tab)"
 
 
       # ── Room Settings: Hallway ─────────────────────────────
@@ -228,22 +196,6 @@ views:
               name: Smooth Transition
             - entity: input_number.sl_hallway_smooth_transition_duration
               name: Transition Duration (min)
-            - type: section
-              label: "Cycle Scenes (Button 4)"
-            - entity: input_boolean.sl_hallway_cycle_morning
-              name: Morning
-            - entity: input_boolean.sl_hallway_cycle_day
-              name: Day
-            - entity: input_boolean.sl_hallway_cycle_evening
-              name: Evening
-            - entity: input_boolean.sl_hallway_cycle_night
-              name: Night
-            - entity: input_boolean.sl_hallway_cycle_custom1
-              name: "Custom Scene 1 (named in Scene Editor tab)"
-            - entity: input_boolean.sl_hallway_cycle_custom2
-              name: "Custom Scene 2 (named in Scene Editor tab)"
-            - entity: input_boolean.sl_hallway_cycle_custom3
-              name: "Custom Scene 3 (named in Scene Editor tab)"
 
       # ── Room Settings: Kitchen ─────────────────────────────
       - type: conditional
@@ -268,22 +220,6 @@ views:
               name: Smooth Transition
             - entity: input_number.sl_kitchen_smooth_transition_duration
               name: Transition Duration (min)
-            - type: section
-              label: "Cycle Scenes (Button 4)"
-            - entity: input_boolean.sl_kitchen_cycle_morning
-              name: Morning
-            - entity: input_boolean.sl_kitchen_cycle_day
-              name: Day
-            - entity: input_boolean.sl_kitchen_cycle_evening
-              name: Evening
-            - entity: input_boolean.sl_kitchen_cycle_night
-              name: Night
-            - entity: input_boolean.sl_kitchen_cycle_custom1
-              name: "Custom Scene 1 (named in Scene Editor tab)"
-            - entity: input_boolean.sl_kitchen_cycle_custom2
-              name: "Custom Scene 2 (named in Scene Editor tab)"
-            - entity: input_boolean.sl_kitchen_cycle_custom3
-              name: "Custom Scene 3 (named in Scene Editor tab)"
 
       # ── Room Settings: Living Room ─────────────────────────
       - type: conditional
@@ -308,22 +244,6 @@ views:
               name: Smooth Transition
             - entity: input_number.sl_living_room_smooth_transition_duration
               name: Transition Duration (min)
-            - type: section
-              label: "Cycle Scenes (Button 4)"
-            - entity: input_boolean.sl_living_room_cycle_morning
-              name: Morning
-            - entity: input_boolean.sl_living_room_cycle_day
-              name: Day
-            - entity: input_boolean.sl_living_room_cycle_evening
-              name: Evening
-            - entity: input_boolean.sl_living_room_cycle_night
-              name: Night
-            - entity: input_boolean.sl_living_room_cycle_custom1
-              name: "Custom Scene 1 (named in Scene Editor tab)"
-            - entity: input_boolean.sl_living_room_cycle_custom2
-              name: "Custom Scene 2 (named in Scene Editor tab)"
-            - entity: input_boolean.sl_living_room_cycle_custom3
-              name: "Custom Scene 3 (named in Scene Editor tab)"
 
   # ════════════════════════════════════════════════════════════
   # Scene Editor Tab
@@ -444,7 +364,7 @@ views:
                       window: night
             - type: custom:mushroom-title-card
               title: Custom Scenes (Button 4 Cycle)
-              subtitle: Name a slot, set the lights how you want, then Save. Toggle whether it's in the cycle under Room Settings.
+              subtitle: Adjust each light above how you want (on/off, brightness, color — each bulb can differ), name a slot, then "Save From Current Lights". Automatically added to the Button 4 cycle. Clear the name to remove it.
             - type: entities
               show_header_toggle: false
               entities:
@@ -458,20 +378,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: living_room
-                      window: custom1
+                      slot: custom1
                 - type: button
-                  name: Save Slot 1
+                  name: "Save Slot 1 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: living_room
-                      window: custom1
+                      slot: custom1
             - type: entities
               show_header_toggle: false
               entities:
@@ -485,20 +405,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: living_room
-                      window: custom2
+                      slot: custom2
                 - type: button
-                  name: Save Slot 2
+                  name: "Save Slot 2 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: living_room
-                      window: custom2
+                      slot: custom2
             - type: entities
               show_header_toggle: false
               entities:
@@ -512,20 +432,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: living_room
-                      window: custom3
+                      slot: custom3
                 - type: button
-                  name: Save Slot 3
+                  name: "Save Slot 3 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: living_room
-                      window: custom3
+                      slot: custom3
             - type: entities
               show_header_toggle: false
               entities:
@@ -666,7 +586,7 @@ views:
                       window: night
             - type: custom:mushroom-title-card
               title: Custom Scenes (Button 4 Cycle)
-              subtitle: Name a slot, set the lights how you want, then Save. Toggle whether it's in the cycle under Room Settings.
+              subtitle: Adjust each light above how you want (on/off, brightness, color — each bulb can differ), name a slot, then "Save From Current Lights". Automatically added to the Button 4 cycle. Clear the name to remove it.
             - type: entities
               show_header_toggle: false
               entities:
@@ -680,20 +600,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: bedroom
-                      window: custom1
+                      slot: custom1
                 - type: button
-                  name: Save Slot 1
+                  name: "Save Slot 1 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: bedroom
-                      window: custom1
+                      slot: custom1
             - type: entities
               show_header_toggle: false
               entities:
@@ -707,20 +627,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: bedroom
-                      window: custom2
+                      slot: custom2
                 - type: button
-                  name: Save Slot 2
+                  name: "Save Slot 2 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: bedroom
-                      window: custom2
+                      slot: custom2
             - type: entities
               show_header_toggle: false
               entities:
@@ -734,20 +654,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: bedroom
-                      window: custom3
+                      slot: custom3
                 - type: button
-                  name: Save Slot 3
+                  name: "Save Slot 3 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: bedroom
-                      window: custom3
+                      slot: custom3
             - type: entities
               show_header_toggle: false
               entities:
@@ -885,7 +805,7 @@ views:
                       window: night
             - type: custom:mushroom-title-card
               title: Custom Scenes (Button 4 Cycle)
-              subtitle: Name a slot, set the lights how you want, then Save. Toggle whether it's in the cycle under Room Settings.
+              subtitle: Adjust each light above how you want (on/off, brightness, color — each bulb can differ), name a slot, then "Save From Current Lights". Automatically added to the Button 4 cycle. Clear the name to remove it.
             - type: entities
               show_header_toggle: false
               entities:
@@ -899,20 +819,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: bathroom
-                      window: custom1
+                      slot: custom1
                 - type: button
-                  name: Save Slot 1
+                  name: "Save Slot 1 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: bathroom
-                      window: custom1
+                      slot: custom1
             - type: entities
               show_header_toggle: false
               entities:
@@ -926,20 +846,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: bathroom
-                      window: custom2
+                      slot: custom2
                 - type: button
-                  name: Save Slot 2
+                  name: "Save Slot 2 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: bathroom
-                      window: custom2
+                      slot: custom2
             - type: entities
               show_header_toggle: false
               entities:
@@ -953,20 +873,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: bathroom
-                      window: custom3
+                      slot: custom3
                 - type: button
-                  name: Save Slot 3
+                  name: "Save Slot 3 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: bathroom
-                      window: custom3
+                      slot: custom3
             - type: entities
               show_header_toggle: false
               entities:
@@ -1106,7 +1026,7 @@ views:
                       window: night
             - type: custom:mushroom-title-card
               title: Custom Scenes (Button 4 Cycle)
-              subtitle: Name a slot, set the lights how you want, then Save. Toggle whether it's in the cycle under Room Settings.
+              subtitle: Adjust each light above how you want (on/off, brightness, color — each bulb can differ), name a slot, then "Save From Current Lights". Automatically added to the Button 4 cycle. Clear the name to remove it.
             - type: entities
               show_header_toggle: false
               entities:
@@ -1120,20 +1040,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: kitchen
-                      window: custom1
+                      slot: custom1
                 - type: button
-                  name: Save Slot 1
+                  name: "Save Slot 1 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: kitchen
-                      window: custom1
+                      slot: custom1
             - type: entities
               show_header_toggle: false
               entities:
@@ -1147,20 +1067,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: kitchen
-                      window: custom2
+                      slot: custom2
                 - type: button
-                  name: Save Slot 2
+                  name: "Save Slot 2 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: kitchen
-                      window: custom2
+                      slot: custom2
             - type: entities
               show_header_toggle: false
               entities:
@@ -1174,20 +1094,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: kitchen
-                      window: custom3
+                      slot: custom3
                 - type: button
-                  name: Save Slot 3
+                  name: "Save Slot 3 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: kitchen
-                      window: custom3
+                      slot: custom3
             - type: entities
               show_header_toggle: false
               entities:
@@ -1325,7 +1245,7 @@ views:
                       window: night
             - type: custom:mushroom-title-card
               title: Custom Scenes (Button 4 Cycle)
-              subtitle: Name a slot, set the lights how you want, then Save. Toggle whether it's in the cycle under Room Settings.
+              subtitle: Adjust each light above how you want (on/off, brightness, color — each bulb can differ), name a slot, then "Save From Current Lights". Automatically added to the Button 4 cycle. Clear the name to remove it.
             - type: entities
               show_header_toggle: false
               entities:
@@ -1339,20 +1259,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: hallway
-                      window: custom1
+                      slot: custom1
                 - type: button
-                  name: Save Slot 1
+                  name: "Save Slot 1 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: hallway
-                      window: custom1
+                      slot: custom1
             - type: entities
               show_header_toggle: false
               entities:
@@ -1366,20 +1286,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: hallway
-                      window: custom2
+                      slot: custom2
                 - type: button
-                  name: Save Slot 2
+                  name: "Save Slot 2 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: hallway
-                      window: custom2
+                      slot: custom2
             - type: entities
               show_header_toggle: false
               entities:
@@ -1393,20 +1313,20 @@ views:
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_preview_scene
+                    service: script.sl_preview_custom_scene
                     data:
                       room: hallway
-                      window: custom3
+                      slot: custom3
                 - type: button
-                  name: Save Slot 3
+                  name: "Save Slot 3 From Current Lights"
                   icon: mdi:content-save
                   show_state: false
                   tap_action:
                     action: call-service
-                    service: script.sl_save_current_as_scene
+                    service: python_script.sl_save_custom_scene_lights
                     data:
                       room: hallway
-                      window: custom3
+                      slot: custom3
             - type: entities
               show_header_toggle: false
               entities:
@@ -1658,7 +1578,7 @@ views:
           **Button 1 (top):** Short = toggle on/off, Long = power off all
           **Button 2:** Short = brightness up, Long = brightness max
           **Button 3:** Short = brightness down, Long = brightness min
-          **Button 4 (bottom):** Short = cycle scenes, Long = custom action *(bedroom: activates custom scene; all other rooms: toggles all lights on/off)*
+          **Button 4 (bottom):** Short = cycle scenes (all window scenes + any named custom scene), Long = *(bedroom: SexySex scene; all other rooms: toggles all lights on/off)*. Any button can be reassigned below, including to a specific named custom scene ("Scene: Custom 1/2/3").
 
       # ── Living Room ─────────────────────────────────────────
       - type: conditional
