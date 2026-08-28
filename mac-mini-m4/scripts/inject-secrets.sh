@@ -363,6 +363,13 @@ PUSHOVER_USER_KEY=$(printf '%s' "$PUSHOVER_USER_KEY" | sed -e 's/^[[:space:]]*//
 PUSHOVER_TOKEN=$("$BWS_BIN" secret get "45c01263-f879-4cb7-ad01-b49a00d0b2d0" 2>/dev/null | /opt/homebrew/bin/jq -r .value)
 PUSHOVER_TOKEN=$(printf '%s' "$PUSHOVER_TOKEN" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 
+# message ranges over .Alerts, NOT .CommonAnnotations -- CommonAnnotations
+# only shows text that's byte-identical across every alert in the group, so
+# it silently blanks out whenever 2+ instances of the same alertname fire
+# with different label values (e.g. DiskSpaceLow on two mountpoints at once).
+# Found 2026-08-28: a real DiskSpaceLow firing produced a Pushover push with
+# no host/disk/free-space details for exactly this reason. Keep in sync with
+# resource-sync/stacks.toml's copy of this same template.
 if [[ -n "$PUSHOVER_USER_KEY" ]] && [[ "$PUSHOVER_USER_KEY" != "null" ]] && \
    [[ -n "$PUSHOVER_TOKEN" ]]    && [[ "$PUSHOVER_TOKEN"    != "null" ]]; then
     cat > "$MON_DIR/alertmanager.yml" << ALERTMANAGER_EOF
@@ -381,10 +388,10 @@ receivers:
     pushover_configs:
       - user_key: '${PUSHOVER_USER_KEY}'
         token: '${PUSHOVER_TOKEN}'
-        title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'
+        title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }}){{ if gt (len .Alerts) 1 }} x{{ len .Alerts }}{{ end }}'
         message: |-
-          {{ .CommonAnnotations.summary }}
-          {{ .CommonAnnotations.description }}
+          {{ range .Alerts }}{{ .Annotations.summary }}
+          {{ end }}
         url: 'https://alertmanager.amer.dev'
         priority: '0'
         send_resolved: true

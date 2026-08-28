@@ -135,10 +135,16 @@ printf '  - name: '"'"'pushover'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.y
 printf '    pushover_configs:\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '      - user_key: '"'"'%s'"'"'\n' "$PUSHOVER_USER_KEY" >> mac-mini-m4/monitoring/alertmanager.yml
 printf '        token: '"'"'%s'"'"'\n' "$PUSHOVER_TOKEN" >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        title: '"'"'[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }})'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
+# message ranges over .Alerts, NOT .CommonAnnotations -- CommonAnnotations
+# only shows text that's byte-identical across every alert in the group, so
+# it silently blanks out whenever 2+ instances of the same alertname fire
+# with different label values (e.g. DiskSpaceLow on two mountpoints at once).
+# Found 2026-08-28: a real DiskSpaceLow firing produced a Pushover push with
+# no host/disk/free-space details for exactly this reason.
+printf '        title: '"'"'[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }}){{ if gt (len .Alerts) 1 }} x{{ len .Alerts }}{{ end }}'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '        message: |-\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '          {{ .CommonAnnotations.summary }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '          {{ .CommonAnnotations.description }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '          {{ range .Alerts }}{{ .Annotations.summary }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '          {{ end }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '        url: '"'"'https://alertmanager.amer.dev'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '        priority: '"'"'0'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '        send_resolved: true\n' >> mac-mini-m4/monitoring/alertmanager.yml
