@@ -130,6 +130,10 @@ printf '  group_by: ['"'"'alertname'"'"', '"'"'stack'"'"']\n' >> mac-mini-m4/mon
 printf '  group_wait: 30s\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '  group_interval: 5m\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '  repeat_interval: 6h\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '  routes:\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '    - matchers:\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        - alertname =~ "DiskSpace.*"\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '      receiver: '"'"'pushover-disk'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf 'receivers:\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '  - name: '"'"'pushover'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '    pushover_configs:\n' >> mac-mini-m4/monitoring/alertmanager.yml
@@ -146,6 +150,17 @@ printf '        message: |-\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '          {{ range .Alerts }}{{ .Annotations.summary }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '          {{ end }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '        url: '"'"'https://alertmanager.amer.dev'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        priority: '"'"'0'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        send_resolved: true\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '  - name: '"'"'pushover-disk'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '    pushover_configs:\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '      - user_key: '"'"'%s'"'"'\n' "$PUSHOVER_USER_KEY" >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        token: '"'"'%s'"'"'\n' "$PUSHOVER_TOKEN" >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        title: '"'"'[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }}){{ if gt (len .Alerts) 1 }} x{{ len .Alerts }}{{ end }}'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        message: |-\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '          {{ range .Alerts }}{{ .Annotations.summary }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '          {{ end }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        url: '"'"'https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance={{ (index .Alerts 0).Labels.instance }}'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '        priority: '"'"'0'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
 printf '        send_resolved: true\n' >> mac-mini-m4/monitoring/alertmanager.yml
 curl -sf -X POST http://10.100.20.18:9093/-/reload >/dev/null 2>&1 || true

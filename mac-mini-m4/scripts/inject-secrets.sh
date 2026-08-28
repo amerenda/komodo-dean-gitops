@@ -382,6 +382,10 @@ route:
   group_wait: 30s
   group_interval: 5m
   repeat_interval: 6h
+  routes:
+    - matchers:
+        - alertname =~ "DiskSpace.*"
+      receiver: 'pushover-disk'
 
 receivers:
   - name: 'pushover'
@@ -393,6 +397,17 @@ receivers:
           {{ range .Alerts }}{{ .Annotations.summary }}
           {{ end }}
         url: 'https://alertmanager.amer.dev'
+        priority: '0'
+        send_resolved: true
+  - name: 'pushover-disk'
+    pushover_configs:
+      - user_key: '${PUSHOVER_USER_KEY}'
+        token: '${PUSHOVER_TOKEN}'
+        title: '[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }}){{ if gt (len .Alerts) 1 }} x{{ len .Alerts }}{{ end }}'
+        message: |-
+          {{ range .Alerts }}{{ .Annotations.summary }}
+          {{ end }}
+        url: 'https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance={{ (index .Alerts 0).Labels.instance }}'
         priority: '0'
         send_resolved: true
 ALERTMANAGER_EOF
