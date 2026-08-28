@@ -15,21 +15,41 @@ groups:
           description: >
             HTTPS probe to {{ $labels.instance }} has been failing for more than 5 minutes.
 
-      # TLS cert expiring within 30 days — only when target is actually reachable
+      # TLS cert expiring within 30 days — only when target is actually reachable.
+      # Previously had NO annotations block at all — any firing produced a
+      # blank Pushover notification. expr is restructured so the leftmost
+      # (returned) value is the actual remaining duration in seconds, not the
+      # raw expiry epoch — TLSCertExpiringSoonCritical below had this same bug
+      # (humanizeDuration on a ~2026-epoch number, not a duration).
       - alert: TLSCertExpiringSoon
-        expr: probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} > 0 and (time() + 30 * 86400) > probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} and probe_success{job=~"https-probes.*"} == 1
+        expr: >
+          (probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} - time()) < 30 * 86400
+          and probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} > 0
+          and probe_success{job=~"https-probes.*"} == 1
         for: 5m
         labels:
           severity: warning
+        annotations:
+          summary: "TLS cert for {{ $labels.instance }} ({{ $labels.service }}) expires in {{ $value | humanizeDuration }}"
+          description: >
+            The TLS certificate presented by {{ $labels.instance }} expires in
+            {{ $value | humanizeDuration }} (within the 30-day warning window).
 
       # Cert expiring within 7 days — urgent
       - alert: TLSCertExpiringSoonCritical
-        expr: probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} > 0 and (time() + 7 * 86400) > probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} and probe_success{job=~"https-probes.*"} == 1
+        expr: >
+          (probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} - time()) < 7 * 86400
+          and probe_ssl_earliest_cert_expiry{job=~"https-probes.*"} > 0
+          and probe_success{job=~"https-probes.*"} == 1
         for: 5m
         labels:
           severity: critical
         annotations:
-          summary: "TLS cert for {{ $labels.instance }} expires in {{ $value | humanizeDuration }}"
+          summary: "TLS cert for {{ $labels.instance }} ({{ $labels.service }}) expires in {{ $value | humanizeDuration }}"
+          description: >
+            The TLS certificate presented by {{ $labels.instance }} expires in
+            {{ $value | humanizeDuration }} (within the 7-day critical window)
+            — renew it now.
 
       # RAID array has degraded — any disk failed or removed. Losing a second drive means data loss.
       - alert: RaidArrayDegraded
