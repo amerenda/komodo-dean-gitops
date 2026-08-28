@@ -94,6 +94,22 @@ services:
       - 8989:8989
     restart: unless-stopped
 
+  sonarr-missing-search-cron:
+    # Sonarr has no built-in recurring "search for missing episodes" task —
+    # see murderbot/media-server/config/sonarr-cron/crontab.txt for why this
+    # exists. Same crond shape as mac-mini-m4/docker-maintenance.
+    container_name: sonarr-missing-search-cron
+    image: docker:27-cli
+    command: ["sh", "-c", "crond -f -l 8"]
+    environment:
+      - SONARR_API_KEY=${SONARR_API_KEY}
+    volumes:
+      - ${SONARR_CRON_CRONTAB}:/etc/crontabs/root:ro
+    networks:
+      servarr:
+    dns: *dns-servers
+    restart: unless-stopped
+
   bazarr:
     container_name: bazarr
     image: linuxserver/bazarr:1.5.6

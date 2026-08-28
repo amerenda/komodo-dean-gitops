@@ -26,6 +26,11 @@ HARDCOVER_API_KEY=$(bws secret get "df58364d-4e24-4844-bad3-b4900137097e" \
 [[ -n "$HARDCOVER_API_KEY" && "$HARDCOVER_API_KEY" != "null" ]] \
   || { echo "media-server pre-deploy: failed to fetch hardcover-api-key" >&2; exit 1; }
 
+SONARR_API_KEY=$(bws secret get "d3a7aeb5-0dc5-4fa2-99b6-b4b4014fb50a" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$SONARR_API_KEY" && "$SONARR_API_KEY" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch sonarr-api-key" >&2; exit 1; }
+
 # Remove orphaned containers from pre-k3s-ingress era (nginx/certbot/dns no
 # longer in compose; k3s Traefik + cert-manager handle TLS termination).
 for _c in nginx certbot dns; do
@@ -95,6 +100,8 @@ chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBR
   echo "CALIBREWEB_CONFIG=${CONFIG_ROOT}/calibre-web/config"
   echo "LAZYLIBRARIAN_CONFIG=${CONFIG_ROOT}/lazylibrarian/config"
   echo "HARDCOVER_API_KEY=${HARDCOVER_API_KEY}"
+  echo "SONARR_API_KEY=${SONARR_API_KEY}"
+  echo "SONARR_CRON_CRONTAB=$(pwd)/murderbot/media-server/config/sonarr-cron/crontab.txt"
   echo "CALIBRE_CUSTOM_INIT=${CALIBRE_CUSTOM_INIT_DIR}"
   echo "HARDCOVER_PROVIDER_FILE=${HARDCOVER_PROVIDER_DIR}/hardcover.py"
   echo "CALIBRE_SYNC_SCRIPTS=${CALIBRE_SYNC_SCRIPTS_DIR}"

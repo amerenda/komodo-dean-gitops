@@ -69,6 +69,33 @@ After disabling per-library, refresh all metadata for each affected library
 (Admin → Libraries → (library) → ⋮ → Refresh Metadata → Replace all metadata).
 This will regenerate the 63+ contaminated movie.nfo files from TMDB only.
 
+## Sonarr missing-episode search cron
+
+Sonarr has no built-in recurring task to search for episodes it already knows
+are missing. Its only scheduled tasks are `Rss Sync` (15 min — catches new
+releases as indexers post them) and `Refresh Monitored Downloads` (1 min —
+polls status of downloads already queued). Neither backfills an episode
+Sonarr failed to grab the first time (bad initial release, indexer outage, a
+show added to the library after it aired). Confirmed directly against this
+instance 2026-08-28 (`GET /api/v3/system/task` showed only those two tasks);
+also confirmed live that this gap is not theoretical — Star Trek: The Next
+Generation had been sitting at 1/178 episode files since being added
+2026-05-05, simply because nothing had ever searched for the other 177.
+
+`sonarr-missing-search-cron` (compose.yaml) runs a `docker:27-cli` container
+with busybox crond — same shape as `mac-mini-m4/docker-maintenance` — that
+POSTs `{"name":"MissingEpisodeSearch"}` to Sonarr's command API daily at 4am
+America/New_York. Schedule/command lives in
+`config/sonarr-cron/crontab.txt`. Sonarr's `urlBase` on this instance is
+`/sonarr` (confirmed via `GET /api/v3/config/host`) — the cron's URL must
+include that path segment or every request 307s and wget silently no-ops.
+
+`SONARR_API_KEY` is fetched from BWS (`sonarr-api-key`) in `pre-deploy.sh`,
+same pattern as `HARDCOVER_API_KEY`. Busybox crond inherits the container's
+process environment for jobs it spawns (unlike vixie-cron, which strips it),
+so referencing `$SONARR_API_KEY` directly in the crontab line works without
+a separate env file.
+
 ## Book metadata — one source of truth: Hardcover
 
 Three writers touched book metadata independently (manual `calibredb add`,
@@ -120,3 +147,4 @@ BWS secret (`hardcover-api-key`) shared by all three integration points.
 | calibre | `lscr.io/linuxserver/calibre` | `9.11.0` | linuxserver tag (no `-lsN`) |
 | calibre-web | `lscr.io/linuxserver/calibre-web` | `0.6.26` | linuxserver tag (no `-lsN`) |
 | lazylibrarian | `lscr.io/linuxserver/lazylibrarian` | `9838d6fe-ls314` | No semver releases exist upstream — only commit-hash build tags. Bumped from f4110fff 2026-07-23: that build's `add_book` handler didn't accept the `source=` param the frontend sends, causing a 404 on every "add book" click. |
+| sonarr-missing-search-cron | `docker:27-cli` | `27` | Same crond shape/version as mac-mini-m4/docker-maintenance. Daily `MissingEpisodeSearch` — see config/sonarr-cron/crontab.txt. |
