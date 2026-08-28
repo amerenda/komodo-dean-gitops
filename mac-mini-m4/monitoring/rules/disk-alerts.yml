@@ -23,6 +23,7 @@ groups:
             {{ $labels.mountpoint }} on {{ $labels.instance }} has
             {{ $value | printf "%.1f" }}% free ({{ $labels.fstype }}).
             Warning threshold: 20%.
+          dashboard_url: "https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance={{ $labels.instance }}"
 
       # Critical: < 10% free — mirrors the level that caused the 2026-07-12 outage.
       - alert: DiskSpaceCritical
@@ -40,3 +41,4 @@ groups:
             {{ $labels.mountpoint }} on {{ $labels.instance }} has only
             {{ $value | printf "%.1f" }}% free ({{ $labels.fstype }}).
             Run: docker builder prune -a -f
+          dashboard_url: "https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance={{ $labels.instance }}"
