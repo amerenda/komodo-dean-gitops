@@ -641,7 +641,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "100 - (node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} * 100)",
+          "expr": "100 - (node_filesystem_avail_bytes{instance=~\"$instance\",mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{instance=~\"$instance\",mountpoint=\"/\",fstype!=\"tmpfs\"} * 100)",
           "legendFormat": "{{instance}}",
           "refId": "A"
         }
@@ -711,7 +711,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "100 - (node_filesystem_avail_bytes{fstype!~\"tmpfs|overlay\",mountpoint!~\"/var/lib/kubelet.*\"} / node_filesystem_size_bytes{fstype!~\"tmpfs|overlay\",mountpoint!~\"/var/lib/kubelet.*\"} * 100)",
+          "expr": "100 - (node_filesystem_avail_bytes{instance=~\"$instance\",fstype!~\"tmpfs|overlay\",mountpoint!~\"/var/lib/kubelet.*\"} / node_filesystem_size_bytes{instance=~\"$instance\",fstype!~\"tmpfs|overlay\",mountpoint!~\"/var/lib/kubelet.*\"} * 100)",
           "legendFormat": "{{instance}} {{mountpoint}}",
           "refId": "A"
         }
@@ -1025,7 +1025,35 @@
     "hardware"
   ],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "current": {
+          "selected": false,
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "definition": "label_values(node_filesystem_size_bytes, instance)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Instance",
+        "multi": true,
+        "name": "instance",
+        "options": [],
+        "query": {
+          "query": "label_values(node_filesystem_size_bytes, instance)",
+          "refId": "StandardVariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "sort": 1,
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-1h",
