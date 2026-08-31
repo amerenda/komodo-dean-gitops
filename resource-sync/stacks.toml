@@ -112,57 +112,70 @@ webhook_force_deploy = true
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
-printf 'MINI_POSTGRES_PASSWORD=%s\n' "$(bws secret get a280e465-8813-4b48-9972-b4210149cb60 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" > mac-mini-m4/monitoring/.env
-printf 'MONGO_PASSWORD=%s\n' "$(bws secret get d0213758-1881-4d35-8fd2-b39d015cb7b9 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/monitoring/.env
-printf 'TECHNITIUM_API_TOKEN=%s\n' "$(bws secret get 4645ac46-3955-4e6e-8558-b434015613a7 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/monitoring/.env
-printf 'GRAFANA_ADMIN_USER=admin\n' >> mac-mini-m4/monitoring/.env
-printf 'GRAFANA_ADMIN_PASSWORD=%s\n' "$(bws secret get 9a2f2c00-0cc9-4aac-91da-b43d00f980d1 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/monitoring/.env
+# Every generated file below is built in a .tmp sibling and atomically mv'd into
+# place at the end, never written in-place with repeated >/>> redirects. A
+# concurrent reload (this stack's own trailing curl, or an overlapping deploy
+# trigger) that reads mid-write would otherwise see a half-written or briefly
+# missing file — observed 2026-08-31 as intermittent "no such file or
+# directory" errors in both Prometheus's and Alertmanager's reload logs on
+# every deploy of this stack.
+ENV_TMP=mac-mini-m4/monitoring/.env.tmp
+printf 'MINI_POSTGRES_PASSWORD=%s\n' "$(bws secret get a280e465-8813-4b48-9972-b4210149cb60 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" > "$ENV_TMP"
+printf 'MONGO_PASSWORD=%s\n' "$(bws secret get d0213758-1881-4d35-8fd2-b39d015cb7b9 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> "$ENV_TMP"
+printf 'TECHNITIUM_API_TOKEN=%s\n' "$(bws secret get 4645ac46-3955-4e6e-8558-b434015613a7 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> "$ENV_TMP"
+printf 'GRAFANA_ADMIN_USER=admin\n' >> "$ENV_TMP"
+printf 'GRAFANA_ADMIN_PASSWORD=%s\n' "$(bws secret get 9a2f2c00-0cc9-4aac-91da-b43d00f980d1 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> "$ENV_TMP"
 test -f mac-mini-m4/monitoring/compose.yaml && test -d mac-mini-m4/monitoring/grafana/dashboards || exit 1
-printf 'MONITORING_DIR=%s/mac-mini-m4/monitoring\n' "$(pwd)" >> mac-mini-m4/monitoring/.env
-bws secret get c7ccdb87-b04e-428e-bbcf-b4340156edf6 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value > mac-mini-m4/monitoring/ha-token
+printf 'MONITORING_DIR=%s/mac-mini-m4/monitoring\n' "$(pwd)" >> "$ENV_TMP"
+mv "$ENV_TMP" mac-mini-m4/monitoring/.env
+HA_TOKEN_TMP=mac-mini-m4/monitoring/ha-token.tmp
+bws secret get c7ccdb87-b04e-428e-bbcf-b4340156edf6 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value > "$HA_TOKEN_TMP"
+mv "$HA_TOKEN_TMP" mac-mini-m4/monitoring/ha-token
 PUSHOVER_USER_KEY=$(bws secret get 16d79345-5721-4173-9e14-b49a00ce1cb3 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)
 PUSHOVER_TOKEN=$(bws secret get 45c01263-f879-4cb7-ad01-b49a00d0b2d0 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)
-printf 'global:\n' > mac-mini-m4/monitoring/alertmanager.yml
-printf '  resolve_timeout: 5m\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf 'route:\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '  receiver: '"'"'pushover'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '  group_by: ['"'"'alertname'"'"', '"'"'stack'"'"']\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '  group_wait: 30s\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '  group_interval: 5m\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '  repeat_interval: 6h\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '  routes:\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '    - matchers:\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        - alertname =~ "DiskSpace.*"\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '      receiver: '"'"'pushover-disk'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf 'receivers:\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '  - name: '"'"'pushover'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '    pushover_configs:\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '      - user_key: '"'"'%s'"'"'\n' "$PUSHOVER_USER_KEY" >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        token: '"'"'%s'"'"'\n' "$PUSHOVER_TOKEN" >> mac-mini-m4/monitoring/alertmanager.yml
+AM_TMP=mac-mini-m4/monitoring/alertmanager.yml.tmp
+printf 'global:\n' > "$AM_TMP"
+printf '  resolve_timeout: 5m\n' >> "$AM_TMP"
+printf 'route:\n' >> "$AM_TMP"
+printf '  receiver: '"'"'pushover'"'"'\n' >> "$AM_TMP"
+printf '  group_by: ['"'"'alertname'"'"', '"'"'stack'"'"']\n' >> "$AM_TMP"
+printf '  group_wait: 30s\n' >> "$AM_TMP"
+printf '  group_interval: 5m\n' >> "$AM_TMP"
+printf '  repeat_interval: 6h\n' >> "$AM_TMP"
+printf '  routes:\n' >> "$AM_TMP"
+printf '    - matchers:\n' >> "$AM_TMP"
+printf '        - alertname =~ "DiskSpace.*"\n' >> "$AM_TMP"
+printf '      receiver: '"'"'pushover-disk'"'"'\n' >> "$AM_TMP"
+printf 'receivers:\n' >> "$AM_TMP"
+printf '  - name: '"'"'pushover'"'"'\n' >> "$AM_TMP"
+printf '    pushover_configs:\n' >> "$AM_TMP"
+printf '      - user_key: '"'"'%s'"'"'\n' "$PUSHOVER_USER_KEY" >> "$AM_TMP"
+printf '        token: '"'"'%s'"'"'\n' "$PUSHOVER_TOKEN" >> "$AM_TMP"
 # message ranges over .Alerts, NOT .CommonAnnotations -- CommonAnnotations
 # only shows text that's byte-identical across every alert in the group, so
 # it silently blanks out whenever 2+ instances of the same alertname fire
 # with different label values (e.g. DiskSpaceLow on two mountpoints at once).
 # Found 2026-08-28: a real DiskSpaceLow firing produced a Pushover push with
 # no host/disk/free-space details for exactly this reason.
-printf '        title: '"'"'[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }}){{ if gt (len .Alerts) 1 }} x{{ len .Alerts }}{{ end }}'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        message: |-\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '          {{ range .Alerts }}{{ .Annotations.summary }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '          {{ end }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        url: '"'"'https://alertmanager.amer.dev'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        priority: '"'"'0'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        send_resolved: true\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '  - name: '"'"'pushover-disk'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '    pushover_configs:\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '      - user_key: '"'"'%s'"'"'\n' "$PUSHOVER_USER_KEY" >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        token: '"'"'%s'"'"'\n' "$PUSHOVER_TOKEN" >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        title: '"'"'[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }}){{ if gt (len .Alerts) 1 }} x{{ len .Alerts }}{{ end }}'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        message: |-\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '          {{ range .Alerts }}{{ .Annotations.summary }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '          {{ end }}\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        url: '"'"'https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance={{ (index .Alerts 0).Labels.instance }}'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        priority: '"'"'0'"'"'\n' >> mac-mini-m4/monitoring/alertmanager.yml
-printf '        send_resolved: true\n' >> mac-mini-m4/monitoring/alertmanager.yml
+printf '        title: '"'"'[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }}){{ if gt (len .Alerts) 1 }} x{{ len .Alerts }}{{ end }}'"'"'\n' >> "$AM_TMP"
+printf '        message: |-\n' >> "$AM_TMP"
+printf '          {{ range .Alerts }}{{ .Annotations.summary }}\n' >> "$AM_TMP"
+printf '          {{ end }}\n' >> "$AM_TMP"
+printf '        url: '"'"'https://alertmanager.amer.dev'"'"'\n' >> "$AM_TMP"
+printf '        priority: '"'"'0'"'"'\n' >> "$AM_TMP"
+printf '        send_resolved: true\n' >> "$AM_TMP"
+printf '  - name: '"'"'pushover-disk'"'"'\n' >> "$AM_TMP"
+printf '    pushover_configs:\n' >> "$AM_TMP"
+printf '      - user_key: '"'"'%s'"'"'\n' "$PUSHOVER_USER_KEY" >> "$AM_TMP"
+printf '        token: '"'"'%s'"'"'\n' "$PUSHOVER_TOKEN" >> "$AM_TMP"
+printf '        title: '"'"'[{{ .Status | toUpper }}] {{ .CommonLabels.alertname }} ({{ .CommonLabels.severity }}){{ if gt (len .Alerts) 1 }} x{{ len .Alerts }}{{ end }}'"'"'\n' >> "$AM_TMP"
+printf '        message: |-\n' >> "$AM_TMP"
+printf '          {{ range .Alerts }}{{ .Annotations.summary }}\n' >> "$AM_TMP"
+printf '          {{ end }}\n' >> "$AM_TMP"
+printf '        url: '"'"'https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance={{ (index .Alerts 0).Labels.instance }}'"'"'\n' >> "$AM_TMP"
+printf '        priority: '"'"'0'"'"'\n' >> "$AM_TMP"
+printf '        send_resolved: true\n' >> "$AM_TMP"
+mv "$AM_TMP" mac-mini-m4/monitoring/alertmanager.yml
 curl -sf -X POST http://10.100.20.18:9093/-/reload >/dev/null 2>&1 || true
 """
 
