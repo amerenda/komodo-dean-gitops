@@ -8,11 +8,25 @@ groups:
       # shares — /Applications, /Library, /Users, /Volumes, /mnt/mac, /private — all the
       # same underlying device with the same bogus size, so they'd otherwise fire as 6
       # duplicate alerts for one non-actionable number).
+      # job="mac-mini-node" is additionally collapsed to one mountpoint: node-exporter
+      # inside the mini's OrbStack VM also reports /var/lib/rancher/k3s, /var/lib/kubelet,
+      # /var/lib/cni, and /opt/orbstack-guest/data as separate mountpoints, but they're
+      # all the same underlying device (/dev/vdb1) as /var/lib/docker — same disk,
+      # would otherwise fire 5x for one real condition. Other hosts are untouched here
+      # since their extra mountpoints (e.g. murderbot's /mnt/storage) are genuinely
+      # separate volumes, not duplicates.
       - alert: DiskSpaceLow
         expr: >
           (
-            node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs"}
-            / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs"}
+            (
+              node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node"}
+              / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node"}
+            )
+            or
+            (
+              node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job="mac-mini-node", mountpoint="/var/lib/docker"}
+              / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job="mac-mini-node", mountpoint="/var/lib/docker"}
+            )
           ) * 100 < 20
         for: 5m
         labels:
@@ -26,11 +40,19 @@ groups:
           dashboard_url: "https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance={{ $labels.instance }}"
 
       # Critical: < 10% free — mirrors the level that caused the 2026-07-12 outage.
+      # Same job="mac-mini-node" mountpoint dedup as DiskSpaceLow above — see comment there.
       - alert: DiskSpaceCritical
         expr: >
           (
-            node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs"}
-            / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs"}
+            (
+              node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node"}
+              / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node"}
+            )
+            or
+            (
+              node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job="mac-mini-node", mountpoint="/var/lib/docker"}
+              / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job="mac-mini-node", mountpoint="/var/lib/docker"}
+            )
           ) * 100 < 10
         for: 2m
         labels:
