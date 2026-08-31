@@ -416,10 +416,24 @@ ALERTMANAGER_EOF
     mv "$MON_DIR/alertmanager.yml.tmp" "$MON_DIR/alertmanager.yml"
     chmod 0600 "$MON_DIR/alertmanager.yml"
     chown "$OWNER" "$MON_DIR/alertmanager.yml" 2>/dev/null || true
-    # Reload alertmanager so it picks up the new receiver immediately.
-    curl -sf -X POST http://localhost:9093/-/reload >/dev/null 2>&1 \
-        && log "alertmanager reloaded with Pushover receiver" \
-        || log "WARN: alertmanager reload failed (may not be running yet)"
+    # Reload alertmanager so it picks up the new receiver. The mv above is atomic
+    # on the host, but OrbStack's virtiofs bridge has been observed taking up to
+    # ~60s to propagate a host-side file change into the container's bind-mounted
+    # view — a single attempt landing in that window fails with "no such file or
+    # directory", so retry with a budget that covers the observed worst case.
+    RELOADED=false
+    for i in $(seq 1 18); do
+        if curl -sf -X POST http://localhost:9093/-/reload >/dev/null 2>&1; then
+            RELOADED=true
+            break
+        fi
+        sleep 5
+    done
+    if "$RELOADED"; then
+        log "alertmanager reloaded with Pushover receiver"
+    else
+        log "WARN: alertmanager reload failed after retries (may not be running yet)"
+    fi
 else
     log "WARN: failed to fetch Pushover credentials — alertmanager.yml left as no-op"
     ERRORS=$((ERRORS + 1))

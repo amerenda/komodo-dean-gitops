@@ -176,7 +176,18 @@ printf '        url: '"'"'https://grafana.amer.dev/d/infra-node-exporter/infra3a
 printf '        priority: '"'"'0'"'"'\n' >> "$AM_TMP"
 printf '        send_resolved: true\n' >> "$AM_TMP"
 mv "$AM_TMP" mac-mini-m4/monitoring/alertmanager.yml
-curl -sf -X POST http://10.100.20.18:9093/-/reload >/dev/null 2>&1 || true
+# The rename above is atomic on the host, but OrbStack's virtiofs bridge between
+# the macOS host filesystem and the Linux container has been observed taking up
+# to ~60s to propagate a host-side file change into the container's bind-mounted
+# view. A single fire-and-forget reload landing in that window fails with
+# "no such file or directory" and was silently swallowed (|| true), leaving
+# Alertmanager running stale config until some unrelated later trigger happened
+# to retry it. Retry with a budget that covers the observed worst case instead
+# of hoping for one.
+for i in $(seq 1 18); do
+    curl -sf -X POST http://10.100.20.18:9093/-/reload >/dev/null 2>&1 && break
+    sleep 5
+done
 """
 
 # ── OpenWebUI: Chat interface — claw.amer.dev ─────────────────────────────
