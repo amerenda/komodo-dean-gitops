@@ -332,13 +332,15 @@ MON_GRAF=$(printf '%s' "$MON_GRAF" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]
         ERRORS=$((ERRORS + 1))
     fi
     printf 'MONITORING_DIR=%s\n' "$MON_DIR"
-} > "$MON_ENV"
+} > "$MON_ENV.tmp"
+mv "$MON_ENV.tmp" "$MON_ENV"
 chown "$OWNER" "$MON_ENV" 2>/dev/null || true
 
 HA_TOK=$("$BWS_BIN" secret get "c7ccdb87-b04e-428e-bbcf-b4340156edf6" 2>/dev/null | /opt/homebrew/bin/jq -r .value)
 HA_TOK=$(printf '%s' "$HA_TOK" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
 if [[ -n "$HA_TOK" ]] && [[ "$HA_TOK" != "null" ]]; then
-    printf '%s' "$HA_TOK" > "$MON_DIR/ha-token"
+    printf '%s' "$HA_TOK" > "$MON_DIR/ha-token.tmp"
+    mv "$MON_DIR/ha-token.tmp" "$MON_DIR/ha-token"
     chmod 0600 "$MON_DIR/ha-token"
     chown "$OWNER" "$MON_DIR/ha-token" 2>/dev/null || true
 else
@@ -372,7 +374,7 @@ PUSHOVER_TOKEN=$(printf '%s' "$PUSHOVER_TOKEN" | sed -e 's/^[[:space:]]*//' -e '
 # resource-sync/stacks.toml's copy of this same template.
 if [[ -n "$PUSHOVER_USER_KEY" ]] && [[ "$PUSHOVER_USER_KEY" != "null" ]] && \
    [[ -n "$PUSHOVER_TOKEN" ]]    && [[ "$PUSHOVER_TOKEN"    != "null" ]]; then
-    cat > "$MON_DIR/alertmanager.yml" << ALERTMANAGER_EOF
+    cat > "$MON_DIR/alertmanager.yml.tmp" << ALERTMANAGER_EOF
 global:
   resolve_timeout: 5m
 
@@ -411,6 +413,7 @@ receivers:
         priority: '0'
         send_resolved: true
 ALERTMANAGER_EOF
+    mv "$MON_DIR/alertmanager.yml.tmp" "$MON_DIR/alertmanager.yml"
     chmod 0600 "$MON_DIR/alertmanager.yml"
     chown "$OWNER" "$MON_DIR/alertmanager.yml" 2>/dev/null || true
     # Reload alertmanager so it picks up the new receiver immediately.
