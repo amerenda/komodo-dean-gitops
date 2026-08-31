@@ -15,12 +15,20 @@ groups:
       # would otherwise fire 5x for one real condition. Other hosts are untouched here
       # since their extra mountpoints (e.g. murderbot's /mnt/storage) are genuinely
       # separate volumes, not duplicates.
+      # murderbot and archlinux are k3s nodes AND directly scraped by this Prometheus
+      # (job=murderbot-node/archlinux-node, instance=<hostname>), so k3s's own
+      # node-exporter DaemonSet scrapes them too and remote_writes a second copy in
+      # here under job=node-exporter with a raw instance=<ip>:9100 label. That raw
+      # instance format is unique to the k3s remote_write path (direct scrapes always
+      # relabel instance to the hostname), so excluding those two IPs drops only the
+      # duplicate copy — never the direct-scrape series, and never other k3s-only
+      # nodes (rpi5-0/1, rpi4-0) which have no direct-scrape counterpart to worry about.
       - alert: DiskSpaceLow
         expr: >
           (
             (
-              node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node"}
-              / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node"}
+              node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node", instance!~"10\\.100\\.20\\.19:9100|10\\.100\\.20\\.25:9100"}
+              / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node", instance!~"10\\.100\\.20\\.19:9100|10\\.100\\.20\\.25:9100"}
             )
             or
             (
@@ -40,13 +48,14 @@ groups:
           dashboard_url: "https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance={{ $labels.instance }}"
 
       # Critical: < 10% free — mirrors the level that caused the 2026-07-12 outage.
-      # Same job="mac-mini-node" mountpoint dedup as DiskSpaceLow above — see comment there.
+      # Same job="mac-mini-node" mountpoint dedup and murderbot/archlinux k3s-copy
+      # exclusion as DiskSpaceLow above — see comments there.
       - alert: DiskSpaceCritical
         expr: >
           (
             (
-              node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node"}
-              / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node"}
+              node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node", instance!~"10\\.100\\.20\\.19:9100|10\\.100\\.20\\.25:9100"}
+              / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node", instance!~"10\\.100\\.20\\.19:9100|10\\.100\\.20\\.25:9100"}
             )
             or
             (
