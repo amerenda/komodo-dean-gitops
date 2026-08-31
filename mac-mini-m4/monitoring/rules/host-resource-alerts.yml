@@ -1,0 +1,84 @@
+groups:
+  - name: host-resource-alerts
+    rules:
+
+      # INC-2026-08-30: murderbot ran with zero swap headroom for 7+ hours
+      # (16:00-23:56 UTC) with no alert anywhere. Once swap fills, any burst
+      # forces page thrashing (iowait up to 93%, load1 up to 90.91), which
+      # degraded Jellyfin streaming and got litellm-server's pod killed by
+      # kubelet repeatedly. This is the earliest reliable signal: catch it
+      # while there's still swap headroom, well before thrashing starts.
+      - alert: MurderbotSwapNearlyExhausted
+        expr: >
+          node_memory_SwapTotal_bytes{instance="murderbot",job="murderbot-node"} > 0
+          AND
+          (node_memory_SwapFree_bytes{instance="murderbot",job="murderbot-node"}
+            / node_memory_SwapTotal_bytes{instance="murderbot",job="murderbot-node"}) < 0.10
+        for: 10m
+        labels:
+          severity: warning
+          stack: murderbot-host
+        annotations:
+          summary: "murderbot swap is below 10% free ({{ $value | humanizePercentage }})"
+          description: |
+            Swap has been below 10% free for 10+ minutes. Once swap fully fills,
+            any CPU/memory burst causes host-wide page thrashing (see
+            INC-2026-08-30 in Obsidian Incidents/).
+
+            Check: free -h
+            Likely culprits seen before: sabnzbd RES growth (restart via Komodo),
+            long-lived `claude --enable-auto-mode` background sessions
+            (ps -eo etime,rss,cmd | grep claude).
+
+      # Confirms thrashing is actually happening (not just low swap headroom).
+      # load1 baseline is 0.2-2.3; 90.91 was observed during the incident.
+      - alert: MurderbotLoadCritical
+        expr: node_load1{instance="murderbot",job="murderbot-node"} > 8
+        for: 5m
+        labels:
+          severity: critical
+          stack: murderbot-host
+        annotations:
+          summary: "murderbot load1 is {{ $value | printf \"%.1f\" }}, host likely thrashing"
+          description: |
+            load1 > 8 for 5+ minutes. During INC-2026-08-30 this reached 90.91
+            under swap-exhaustion page thrashing. D-state (uninterruptible I/O
+            wait) processes count toward load1, so this pairs with iowait.
+
+            Check: uptime; ps -eo stat,pid,cmd | grep '^D'; free -h
+
+      - alert: MurderbotIowaitCritical
+        expr: >
+          (avg without (cpu) (rate(node_cpu_seconds_total{instance="murderbot",job="murderbot-node",mode="iowait"}[5m]))) * 100 > 30
+        for: 5m
+        labels:
+          severity: critical
+          stack: murderbot-host
+        annotations:
+          summary: "murderbot iowait is {{ $value | printf \"%.1f\" }}%, host likely thrashing"
+          description: |
+            Sustained iowait > 30% for 5+ minutes. INC-2026-08-30 saw this reach
+            93% during swap-exhaustion page thrashing, which stalled the Docker
+            socket (docker ps hung) and degraded Jellyfin/litellm-server.
+
+            Check: iostat -x 3; free -h
+
+      # MemAvailable floor was ~3.2-3.8GB pre-incident, stepped down to a
+      # permanent ~2.1-2.4GB floor once swap filled and never recovered
+      # without a reboot. Threshold set below the pre-incident baseline floor
+      # so this doesn't false-positive on normal operation, adjust if it does.
+      - alert: MurderbotMemoryLow
+        expr: node_memory_MemAvailable_bytes{instance="murderbot",job="murderbot-node"} < 1.5e9
+        for: 10m
+        labels:
+          severity: warning
+          stack: murderbot-host
+        annotations:
+          summary: "murderbot MemAvailable is {{ $value | humanize1024 }}B, below 1.5GB"
+          description: |
+            MemAvailable has been under 1.5GB for 10+ minutes. Combined with
+            MurderbotSwapNearlyExhausted this is the lead-up pattern to
+            INC-2026-08-30's host thrashing.
+
+            Check: free -h; docker stats --no-stream (sabnzbd RES growth was
+            the largest single contributor at 6.29GB after 37 days uptime)
