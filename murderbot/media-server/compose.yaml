@@ -159,6 +159,18 @@ services:
     devices:
       - /dev/dri:/dev/dri
     mem_swappiness: 0
+    # INC-2026-08-30: Jellyfin had no healthcheck at all, so when host-level
+    # swap exhaustion starved it of CPU/iowait, `docker ps` kept showing "Up"
+    # the whole time nothing detected the ~2.5min stream outage this caused.
+    # This only catches app-level unresponsiveness (matches Komodo's own
+    # health display) -- it does not fix or detect the host resource
+    # exhaustion itself, see host-resource-alerts.yml for that.
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-o", "/dev/null", "http://localhost:8096/health"]
+      start_period: 30s
+      timeout: 5s
+      interval: 30s
+      retries: 3
     restart: unless-stopped
 
   seerr:
