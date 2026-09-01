@@ -141,7 +141,7 @@ BWS secret (`hardcover-api-key`) shared by all three integration points.
 | radarr | `lscr.io/linuxserver/radarr` | `6.1.1` | linuxserver tag |
 | sonarr | `linuxserver/sonarr` | `4.0.17` | Sonarr V4 — no custom script hooks |
 | bazarr | `linuxserver/bazarr` | `1.5.6` | linuxserver tag |
-| jellyfin | `linuxserver/jellyfin` | `10.11.8` | Pinned since stack creation |
+| jellyfin | `linuxserver/jellyfin` | `10.11.11` | Upgraded 2026-07-13 to unblock IntroSkipper ≥1.10.11.20 |
 | seerr | `ghcr.io/seerr-team/seerr` | `v3.2.0` | GitHub release tag |
 | recyclarr | `ghcr.io/recyclarr/recyclarr` | `7` | Major version only (stable v7 API) |
 | calibre | `lscr.io/linuxserver/calibre` | `9.11.0` | linuxserver tag (no `-lsN`) |
