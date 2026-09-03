@@ -318,6 +318,120 @@ services:
       - ${CALIBRE_SYNC_SCRIPTS}:/sync-scripts:ro
     restart: unless-stopped
 
+  # ── shelfarr + BookOrbit trial (Phase 2 of the LazyLibrarian→shelfarr
+  # migration) ─────────────────────────────────────────────────────────────
+  # Trial only: everything below writes to BOOKS_TRIAL_* paths, never
+  # CALIBRE_LIBRARY_FOLDER — the live library is untouched. See Obsidian
+  # Projects/Media Server Stack/Plans/shelfarr-migration.md and its
+  # background note for the full decision record (kosync/libsync stays
+  # untouched and is mandatory; BookOrbit's own competing sync must stay
+  # disabled; shelfarr is the sole acquisition/curation gate — BookOrbit's
+  # own request/indexer feature is deliberately left unconfigured).
+  #
+  # shelfarr replaces LazyLibrarian: auto-selects a single best release per
+  # request instead of grabbing every match. Reuses the existing
+  # prowlarr/sabnzbd — wire those up via Settings > Indexers / Download
+  # Clients in its own UI post-deploy, not via env vars.
+  shelfarr:
+    container_name: shelfarr
+    image: ghcr.io/pedro-revez-silva/shelfarr:2026.08.31.1
+    networks:
+      servarr:
+    dns: *dns-servers
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/New_York
+      - RAILS_MASTER_KEY=${SHELFARR_RAILS_MASTER_KEY}
+    volumes:
+      - ${SHELFARR_CONFIG}:/rails/storage
+      - ${BOOKS_TRIAL_EBOOKS_FOLDER}:/ebooks
+      - ${BOOKS_TRIAL_AUDIOBOOKS_FOLDER}:/audiobooks
+      - ${USENET_DOWNLOADS}:/downloads
+    ports:
+      - 5056:80
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "-o", "/dev/null", "http://localhost/up"]
+      start_period: 30s
+      timeout: 5s
+      interval: 30s
+      retries: 3
+    restart: unless-stopped
+
+  # BookOrbit replaces calibre-web as the trial serving layer: dedicated
+  # KOReader plugin (on-device catalog browser/download — the Boox Onyx Go
+  # 7 runs real KOReader) plus plain OPDS (the XTeink X3's CrossPoint
+  # firmware). Runs its own bundled Postgres (pgvector/pg18, as shipped
+  # upstream) instead of the shared mac-mini-m4 instance, to avoid an
+  # untested extension/version mismatch during this trial.
+  bookorbit-app:
+    container_name: bookorbit-app
+    image: ghcr.io/bookorbit/bookorbit:v2.8.1
+    init: true
+    networks:
+      servarr:
+    dns: *dns-servers
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - POSTGRES_HOST=bookorbit-db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=bookorbit
+      - POSTGRES_PASSWORD=${BOOKORBIT_POSTGRES_PASSWORD}
+      - POSTGRES_DB=bookorbit
+      - JWT_SECRET=${BOOKORBIT_JWT_SECRET}
+      - SETUP_BOOTSTRAP_TOKEN=${BOOKORBIT_SETUP_BOOTSTRAP_TOKEN}
+      - APP_URL=${BOOKORBIT_APP_URL}
+      - TZ=America/New_York
+      - PUID=1000
+      - PGID=1000
+    depends_on:
+      bookorbit-db:
+        condition: service_healthy
+    volumes:
+      - ${BOOKS_TRIAL_ROOT}:/books
+      - ${BOOKORBIT_DATA_FOLDER}:/data
+    ports:
+      - 3005:3000
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+      - SETGID
+      - SETUID
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 30s
+    restart: unless-stopped
+
+  bookorbit-db:
+    container_name: bookorbit-db
+    # Major-version tag only — same pattern as recyclarr above; upstream
+    # doesn't publish patch-level pgvector/PG tags.
+    image: pgvector/pgvector:pg18
+    networks:
+      servarr:
+    dns: *dns-servers
+    environment:
+      - POSTGRES_USER=bookorbit
+      - POSTGRES_PASSWORD=${BOOKORBIT_POSTGRES_PASSWORD}
+      - POSTGRES_DB=bookorbit
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - ${BOOKORBIT_POSTGRES_DATA}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bookorbit -d bookorbit"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
 
 networks:
    servarr:
