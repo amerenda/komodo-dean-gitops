@@ -131,6 +131,50 @@ get picked up by the sync sidecar — no fallback title/author search, by
 design, to avoid fuzzy-match false positives. `HARDCOVER_API_KEY` is one
 BWS secret (`hardcover-api-key`) shared by all three integration points.
 
+## shelfarr + BookOrbit trial — replacing LazyLibrarian/calibre-web
+
+Added 2026-09-03, Phase 2 of a planned migration (full decision record and
+plan: Obsidian `Projects/Media Server Stack/Plans/shelfarr-migration.md`
+and its background note). LazyLibrarian has no real download-curation
+model and grabs far more books/editions than wanted — a known, long-
+standing upstream limitation, not a config bug
+([DobyTang/LazyLibrarian#867](https://github.com/DobyTang/LazyLibrarian/issues/867)).
+
+**This is a trial, not a cutover.** `shelfarr` and `bookorbit-app`/
+`bookorbit-db` write only to `BOOKS_TRIAL_*` paths
+(`/mnt/storage/books/shelfarr-trial/{ebooks,audiobooks}`) — never
+`CALIBRE_LIBRARY_FOLDER`. LazyLibrarian/calibre/calibre-web keep running
+unchanged; nothing about the live library or the existing
+`books.amer.dev`/`calibre.amer.dev`/`opds.amer.dev` ingress changes in this
+phase.
+
+- **shelfarr** replaces LazyLibrarian as the acquisition/curation layer —
+  it auto-selects a single best release per request (optionally gated by
+  admin approval) instead of grabbing every match. Reuses the existing
+  `prowlarr`/`sabnzbd` containers, configured via its own UI (Settings >
+  Indexers / Download Clients) post-deploy — no env var wiring for that.
+- **BookOrbit** replaces calibre-web as the serving layer — chosen over
+  Grimmory/Audiobookshelf because it ships a dedicated KOReader plugin
+  (native on-device catalog browser + download, the best fit for the Boox
+  Onyx Go 7, which runs real KOReader) plus plain OPDS support (covers the
+  XTeink X3's CrossPoint firmware). Runs its own bundled Postgres
+  (`bookorbit-db`, `pgvector/pgvector:pg18`, as shipped upstream) rather
+  than the shared mac-mini-m4 Postgres instance, to avoid an untested
+  extension/version mismatch during the trial.
+- **kosync/libsync is mandatory and untouched by this trial** — both
+  devices keep syncing reading position via the existing
+  `libsync.amer.dev` exactly as before. BookOrbit's own three-way progress
+  sync feature must stay disabled — never enable it, to avoid two systems
+  writing conflicting progress for the same book.
+- shelfarr is the sole acquisition/curation gate — BookOrbit's own
+  built-in book-request feature (indexers, download clients) is
+  deliberately left unconfigured, to avoid two competing acquisition
+  paths.
+- `SHELFARR_RAILS_MASTER_KEY`, `BOOKORBIT_JWT_SECRET`,
+  `BOOKORBIT_SETUP_BOOTSTRAP_TOKEN`, and `BOOKORBIT_POSTGRES_PASSWORD` are
+  BWS secrets, fetched in `pre-deploy.sh` the same way as
+  `HARDCOVER_API_KEY`/`SONARR_API_KEY`.
+
 ### Current pinned versions
 
 | Service | Image | Pinned Version | Notes |
@@ -148,3 +192,5 @@ BWS secret (`hardcover-api-key`) shared by all three integration points.
 | calibre-web | `lscr.io/linuxserver/calibre-web` | `0.6.26` | linuxserver tag (no `-lsN`) |
 | lazylibrarian | `lscr.io/linuxserver/lazylibrarian` | `9838d6fe-ls314` | No semver releases exist upstream — only commit-hash build tags. Bumped from f4110fff 2026-07-23: that build's `add_book` handler didn't accept the `source=` param the frontend sends, causing a 404 on every "add book" click. |
 | sonarr-missing-search-cron | `docker:27-cli` | `27` | Same crond shape/version as mac-mini-m4/docker-maintenance. Daily `MissingEpisodeSearch` — see config/sonarr-cron/crontab.txt. |
+| shelfarr | `ghcr.io/pedro-revez-silva/shelfarr` | `2026.08.31.1` | GitHub release `v2026.08.31.1`; OCI tag drops the `v` prefix per upstream's own versioning note. Trial only, see section above. |
+| bookorbit-app / bookorbit-db | `ghcr.io/bookorbit/bookorbit` / `pgvector/pgvector` | `v2.8.1` / `pg18` | bookorbit-db pinned to major-version tag only, same pattern as recyclarr — upstream doesn't publish patch-level pgvector/PG tags. Trial only, see section above. |

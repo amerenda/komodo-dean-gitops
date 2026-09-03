@@ -31,6 +31,28 @@ SONARR_API_KEY=$(bws secret get "d3a7aeb5-0dc5-4fa2-99b6-b4b4014fb50a" \
 [[ -n "$SONARR_API_KEY" && "$SONARR_API_KEY" != "null" ]] \
   || { echo "media-server pre-deploy: failed to fetch sonarr-api-key" >&2; exit 1; }
 
+# shelfarr + BookOrbit trial (Phase 2 of the LazyLibrarian→shelfarr migration,
+# see Obsidian Projects/Media Server Stack/Plans/shelfarr-migration.md).
+SHELFARR_RAILS_MASTER_KEY=$(bws secret get "61e42ee7-67bc-456f-947f-b4ba00e5a451" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$SHELFARR_RAILS_MASTER_KEY" && "$SHELFARR_RAILS_MASTER_KEY" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch shelfarr-rails-master-key" >&2; exit 1; }
+
+BOOKORBIT_JWT_SECRET=$(bws secret get "50b0512c-9eef-4f95-ab98-b4ba00e5a64c" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$BOOKORBIT_JWT_SECRET" && "$BOOKORBIT_JWT_SECRET" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch bookorbit-jwt-secret" >&2; exit 1; }
+
+BOOKORBIT_SETUP_BOOTSTRAP_TOKEN=$(bws secret get "82ad16fd-2a27-4817-8884-b4ba00e5a856" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$BOOKORBIT_SETUP_BOOTSTRAP_TOKEN" && "$BOOKORBIT_SETUP_BOOTSTRAP_TOKEN" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch bookorbit-setup-bootstrap-token" >&2; exit 1; }
+
+BOOKORBIT_POSTGRES_PASSWORD=$(bws secret get "99c027fc-81d7-44f4-837b-b4ba00e5aa50" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$BOOKORBIT_POSTGRES_PASSWORD" && "$BOOKORBIT_POSTGRES_PASSWORD" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch bookorbit-postgres-password" >&2; exit 1; }
+
 # Remove orphaned containers from pre-k3s-ingress era (nginx/certbot/dns no
 # longer in compose; k3s Traefik + cert-manager handle TLS termination).
 for _c in nginx certbot dns; do
@@ -67,6 +89,22 @@ CALIBRE_LIBRARY_DIR="/mnt/storage/books/calibre-library"
 mkdir -p "$CALIBRE_CONFIG_DIR" "$CALIBREWEB_CONFIG_DIR" "$LAZYLIBRARIAN_CONFIG_DIR" "$CALIBRE_LIBRARY_DIR"
 chown -R 1000:1000 "${CONFIG_ROOT}/calibre" "${CONFIG_ROOT}/calibre-web" "${CONFIG_ROOT}/lazylibrarian" "$CALIBRE_LIBRARY_DIR"
 chmod 0755 "${CONFIG_ROOT}/calibre" "$CALIBRE_CONFIG_DIR" "${CONFIG_ROOT}/calibre-web" "$CALIBREWEB_CONFIG_DIR" "${CONFIG_ROOT}/lazylibrarian" "$LAZYLIBRARIAN_CONFIG_DIR"
+
+# shelfarr + BookOrbit trial dirs. BOOKS_TRIAL_* is deliberately separate
+# from CALIBRE_LIBRARY_DIR — nothing here touches the live library until
+# Phase 3 of the migration plan. BookOrbit's own Postgres data dir is left
+# at default ownership; the pgvector/pgvector image fixes it internally on
+# first start.
+SHELFARR_CONFIG_DIR="${CONFIG_ROOT}/shelfarr/storage"
+BOOKORBIT_DATA_DIR="${CONFIG_ROOT}/bookorbit/data"
+BOOKORBIT_POSTGRES_DATA_DIR="${CONFIG_ROOT}/bookorbit/postgres"
+BOOKS_TRIAL_ROOT_DIR="/mnt/storage/books/shelfarr-trial"
+BOOKS_TRIAL_EBOOKS_DIR="${BOOKS_TRIAL_ROOT_DIR}/ebooks"
+BOOKS_TRIAL_AUDIOBOOKS_DIR="${BOOKS_TRIAL_ROOT_DIR}/audiobooks"
+mkdir -p "$SHELFARR_CONFIG_DIR" "$BOOKORBIT_DATA_DIR" "$BOOKORBIT_POSTGRES_DATA_DIR" \
+  "$BOOKS_TRIAL_EBOOKS_DIR" "$BOOKS_TRIAL_AUDIOBOOKS_DIR"
+chown -R 1000:1000 "${CONFIG_ROOT}/shelfarr" "${CONFIG_ROOT}/bookorbit/data" "$BOOKS_TRIAL_ROOT_DIR"
+chmod 0755 "$SHELFARR_CONFIG_DIR" "$BOOKORBIT_DATA_DIR" "$BOOKS_TRIAL_ROOT_DIR" "$BOOKS_TRIAL_EBOOKS_DIR" "$BOOKS_TRIAL_AUDIOBOOKS_DIR"
 
 # Hardcover metadata source: calibre plugin's API key is seeded by a
 # custom-cont-init.d script (needs to land in its own bind-mounted dir, not
@@ -105,6 +143,17 @@ chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBR
   echo "CALIBRE_CUSTOM_INIT=${CALIBRE_CUSTOM_INIT_DIR}"
   echo "HARDCOVER_PROVIDER_FILE=${HARDCOVER_PROVIDER_DIR}/hardcover.py"
   echo "CALIBRE_SYNC_SCRIPTS=${CALIBRE_SYNC_SCRIPTS_DIR}"
+  echo "SHELFARR_CONFIG=${SHELFARR_CONFIG_DIR}"
+  echo "SHELFARR_RAILS_MASTER_KEY=${SHELFARR_RAILS_MASTER_KEY}"
+  echo "BOOKORBIT_DATA_FOLDER=${BOOKORBIT_DATA_DIR}"
+  echo "BOOKORBIT_POSTGRES_DATA=${BOOKORBIT_POSTGRES_DATA_DIR}"
+  echo "BOOKORBIT_JWT_SECRET=${BOOKORBIT_JWT_SECRET}"
+  echo "BOOKORBIT_SETUP_BOOTSTRAP_TOKEN=${BOOKORBIT_SETUP_BOOTSTRAP_TOKEN}"
+  echo "BOOKORBIT_POSTGRES_PASSWORD=${BOOKORBIT_POSTGRES_PASSWORD}"
+  echo "BOOKORBIT_APP_URL=http://10.100.20.19:3005"
+  echo "BOOKS_TRIAL_ROOT=${BOOKS_TRIAL_ROOT_DIR}"
+  echo "BOOKS_TRIAL_EBOOKS_FOLDER=${BOOKS_TRIAL_EBOOKS_DIR}"
+  echo "BOOKS_TRIAL_AUDIOBOOKS_FOLDER=${BOOKS_TRIAL_AUDIOBOOKS_DIR}"
   echo "DATA_BASE=/mnt/storage"
   echo "MOVIES_FOLDER=/mnt/storage/movies"
   echo "TV_FOLDER=/mnt/storage/tv"
