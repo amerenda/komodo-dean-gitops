@@ -1,0 +1,43 @@
+groups:
+  - name: tcp-exhaustion-alerts
+    rules:
+
+      # INC-2026-09-07: a connection flood drove mac-mini-m4's entire
+      # ephemeral port range into TIME_WAIT, blocking all new outbound TCP
+      # host-wide (including Komodo's gitops git fetch) with no warning.
+      # Metric is written by the native com.local.tcp-textfile-exporter
+      # LaunchDaemon (see scripts/tcp-exhaustion-textfile-exporter.sh) since
+      # no containerized exporter can see the real macOS TCP stack.
+      - alert: MacMiniTcpPortExhaustionWarning
+        expr: mac_mini_tcp_ephemeral_port_utilization_ratio{job="mac-mini-node"} > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "mac-mini-m4 ephemeral TCP ports {{ $value | humanizePercentage }} used"
+          description: >
+            TIME_WAIT sockets have been over 50% of the ephemeral port pool
+            for 5+ minutes. INC-2026-09-07 reached 100% and blocked all new
+            outbound TCP (DNS-over-HTTPS, backups, gitops git fetch, API
+            calls) with no warning until Komodo's deploy failed.
+
+            Check: ssh mini 'netstat -n -p tcp | awk "{print \$NF}" | sort | uniq -c | sort -rn'
+            Check: ssh mini 'netstat -n -p tcp | awk "{print \$5}" | cut -d. -f1-4 | sort | uniq -c | sort -rn | head'
+          dashboard_url: "https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance=mac-mini-node"
+
+      - alert: MacMiniTcpPortExhaustionCritical
+        expr: mac_mini_tcp_ephemeral_port_utilization_ratio{job="mac-mini-node"} > 0.85
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: mac-mini-m4 ephemeral TCP ports nearly exhausted ({{ $value | humanizePercentage }})"
+          description: >
+            TIME_WAIT sockets have been over 85% of the ephemeral port pool
+            for 2+ minutes — new outbound TCP connections from mac-mini-m4
+            (including loopback) are at imminent risk of failing outright,
+            per INC-2026-09-07.
+
+            Check: ssh mini 'netstat -n -p tcp | awk "{print \$NF}" | sort | uniq -c | sort -rn'
+            Check: ssh mini 'netstat -n -p tcp | awk "{print \$5}" | cut -d. -f1-4 | sort | uniq -c | sort -rn | head'
+          dashboard_url: "https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance=mac-mini-node"
