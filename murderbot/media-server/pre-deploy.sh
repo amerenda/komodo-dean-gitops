@@ -92,9 +92,7 @@ chmod 0755 "${CONFIG_ROOT}/calibre" "$CALIBRE_CONFIG_DIR" "${CONFIG_ROOT}/calibr
 
 # shelfarr + BookOrbit trial dirs. BOOKS_TRIAL_* is deliberately separate
 # from CALIBRE_LIBRARY_DIR — nothing here touches the live library until
-# Phase 3 of the migration plan. BookOrbit's own Postgres data dir is left
-# at default ownership; the pgvector/pgvector image fixes it internally on
-# first start.
+# Phase 3 of the migration plan.
 SHELFARR_CONFIG_DIR="${CONFIG_ROOT}/shelfarr/storage"
 BOOKORBIT_DATA_DIR="${CONFIG_ROOT}/bookorbit/data"
 BOOKORBIT_POSTGRES_DATA_DIR="${CONFIG_ROOT}/bookorbit/postgres"
@@ -105,6 +103,19 @@ mkdir -p "$SHELFARR_CONFIG_DIR" "$BOOKORBIT_DATA_DIR" "$BOOKORBIT_POSTGRES_DATA_
   "$BOOKS_TRIAL_EBOOKS_DIR" "$BOOKS_TRIAL_AUDIOBOOKS_DIR"
 chown -R 1000:1000 "${CONFIG_ROOT}/shelfarr" "${CONFIG_ROOT}/bookorbit/data" "$BOOKS_TRIAL_ROOT_DIR"
 chmod 0755 "$SHELFARR_CONFIG_DIR" "$BOOKORBIT_DATA_DIR" "$BOOKS_TRIAL_ROOT_DIR" "$BOOKS_TRIAL_EBOOKS_DIR" "$BOOKS_TRIAL_AUDIOBOOKS_DIR"
+# BookOrbit's bundled Postgres (pgvector/pgvector:pg18) hard-codes uid/gid
+# 999 for its "postgres" user and does not honor PUID/PGID like the LSIO
+# images above. Its entrypoint's first (root) pass only chowns $PGDATA
+# itself (the "postgres/pgdata" subdir) before re-execing as uid 999 — it
+# never touches this directory's own root, which this script's `umask 077`
+# otherwise leaves as root:root 0700. On the uid-999 pass, postgres then
+# can't even traverse into its own parent dir and crash-loops forever on
+# "mkdir: cannot create directory '.../postgres': Permission denied".
+# Confirmed 2026-09-07 by reproducing the entrypoint under bash -x against
+# the real bind mount (914 restarts before this was found). Chowning here,
+# every deploy, is what the pgvector image assumes the operator has
+# already done — it does not and cannot do this part itself.
+chown -R 999:999 "$BOOKORBIT_POSTGRES_DATA_DIR"
 
 # Hardcover metadata source: calibre plugin's API key is seeded by a
 # custom-cont-init.d script (needs to land in its own bind-mounted dir, not
