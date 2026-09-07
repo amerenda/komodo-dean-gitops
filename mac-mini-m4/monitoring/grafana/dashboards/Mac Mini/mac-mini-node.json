@@ -230,8 +230,8 @@
             "type": "prometheus",
             "uid": "${datasource}"
           },
-          "expr": "1 - (node_filesystem_avail_bytes{job=\"mac-mini-node\", mountpoint=\"/\"} / node_filesystem_size_bytes{job=\"mac-mini-node\", mountpoint=\"/\"})",
-          "legendFormat": "/",
+          "expr": "1 - (node_filesystem_avail_bytes{job=\"mac-mini-node\", mountpoint=\"/mnt/mac\"} / node_filesystem_size_bytes{job=\"mac-mini-node\", mountpoint=\"/mnt/mac\"})",
+          "legendFormat": "/mnt/mac",
           "refId": "A"
         }
       ]
@@ -1140,6 +1140,138 @@
           },
           "expr": "node_filesystem_size_bytes{job=\"mac-mini-node\", mountpoint=~\".*docker.*|.*orbstack.*|/var/lib/docker.*\"} - node_filesystem_avail_bytes{job=\"mac-mini-node\", mountpoint=~\".*docker.*|.*orbstack.*|/var/lib/docker.*\"}",
           "legendFormat": "{{mountpoint}} used",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "TCP",
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "id": 60
+    },
+    {
+      "type": "gauge",
+      "title": "TCP Ephemeral Port Utilization",
+      "description": "Fraction of the ephemeral port pool consumed by TIME_WAIT sockets. Reached 1.0 during INC-2026-09-07, blocking all outbound TCP.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 8,
+        "x": 0,
+        "y": 49
+      },
+      "id": 61,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.7
+              },
+              {
+                "color": "red",
+                "value": 0.85
+              }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "mac_mini_tcp_ephemeral_port_utilization_ratio{job=\"mac-mini-node\"}",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "TCP Connections Active",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${datasource}"
+      },
+      "gridPos": {
+        "h": 6,
+        "w": 16,
+        "x": 8,
+        "y": 49
+      },
+      "id": 62,
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never",
+            "spanNulls": true
+          }
+        }
+      },
+      "options": {
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "mac_mini_tcp_time_wait_sockets{job=\"mac-mini-node\"}",
+          "legendFormat": "TIME_WAIT sockets",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+          },
+          "expr": "mac_mini_tcp_ephemeral_ports_total{job=\"mac-mini-node\"}",
+          "legendFormat": "Ephemeral pool size",
           "refId": "B"
         }
       ]
