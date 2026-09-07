@@ -232,10 +232,8 @@ git_account = "amerenda"
 project_name = "couchdb"
 [stack.config.pre_deploy]
 command = """
-export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
 mkdir -p /Users/alex/komodo/couchdb/data
-printf 'COUCHDB_ADMIN_PASSWORD=%s\n' "$(bws secret get 9115d95f-dff5-4923-9f3d-b48d00ee4c6f --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" > mac-mini-m4/couchdb/.env
-printf 'COUCHDB_SECRET=%s\n' "$(bws secret get acc8346f-71ac-48fc-93a5-b48d00ee4f2f --access-token "$BWS_ACCESS_TOKEN" | jq -r .value)" >> mac-mini-m4/couchdb/.env
+export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token) && bash mac-mini-m4/scripts/hydrate-secrets.sh mac-mini-m4/couchdb
 """
 
 # ── Runners: GitHub Actions self-hosted runners ───────────────────────────
