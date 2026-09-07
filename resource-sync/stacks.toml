@@ -184,10 +184,7 @@ mv "$AM_TMP" mac-mini-m4/monitoring/alertmanager.yml
 # Alertmanager running stale config until some unrelated later trigger happened
 # to retry it. Retry with a budget that covers the observed worst case instead
 # of hoping for one.
-for i in $(seq 1 18); do
-    curl -sf -X POST http://10.100.20.18:9093/-/reload >/dev/null 2>&1 && break
-    sleep 5
-done
+for i in $(seq 1 18); do curl -sf -X POST http://10.100.20.18:9093/-/reload >/dev/null 2>&1 && break; sleep 5; done
 """
 
 # ── OpenWebUI: Chat interface — claw.amer.dev ─────────────────────────────
