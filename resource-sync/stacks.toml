@@ -43,6 +43,7 @@ branch = "main"
 file_paths = ["mac-mini-m4/core/compose.yaml"]
 git_account = "amerenda"
 project_name = "core"
+webhook_force_deploy = true
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
@@ -74,6 +75,7 @@ file_paths = ["mac-mini-m4/automation/compose.yaml"]
 git_account = "amerenda"
 project_name = "automation"
 ignore_services = ["hacs-init"]
+webhook_force_deploy = true
 
 # ── GTFS Cleanup: prune GTFS realtime zips + HA backup tars ───────────────
 
@@ -89,6 +91,7 @@ branch = "main"
 file_paths = ["mac-mini-m4/gtfs-cleanup/compose.yaml"]
 git_account = "amerenda"
 project_name = "gtfs-cleanup"
+webhook_force_deploy = true
 
 # ── Monitoring: Prometheus, Node Exporter, DB Exporters ────────────────────
 
@@ -201,6 +204,7 @@ branch = "main"
 file_paths = ["mac-mini-m4/openwebui/compose.yaml"]
 git_account = "amerenda"
 project_name = "openwebui"
+webhook_force_deploy = true
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
@@ -230,6 +234,11 @@ branch = "main"
 file_paths = ["mac-mini-m4/couchdb/compose.yaml"]
 git_account = "amerenda"
 project_name = "couchdb"
+# Without this, the stack's GitHub deploy webhook fires on every push but
+# is a no-op unless Komodo's own diff detects a change -- matches
+# `monitoring`'s existing pattern (the only other stack that had this set
+# before this plan). See komodo-deploy-hygiene Phase 0.
+webhook_force_deploy = true
 [stack.config.pre_deploy]
 command = """
 mkdir -p /Users/alex/komodo/couchdb/data
@@ -250,6 +259,7 @@ branch = "main"
 file_paths = ["mac-mini-m4/runners/compose.yaml"]
 git_account = "amerenda"
 project_name = "runners"
+webhook_force_deploy = true
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
@@ -277,6 +287,7 @@ branch = "main"
 file_paths = ["mac-mini-m4/docker-maintenance/compose.yaml"]
 git_account = "amerenda"
 project_name = "docker-maintenance"
+webhook_force_deploy = true
 
 # ── LLM + GPU Exporter: Ollama + AMD GPU metrics (Arch Linux) ────────────────
 # GPU exporter (amdgpu-collector + amdgpu-exporter) is co-located in the
@@ -295,6 +306,7 @@ git_account = "amerenda"
 file_paths = ["archlinux/llm/compose.yaml"]
 project_name = "llm-archlinux"
 ignore_services = ["ollama-init", "smoke-test"]
+webhook_force_deploy = true
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
@@ -354,6 +366,7 @@ file_paths = ["murderbot/llm/compose.yaml"]
 git_account = "amerenda"
 project_name = "llm-murderbot"
 ignore_services = ["smoke-test"]
+webhook_force_deploy = true
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
@@ -380,6 +393,7 @@ branch = "main"
 file_paths = ["murderbot/gpu-switcher/compose.yaml"]
 git_account = "amerenda"
 project_name = "gpu-switcher"
+webhook_force_deploy = true
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
@@ -419,6 +433,7 @@ branch = "main"
 file_paths = ["murderbot/media-server/compose.yaml"]
 git_account = "amerenda"
 project_name = "media-server"
+webhook_force_deploy = true
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
