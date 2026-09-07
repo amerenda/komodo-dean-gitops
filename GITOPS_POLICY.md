@@ -35,6 +35,25 @@ described in git and applied through automation.
      zombie `Created` containers that never start (see 2026-07-22 runners
      incident).
 
+5. **A merge to main must deploy on its own — no manual `RunSync`/`DeployStack`**
+   - Every `deploy = true` stack must have (a) a GitHub deploy webhook
+     registered against its Komodo stack UUID
+     (`pubhooks.amer.dev/listener/github/stack/<uuid>/deploy`) and (b)
+     `webhook_force_deploy = true` in `[stack.config]`. Without (a) no push
+     event ever reaches Komodo for that stack; without (b) a push can reach
+     Komodo and still no-op instead of redeploying.
+   - CI (`webhook-force-deploy` job) enforces (b) automatically. (a) has no
+     automated check yet — a stack provisioned outside `infra-mcp`'s
+     `provision_stateful`/`register_webhook` tools (which register the
+     webhook as part of provisioning) must have its webhook added by hand
+     and verified with `gh api repos/amerenda/komodo-dean-gitops/hooks`.
+   - Found 2026-09-07: 9 of 13 stacks had never had a webhook registered at
+     all, and the one exception with a webhook (`monitoring`) was missing
+     `webhook_force_deploy` for weeks, silently breaking Pushover alerting
+     with no error anywhere. This is why the checklist below calls it out
+     explicitly — "the deploy webhook exists" is not sufficient evidence
+     that a stack actually redeploys on merge.
+
 ## Scope Boundary: Where Changes Belong
 
 - **Host-level concerns** (Docker daemon config, systemd units, package manager
@@ -53,3 +72,7 @@ Before merging infra changes, verify all of the following:
 - The runbook/docs reference automated commands, not imperative one-offs.
 - Any incident-time manual command used during debugging has been converted into
   declarative automation.
+- A new `deploy = true` stack has both a registered GitHub deploy webhook and
+  `webhook_force_deploy = true` — verify with
+  `gh api repos/amerenda/komodo-dean-gitops/hooks` before considering the
+  stack's onboarding done.
