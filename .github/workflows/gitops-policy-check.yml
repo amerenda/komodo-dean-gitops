@@ -14,3 +14,12 @@ jobs:
 
       - name: Check sync-stacks.sh vs resource-sync/stacks.toml
         run: python3 mac-mini-m4/scripts/check-no-compose-collision.py
+
+  webhook-force-deploy:
+    name: every deploy=true stack has webhook_force_deploy set
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check resource-sync/stacks.toml
+        run: python3 mac-mini-m4/scripts/check-webhook-force-deploy.py
