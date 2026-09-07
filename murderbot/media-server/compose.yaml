@@ -366,7 +366,7 @@ services:
   # untested extension/version mismatch during this trial.
   bookorbit-app:
     container_name: bookorbit-app
-    image: ghcr.io/bookorbit/bookorbit:v2.8.1
+    image: ghcr.io/bookorbit/bookorbit:2.8.1
     init: true
     networks:
       servarr:
