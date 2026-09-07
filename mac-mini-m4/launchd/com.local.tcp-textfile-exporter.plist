@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.local.tcp-textfile-exporter</string>
+    <!-- INC-2026-09-07: writes mac_mini_tcp.prom every 30s so Prometheus/node-exporter
+         can see native macOS TCP TIME_WAIT / ephemeral-port state, which no
+         containerized exporter can observe (see the script's own header comment). -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/alex/komodo-dean-gitops/mac-mini-m4/scripts/tcp-exhaustion-textfile-exporter.sh</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>30</integer>
+    <key>StandardOutPath</key>
+    <string>/dev/null</string>
+    <key>StandardErrorPath</key>
+    <string>/dev/null</string>
+</dict>
+</plist>

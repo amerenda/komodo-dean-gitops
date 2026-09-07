@@ -89,6 +89,11 @@ services:
 
   # ============================================================
   # Node Exporter — Host metrics (CPU, memory, disk, network)
+  # textfile-collector dir picks up mac_mini_tcp.prom, written every 30s by
+  # the native com.local.tcp-textfile-exporter LaunchDaemon — this container
+  # runs inside OrbStack's own Linux VM and cannot see the real macOS
+  # netinet/TCP stack itself (see scripts/tcp-exhaustion-textfile-exporter.sh
+  # and INC-2026-09-07).
   # ============================================================
   node-exporter:
     image: prom/node-exporter:v1.11.1
@@ -98,8 +103,10 @@ services:
     command:
       - '--path.rootfs=/host'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - '--collector.textfile.directory=/textfile'
     volumes:
       - /:/host:ro,rslave
+      - ${TCP_TEXTFILE_DIR:-/Users/alex/monitoring/textfile-collector}:/textfile:ro
     pid: host
 
   # ============================================================
