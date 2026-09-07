@@ -424,6 +424,14 @@ branch = "main"
 file_paths = ["murderbot/media-server/compose.yaml"]
 git_account = "amerenda"
 project_name = "media-server"
+# The stack's GitHub deploy webhook fires on every push but is a no-op without
+# this — Komodo only auto-runs ResourceSync (updates the Stack's own config,
+# e.g. pre_deploy) on push, it does not auto-redeploy the running containers
+# unless force_deploy is set (same issue hit by monitoring, see its comment
+# above). #249 (shelfarr + BookOrbit trial) merged to main without this set,
+# so the trial containers were never actually deployed despite the compose
+# file landing on main.
+webhook_force_deploy = true
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
