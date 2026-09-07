@@ -35,5 +35,6 @@ mac_mini_tcp_ephemeral_ports_total $ephemeral_total
 mac_mini_tcp_ephemeral_port_utilization_ratio $utilization
 EOF
 
+chmod 0644 "$TMP_FILE"
 trap - EXIT
 mv "$TMP_FILE" "$OUT_FILE"
