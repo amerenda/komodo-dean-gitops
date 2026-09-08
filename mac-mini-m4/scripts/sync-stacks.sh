@@ -166,6 +166,20 @@ if echo "$CHANGED" | grep -qE '^mac-mini-m4/zigbee2mqtt/slzb-proxy\.py'; then
     fi
 fi
 
+# ollama-log-rotate.sh runs natively on the host (not in a container) via the
+# com.local.ollama-log-rotate LaunchDaemon, same as slzb-proxy above — without
+# this, fixes to the rotation script sit on disk until someone manually
+# restarts it. Requires the NOPASSWD sudoers rule from setup-macmini.yml
+# (mini-ollama tag).
+if echo "$CHANGED" | grep -qE '^mac-mini-m4/scripts/ollama-log-rotate\.sh$'; then
+    echo "$(date): ollama-log-rotate.sh changed, kicking com.local.ollama-log-rotate" >> "$LOG"
+    if sudo -n /bin/launchctl kickstart -k system/com.local.ollama-log-rotate >>"$LOG" 2>&1; then
+        echo "$(date): kicked ollama-log-rotate after code change" >> "$LOG"
+    else
+        echo "$(date): WARN: sudo launchctl kickstart ollama-log-rotate failed (install NOPASSWD via setup-macmini mini-ollama tag, or restart manually once)" >> "$LOG"
+    fi
+fi
+
 if echo "$CHANGED" | grep -qE '^mac-mini-m4/komodo/'; then
     echo "$(date): komodo stack files changed, redeploying" >> "$LOG"
     # Always use compose down+up (not restart/rm) so network endpoints are
