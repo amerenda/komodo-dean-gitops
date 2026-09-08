@@ -438,16 +438,24 @@ scrape_configs:
 
   # Ad-blocking filtering probe — distinct from dns-resolution-probe above:
   # that proves DNS answers at all, this proves ad-blocking is actually
-  # filtering. Queries the real client-facing DNS path (10.100.20.240,
-  # what DHCP hands out), not the loopback resolver port. See blackbox.yml
-  # and the 2026-09-08 background note in Obsidian
-  # (Areas/Infrastructure/notes/technitium-adblock-background.md).
+  # filtering. Deliberately targets the resolver directly (127.0.0.1:5354),
+  # NOT 10.100.20.240 (the client-facing Tailscale-proxied path): the mini
+  # cannot reach its own 10.100.20.240 due to hairpin NAT (confirmed
+  # 2026-09-08 — `dig ... @10.100.20.240` from the mini itself times out,
+  # while external LAN clients reach it fine), so a probe running on the
+  # mini against that address would always time out regardless of whether
+  # blocking works. The Advanced Blocking app's networkGroupMap covers
+  # 0.0.0.0/0 and [::]/0 (all source networks map to the same group), so
+  # querying via the loopback resolver port exercises identical blocking
+  # logic to a real client — confirmed live, same NXDOMAIN + EDE result
+  # via both paths. See blackbox.yml and the 2026-09-08 background note in
+  # Obsidian (Areas/Infrastructure/notes/technitium-adblock-background.md).
   - job_name: dns-adblock-probe
     metrics_path: /probe
     params:
       module: [dns_technitium_adblock]
     static_configs:
-      - targets: ["10.100.20.240:53"]
+      - targets: ["127.0.0.1:5354"]
         labels:
           service: technitium-adblock
     relabel_configs:
