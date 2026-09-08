@@ -342,7 +342,6 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=America/New_York
-      - RAILS_MASTER_KEY=${SHELFARR_RAILS_MASTER_KEY}
     volumes:
       - ${SHELFARR_CONFIG}:/rails/storage
       - ${BOOKS_TRIAL_EBOOKS_FOLDER}:/ebooks

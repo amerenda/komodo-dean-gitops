@@ -170,10 +170,16 @@ phase.
   built-in book-request feature (indexers, download clients) is
   deliberately left unconfigured, to avoid two competing acquisition
   paths.
-- `SHELFARR_RAILS_MASTER_KEY`, `BOOKORBIT_JWT_SECRET`,
-  `BOOKORBIT_SETUP_BOOTSTRAP_TOKEN`, and `BOOKORBIT_POSTGRES_PASSWORD` are
-  BWS secrets, fetched in `pre-deploy.sh` the same way as
-  `HARDCOVER_API_KEY`/`SONARR_API_KEY`.
+- `BOOKORBIT_JWT_SECRET`, `BOOKORBIT_SETUP_BOOTSTRAP_TOKEN`, and
+  `BOOKORBIT_POSTGRES_PASSWORD` are BWS secrets, fetched in `pre-deploy.sh`
+  the same way as `HARDCOVER_API_KEY`/`SONARR_API_KEY`. shelfarr itself
+  intentionally gets no `RAILS_MASTER_KEY`/`SECRET_KEY_BASE` — its own
+  docker-entrypoint auto-generates and persists those to `/rails/storage`
+  on first boot (the documented zero-config path); supplying a custom
+  `RAILS_MASTER_KEY` broke boot (`ArgumentError: key must be 16 bytes` /
+  `ActiveSupport::MessageEncryptor::InvalidMessage`, 2026-09-08 — the
+  key we invented didn't match whatever shelfarr's build expects it to
+  decrypt). Do not reintroduce it.
 
 ### Current pinned versions
 

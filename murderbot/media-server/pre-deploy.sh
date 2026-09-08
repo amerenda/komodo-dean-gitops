@@ -33,10 +33,13 @@ SONARR_API_KEY=$(bws secret get "d3a7aeb5-0dc5-4fa2-99b6-b4b4014fb50a" \
 
 # shelfarr + BookOrbit trial (Phase 2 of the LazyLibrarian→shelfarr migration,
 # see Obsidian Projects/Media Server Stack/Plans/shelfarr-migration.md).
-SHELFARR_RAILS_MASTER_KEY=$(bws secret get "61e42ee7-67bc-456f-947f-b4ba00e5a451" \
-    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
-[[ -n "$SHELFARR_RAILS_MASTER_KEY" && "$SHELFARR_RAILS_MASTER_KEY" != "null" ]] \
-  || { echo "media-server pre-deploy: failed to fetch shelfarr-rails-master-key" >&2; exit 1; }
+# shelfarr's own docker-entrypoint auto-generates and persists its
+# SECRET_KEY_BASE + ActiveRecord encryption keys to /rails/storage on first
+# boot when RAILS_MASTER_KEY/SECRET_KEY_BASE are unset — the documented
+# zero-config path. Supplying our own RAILS_MASTER_KEY bypassed that and
+# broke boot (Rails tried to decrypt config/credentials.yml.enc with a key
+# that doesn't match; "key must be 16 bytes" / MessageEncryptor::InvalidMessage
+# depending on key length). Do not reintroduce a RAILS_MASTER_KEY env var here.
 
 BOOKORBIT_JWT_SECRET=$(bws secret get "50b0512c-9eef-4f95-ab98-b4ba00e5a64c" \
     --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
@@ -155,7 +158,6 @@ chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBR
   echo "HARDCOVER_PROVIDER_FILE=${HARDCOVER_PROVIDER_DIR}/hardcover.py"
   echo "CALIBRE_SYNC_SCRIPTS=${CALIBRE_SYNC_SCRIPTS_DIR}"
   echo "SHELFARR_CONFIG=${SHELFARR_CONFIG_DIR}"
-  echo "SHELFARR_RAILS_MASTER_KEY=${SHELFARR_RAILS_MASTER_KEY}"
   echo "BOOKORBIT_DATA_FOLDER=${BOOKORBIT_DATA_DIR}"
   echo "BOOKORBIT_POSTGRES_DATA=${BOOKORBIT_POSTGRES_DATA_DIR}"
   echo "BOOKORBIT_JWT_SECRET=${BOOKORBIT_JWT_SECRET}"
