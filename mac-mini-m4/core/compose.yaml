@@ -3,7 +3,20 @@ services:
   # Technitium DNS — authoritative + ad-blocking
   # OrbStack intercepts *:53 and *:5353 (mDNS) on macOS.
   # network_mode: host lets Technitium bind directly to host ports.
-  # pf-dns-redirect.sh redirects LAN DNS_IP:53 → :5354 at boot.
+  #
+  # Client-facing path (confirmed live 2026-09-08): pf-dns-redirect.sh
+  # (LaunchDaemon, boot-only) just adds the 10.100.20.240 alias on en0 and
+  # enables IP forwarding — it does NOT redirect port 53 itself, despite
+  # its name (pf rdr doesn't work across the en0→bridge100 boundary into
+  # the OrbStack VM, see the script's own header comment). The actual
+  # :53 → :5354 forwarding is a separate LaunchDaemon, dns-udp-proxy.py, a
+  # userspace proxy that binds only to 10.100.20.240:53 (not the mini's
+  # bare 10.100.20.18) and forwards to Technitium via OrbStack's localhost
+  # forwarder on :5354. dns-alias-watchdog re-asserts the .240 alias every
+  # 30s in case macOS drops it (sleep/wake, link flap).
+  #
+  # 10.100.20.18:53 (the mini's own primary IP) refusing connections is
+  # therefore expected, not a bug — nothing is meant to listen there.
   # ============================================================
   technitium:
     image: technitium/dns-server:14.3.0
