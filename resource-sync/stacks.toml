@@ -149,7 +149,15 @@ printf '  routes:\n' >> "$AM_TMP"
 printf '    - matchers:\n' >> "$AM_TMP"
 printf '        - alertname =~ "DiskSpace.*"\n' >> "$AM_TMP"
 printf '      receiver: '"'"'pushover-disk'"'"'\n' >> "$AM_TMP"
+# These three fire and stay visible in Alertmanager/Prometheus (ALERTS metric,
+# alertmanager.amer.dev) but do not push — Alex found them too noisy for
+# Pushover. MurderbotLoadCritical is intentionally NOT in this list; it keeps
+# pushing.
+printf '    - matchers:\n' >> "$AM_TMP"
+printf '        - alertname =~ "MurderbotSwapNearlyExhausted|MurderbotIowaitCritical|MurderbotMemoryLow"\n' >> "$AM_TMP"
+printf '      receiver: '"'"'grafana-only'"'"'\n' >> "$AM_TMP"
 printf 'receivers:\n' >> "$AM_TMP"
+printf '  - name: '"'"'grafana-only'"'"'\n' >> "$AM_TMP"
 printf '  - name: '"'"'pushover'"'"'\n' >> "$AM_TMP"
 printf '    pushover_configs:\n' >> "$AM_TMP"
 printf '      - user_key: '"'"'%s'"'"'\n' "$PUSHOVER_USER_KEY" >> "$AM_TMP"

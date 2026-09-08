@@ -388,8 +388,12 @@ route:
     - matchers:
         - alertname =~ "DiskSpace.*"
       receiver: 'pushover-disk'
+    - matchers:
+        - alertname =~ "MurderbotSwapNearlyExhausted|MurderbotIowaitCritical|MurderbotMemoryLow"
+      receiver: 'grafana-only'
 
 receivers:
+  - name: 'grafana-only'
   - name: 'pushover'
     pushover_configs:
       - user_key: '${PUSHOVER_USER_KEY}'

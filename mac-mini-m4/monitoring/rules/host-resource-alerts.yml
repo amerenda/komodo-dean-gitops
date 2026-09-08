@@ -34,7 +34,7 @@ groups:
       # load1 baseline is 0.2-2.3; 90.91 was observed during the incident.
       - alert: MurderbotLoadCritical
         expr: node_load1{instance="murderbot",job="murderbot-node"} > 8
-        for: 5m
+        for: 15m
         labels:
           severity: critical
           stack: murderbot-host
