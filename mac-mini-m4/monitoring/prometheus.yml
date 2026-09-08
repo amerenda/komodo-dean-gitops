@@ -435,3 +435,25 @@ scrape_configs:
         target_label: instance
       - replacement: localhost:9115
         target_label: __address__
+
+  # Ad-blocking filtering probe — distinct from dns-resolution-probe above:
+  # that proves DNS answers at all, this proves ad-blocking is actually
+  # filtering. Queries the real client-facing DNS path (10.100.20.240,
+  # what DHCP hands out), not the loopback resolver port. See blackbox.yml
+  # and the 2026-09-08 background note in Obsidian
+  # (Areas/Infrastructure/notes/technitium-adblock-background.md).
+  - job_name: dns-adblock-probe
+    metrics_path: /probe
+    params:
+      module: [dns_technitium_adblock]
+    static_configs:
+      - targets: ["10.100.20.240:53"]
+        labels:
+          service: technitium-adblock
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - replacement: localhost:9115
+        target_label: __address__

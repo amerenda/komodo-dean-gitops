@@ -57,3 +57,21 @@ modules:
       query_type: "A"
       valid_rcodes:
         - NOERROR
+
+  # Verifies ad-blocking is actually filtering, not just that DNS
+  # resolves. 2026-09-08 incident: dns_technitium above only proves DNS
+  # answers at all — the "Advanced Blocking" DNS app can silently route
+  # every client network to a blocking-disabled group while plain
+  # resolution keeps working fine, so that alert stays green throughout.
+  # Queries a domain on virtually every ad blocklist (StevenBlack et al)
+  # against the real client-facing path and expects NXDOMAIN — Technitium's
+  # confirmed sinkhole response (blockAsNxDomain: true) once blocking is
+  # actually filtering.
+  dns_technitium_adblock:
+    prober: dns
+    timeout: 5s
+    dns:
+      query_name: "doubleclick.net"
+      query_type: "A"
+      valid_rcodes:
+        - NXDOMAIN

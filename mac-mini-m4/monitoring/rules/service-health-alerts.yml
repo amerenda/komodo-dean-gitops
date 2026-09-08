@@ -56,6 +56,36 @@ groups:
             Check: dig @127.0.0.1 -p 5354 ha.amer.dev +time=3 +tries=1
             Check: docker logs technitium --tail=50 (on mac-mini-m4)
 
+      # Ad-blocking-specific: proves the block list is actually filtering,
+      # not just that DNS resolves. 2026-09-08: the "Advanced Blocking" DNS
+      # app silently routed every client network (0.0.0.0/0, [::]/0) to a
+      # blocking-disabled group with no lists configured — for an unknown
+      # period every ad domain resolved normally while
+      # TechnitiumDNSResolutionFailing stayed green the whole time, because
+      # plain resolution never stopped working. There was no alert that
+      # would have caught this failure mode until now.
+      - alert: TechnitiumAdBlockingNotFiltering
+        expr: probe_success{job="dns-adblock-probe"} == 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Technitium ad-blocking is not filtering known ad domains"
+          description: |
+            A query for a known-blocklisted domain (doubleclick.net)
+            against the client-facing DNS path (10.100.20.240) returned a
+            real answer instead of NXDOMAIN for 15+ minutes. Ad-blocking is
+            silently not working — independent of
+            TechnitiumDNSResolutionFailing, which only proves DNS resolves
+            at all, not that blocking filters anything.
+
+            Check: dig doubleclick.net @10.100.20.240
+            Check: Technitium admin UI (http://10.100.20.18:5380) > Apps >
+            Advanced Blocking config — confirm the active group has
+            enableBlocking=true and a populated blockListUrls, and that
+            networkGroupMap actually routes the real client subnet(s) to
+            that group and not a bypass/disabled one.
+
       # ---------------------------------------------------------------
       # mem0 — memory service used by every praetor agent
       # ---------------------------------------------------------------
