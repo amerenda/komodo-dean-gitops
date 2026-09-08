@@ -342,6 +342,11 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=America/New_York
+      # Required for shelfarr's background job supervisor (bin/jobs) to run
+      # at all — without it, searches/downloads/scheduled tasks/health
+      # checks all sit permanently Enqueued and never execute. See
+      # upstream docker-compose.example.yml.
+      - SOLID_QUEUE_IN_PUMA=1
     volumes:
       - ${SHELFARR_CONFIG}:/rails/storage
       - ${BOOKS_TRIAL_EBOOKS_FOLDER}:/ebooks
