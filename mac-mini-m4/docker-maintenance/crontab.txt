@@ -2,3 +2,9 @@
 # Build cache grows unboundedly from CI runner image builds.
 # docker:27-cli image + docker socket mount gives access to the host engine.
 0 3 * * 0 docker builder prune -a -f >> /var/log/docker-prune.log 2>&1
+
+# Weekly Sunday 03:15 — prune dangling/unused images (untagged <none> layers
+# left behind by builds/pulls that get superseded). `docker image prune -f`
+# only removes images with no tag AND no container referencing them — never
+# touches anything a running or stopped container still uses.
+15 3 * * 0 docker image prune -f >> /var/log/docker-prune.log 2>&1

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.local.ollama-log-rotate</string>
+    <!-- Checks /Users/alex/ollama.log size hourly; once it crosses 50MB,
+         deletes it and force-restarts com.local.ollama so launchd reopens a
+         fresh empty file. /Users/alex/ollama.log grew to 16GB unbounded
+         before this existed (see mac-mini-m4/scripts/ollama-log-rotate.sh).
+         Runs the script directly from the gitops clone (kept current by the
+         60s com.local.komodo-stack-sync pull, see sync-stacks.sh) so code
+         changes take effect via kickstart, matching the com.local.slzb-proxy
+         pattern. Runs as root (no UserName) since it needs to bootout/
+         bootstrap another system LaunchDaemon. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/alex/komodo-dean-gitops/mac-mini-m4/scripts/ollama-log-rotate.sh</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>3600</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/var/log/ollama-log-rotate.log</string>
+    <key>StandardErrorPath</key>
+    <string>/var/log/ollama-log-rotate.log</string>
+</dict>
+</plist>
