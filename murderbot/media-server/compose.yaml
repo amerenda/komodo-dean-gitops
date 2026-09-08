@@ -346,6 +346,7 @@ services:
       - ${SHELFARR_CONFIG}:/rails/storage
       - ${BOOKS_TRIAL_EBOOKS_FOLDER}:/ebooks
       - ${BOOKS_TRIAL_AUDIOBOOKS_FOLDER}:/audiobooks
+      - ${BOOKS_TRIAL_COMICS_FOLDER}:/comics
       - ${USENET_DOWNLOADS}:/downloads
     ports:
       - 5056:80
