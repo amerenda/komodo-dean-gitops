@@ -270,15 +270,7 @@ project_name = "runners"
 webhook_force_deploy = true
 [stack.config.pre_deploy]
 command = """
-export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
-printf 'DOCKERHUB_USERNAME=amerenda\nRUNNER_SCOPE=repo\nRUNNER_WORKDIR=/_work\nRANDOM_RUNNER_SUFFIX=false\n' > mac-mini-m4/runners/compose.env
-mkdir -p /Users/alex/komodo/runner-secrets
-bws secret get 2c57558f-d185-4410-ad9d-b385015c9302 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value > /Users/alex/komodo/runner-secrets/github-app-arc-id
-bws secret get 0015f9ab-dd5e-4649-a262-b385015ceac1 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value > /Users/alex/komodo/runner-secrets/github-app-arc-private-key
-bws secret get c5ad7fae-2f58-4a8b-9651-b413001cad7f --access-token "$BWS_ACCESS_TOKEN" | jq -r .value > /Users/alex/komodo/runner-secrets/docker-hub-k3s-runner-api-key
-bws secret get 42ea6b6b-3b1e-43d9-8743-b41301665cc9 --access-token "$BWS_ACCESS_TOKEN" | jq -r .value > /Users/alex/komodo/runner-secrets/github-pat-k3s-dean-gitops
-cp mac-mini-m4/runners/entrypoint-wrapper.sh /Users/alex/komodo/runner-secrets/entrypoint-wrapper.sh
-chmod +x /Users/alex/komodo/runner-secrets/entrypoint-wrapper.sh
+export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token) && bash mac-mini-m4/scripts/hydrate-secrets.sh mac-mini-m4/runners && cp mac-mini-m4/runners/entrypoint-wrapper.sh /Users/alex/komodo/runner-secrets/entrypoint-wrapper.sh && chmod +x /Users/alex/komodo/runner-secrets/entrypoint-wrapper.sh
 """
 
 # ── Docker Maintenance: weekly build cache prune ──────────────────────────────

@@ -1,7 +1,7 @@
 x-runner-common: &runner-common
   image: myoung34/github-runner:ubuntu-noble
   restart: unless-stopped
-  env_file: ./compose.env
+  env_file: ./.env
   entrypoint: ["/run/secrets/entrypoint-wrapper.sh"]
   command: ["./bin/Runner.Listener", "run", "--startuptype", "service"]
   volumes:

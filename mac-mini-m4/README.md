@@ -213,7 +213,7 @@ All three paths write to the same locations. The script is idempotent.
 | Komodo database | Git provider PAT | Komodo Core (updated via API by inject-secrets.sh) |
 
 Generated files (not in git, created by inject-secrets.sh):
-- `runners/compose.env` - non-secret runner config
+- `runners/.env` - non-secret runner config
 - `komodo/secrets/*` - Komodo secret files
 - `.env` - service passwords
 - `bind9/keys/key.conf` - TSIG key
@@ -251,7 +251,7 @@ BWS secret IDs are defined in `ansible-playbooks/group_vars/macmini_hosts.yml`.
 |   \-- secrets/                 # (gitignored) secret files on disk
 +-- runners/                     # GitHub Actions runners stack
 |   +-- compose.yaml             # repo-scoped runners (no separate llm-agents repo)
-|   +-- compose.env.example      # Template for non-secret config
+|   +-- secrets.toml             # BWS secret/literal manifest -> .env via hydrate-secrets.sh
 |   \-- entrypoint-wrapper.sh    # Reads secrets from /run/secrets into env
 +-- llm/                         # llm-manager agent (native Ollama + agent container)
 |   +-- compose.yaml
