@@ -131,22 +131,25 @@ get picked up by the sync sidecar — no fallback title/author search, by
 design, to avoid fuzzy-match false positives. `HARDCOVER_API_KEY` is one
 BWS secret (`hardcover-api-key`) shared by all three integration points.
 
-## shelfarr + BookOrbit trial — replacing LazyLibrarian/calibre-web
+## shelfarr + BookOrbit — replacing LazyLibrarian/calibre-web (PRODUCTION)
 
-Added 2026-09-03, Phase 2 of a planned migration (full decision record and
-plan: Obsidian `Projects/Media Server Stack/Plans/shelfarr-migration.md`
-and its background note). LazyLibrarian has no real download-curation
-model and grabs far more books/editions than wanted — a known, long-
-standing upstream limitation, not a config bug
+Added 2026-09-03 as a trial (Phase 2); **cut over to production 2026-09-09
+(Phase 3)** — full decision record and plan: Obsidian
+`Projects/Media Server Stack/Plans/shelfarr-migration.md` and its
+background note. LazyLibrarian has no real download-curation model and
+grabs far more books/editions than wanted — a known, long-standing
+upstream limitation, not a config bug
 ([DobyTang/LazyLibrarian#867](https://github.com/DobyTang/LazyLibrarian/issues/867)).
 
-**This is a trial, not a cutover.** `shelfarr` and `bookorbit-app`/
-`bookorbit-db` write only to `BOOKS_TRIAL_*` paths
-(`/mnt/storage/books/shelfarr-trial/{ebooks,audiobooks}`) — never
-`CALIBRE_LIBRARY_FOLDER`. LazyLibrarian/calibre/calibre-web keep running
-unchanged; nothing about the live library or the existing
-`books.amer.dev`/`calibre.amer.dev`/`opds.amer.dev` ingress changes in this
-phase.
+**This is now the production book library.** `shelfarr` and
+`bookorbit-app`/`bookorbit-db` write to `BOOKS_LIBRARY_*` paths
+(`/mnt/storage/books/library/{ebooks,audiobooks,comics}` — renamed from
+`BOOKS_TRIAL_*`/`shelfarr-trial` in Phase 3; `pre-deploy.sh` does the
+directory rename automatically and idempotently on deploy, no manual `mv`
+needed). `CALIBRE_LIBRARY_FOLDER` (the old calibre library) is being
+imported into BookOrbit via its own Migration UI, then retired in Phase 4
+— LazyLibrarian/calibre/calibre-web still run during the import window but
+are being fully decommissioned, not kept long-term.
 
 - **shelfarr** replaces LazyLibrarian as the acquisition/curation layer —
   it auto-selects a single best release per request (optionally gated by
@@ -160,26 +163,41 @@ phase.
   XTeink X3's CrossPoint firmware). Runs its own bundled Postgres
   (`bookorbit-db`, `pgvector/pgvector:pg18`, as shipped upstream) rather
   than the shared mac-mini-m4 Postgres instance, to avoid an untested
-  extension/version mismatch during the trial.
-- **kosync/libsync is mandatory and untouched by this trial** — both
-  devices keep syncing reading position via the existing
-  `libsync.amer.dev` exactly as before. BookOrbit's own three-way progress
-  sync feature must stay disabled — never enable it, to avoid two systems
-  writing conflicting progress for the same book.
+  extension/version mismatch.
+- **kosync/libsync-mandatory gate superseded 2026-09-09** — BookOrbit's own
+  built-in KOReader sync now replaces libsync/kosync as the active
+  progress-sync mechanism on both devices (see
+  `Plans/audiobookshelf-setup.md` Phase 4). libsync is being fully
+  decommissioned once that's live-verified, not just switched off.
 - shelfarr is the sole acquisition/curation gate — BookOrbit's own
   built-in book-request feature (indexers, download clients) is
   deliberately left unconfigured, to avoid two competing acquisition
   paths.
-- `BOOKORBIT_JWT_SECRET`, `BOOKORBIT_SETUP_BOOTSTRAP_TOKEN`, and
-  `BOOKORBIT_POSTGRES_PASSWORD` are BWS secrets, fetched in `pre-deploy.sh`
-  the same way as `HARDCOVER_API_KEY`/`SONARR_API_KEY`. shelfarr itself
-  intentionally gets no `RAILS_MASTER_KEY`/`SECRET_KEY_BASE` — its own
-  docker-entrypoint auto-generates and persists those to `/rails/storage`
-  on first boot (the documented zero-config path); supplying a custom
-  `RAILS_MASTER_KEY` broke boot (`ArgumentError: key must be 16 bytes` /
+- `BOOKORBIT_JWT_SECRET`, `BOOKORBIT_SETUP_BOOTSTRAP_TOKEN`,
+  `BOOKORBIT_POSTGRES_PASSWORD`, and `BOOKORBIT_MIGRATION_ENCRYPTION_KEY`
+  are BWS secrets, fetched in `pre-deploy.sh` the same way as
+  `HARDCOVER_API_KEY`/`SONARR_API_KEY`. shelfarr itself intentionally gets
+  no `RAILS_MASTER_KEY`/`SECRET_KEY_BASE` — its own docker-entrypoint
+  auto-generates and persists those to `/rails/storage` on first boot (the
+  documented zero-config path); supplying a custom `RAILS_MASTER_KEY`
+  broke boot (`ArgumentError: key must be 16 bytes` /
   `ActiveSupport::MessageEncryptor::InvalidMessage`, 2026-09-08 — the
   key we invented didn't match whatever shelfarr's build expects it to
   decrypt). Do not reintroduce it.
+- **Calibre-library import (Phase 3):** `pre-deploy.sh` regenerates
+  stopped-snapshot copies of calibre-web's `app.db` and calibre's
+  `metadata.db` into `${CONFIG_ROOT}/bookorbit/imports` on every deploy
+  (via Python's `sqlite3` online backup API — safe against the live
+  calibre/calibre-web containers, no need to stop them), bind-mounted
+  read-only into `bookorbit-app` at `/imports`
+  (`MIGRATION_IMPORT_ROOT=/imports`). BookOrbit's Settings > Migration
+  wizard reads these as a "Calibre-Web Automated" source in snapshot mode
+  — verified against `bookorbit/bookorbit`'s own migration connector
+  source that this works against stock calibre-web's `app.db` too (it only
+  emits a compatibility warning, doesn't refuse, when CWA-specific tables
+  are absent). Running the actual import (dry-run review, duplicate
+  resolution against the ~14 ebooks already in BookOrbit, then the live
+  run) is a UI-driven judgment call — done by Alex, not automated here.
 
 ### Current pinned versions
 
@@ -198,5 +216,5 @@ phase.
 | calibre-web | `lscr.io/linuxserver/calibre-web` | `0.6.26` | linuxserver tag (no `-lsN`) |
 | lazylibrarian | `lscr.io/linuxserver/lazylibrarian` | `9838d6fe-ls314` | No semver releases exist upstream — only commit-hash build tags. Bumped from f4110fff 2026-07-23: that build's `add_book` handler didn't accept the `source=` param the frontend sends, causing a 404 on every "add book" click. |
 | sonarr-missing-search-cron | `docker:27-cli` | `27` | Same crond shape/version as mac-mini-m4/docker-maintenance. Daily `MissingEpisodeSearch` — see config/sonarr-cron/crontab.txt. |
-| shelfarr | `ghcr.io/pedro-revez-silva/shelfarr` | `2026.08.31.1` | GitHub release `v2026.08.31.1`; OCI tag drops the `v` prefix per upstream's own versioning note. Trial only, see section above. |
-| bookorbit-app / bookorbit-db | `ghcr.io/bookorbit/bookorbit` / `pgvector/pgvector` | `2.8.1` / `pg18` | BookOrbit's GitHub release tag is `v2.8.1` but its OCI/GHCR image tag drops the `v` prefix (confirmed against the registry directly — `v2.8.1` 404s as `manifest unknown`, `2.8.1` resolves); same convention as shelfarr above. bookorbit-db pinned to major-version tag only, same pattern as recyclarr — upstream doesn't publish patch-level pgvector/PG tags. Trial only, see section above. |
+| shelfarr | `ghcr.io/pedro-revez-silva/shelfarr` | `2026.08.31.1` | GitHub release `v2026.08.31.1`; OCI tag drops the `v` prefix per upstream's own versioning note. Production, see section above. |
+| bookorbit-app / bookorbit-db | `ghcr.io/bookorbit/bookorbit` / `pgvector/pgvector` | `2.8.1` / `pg18` | BookOrbit's GitHub release tag is `v2.8.1` but its OCI/GHCR image tag drops the `v` prefix (confirmed against the registry directly — `v2.8.1` 404s as `manifest unknown`, `2.8.1` resolves); same convention as shelfarr above. bookorbit-db pinned to major-version tag only, same pattern as recyclarr — upstream doesn't publish patch-level pgvector/PG tags. Production, see section above. |
