@@ -318,15 +318,19 @@ services:
       - ${CALIBRE_SYNC_SCRIPTS}:/sync-scripts:ro
     restart: unless-stopped
 
-  # ── shelfarr + BookOrbit trial (Phase 2 of the LazyLibrarian→shelfarr
-  # migration) ─────────────────────────────────────────────────────────────
-  # Trial only: everything below writes to BOOKS_TRIAL_* paths, never
-  # CALIBRE_LIBRARY_FOLDER — the live library is untouched. See Obsidian
-  # Projects/Media Server Stack/Plans/shelfarr-migration.md and its
-  # background note for the full decision record (kosync/libsync stays
-  # untouched and is mandatory; BookOrbit's own competing sync must stay
-  # disabled; shelfarr is the sole acquisition/curation gate — BookOrbit's
-  # own request/indexer feature is deliberately left unconfigured).
+  # ── shelfarr + BookOrbit (Phase 3 of the LazyLibrarian→shelfarr
+  # migration — cutover, this is now the production book stack) ─────────────
+  # Everything below writes to BOOKS_LIBRARY_* paths (renamed from
+  # BOOKS_TRIAL_* in Phase 3 — no "trial"-named paths in a production
+  # stack), never CALIBRE_LIBRARY_FOLDER — the old calibre library is
+  # imported in via BookOrbit's own Migration UI (see
+  # BOOKORBIT_MIGRATION_IMPORTS_FOLDER below), then retired in Phase 4. See
+  # Obsidian Projects/Media Server Stack/Plans/shelfarr-migration.md and its
+  # background note for the full decision record (BookOrbit's own sync now
+  # replaces libsync/kosync, superseding the earlier "kosync mandatory"
+  # gate — see Plans/audiobookshelf-setup.md Phase 4; shelfarr is the sole
+  # acquisition/curation gate — BookOrbit's own request/indexer feature is
+  # deliberately left unconfigured).
   #
   # shelfarr replaces LazyLibrarian: auto-selects a single best release per
   # request instead of grabbing every match. Reuses the existing
@@ -349,9 +353,9 @@ services:
       - SOLID_QUEUE_IN_PUMA=1
     volumes:
       - ${SHELFARR_CONFIG}:/rails/storage
-      - ${BOOKS_TRIAL_EBOOKS_FOLDER}:/ebooks
-      - ${BOOKS_TRIAL_AUDIOBOOKS_FOLDER}:/audiobooks
-      - ${BOOKS_TRIAL_COMICS_FOLDER}:/comics
+      - ${BOOKS_LIBRARY_EBOOKS_FOLDER}:/ebooks
+      - ${BOOKS_LIBRARY_AUDIOBOOKS_FOLDER}:/audiobooks
+      - ${BOOKS_LIBRARY_COMICS_FOLDER}:/comics
       - ${USENET_DOWNLOADS}:/downloads
     ports:
       - 5056:80
@@ -387,6 +391,16 @@ services:
       - JWT_SECRET=${BOOKORBIT_JWT_SECRET}
       - SETUP_BOOTSTRAP_TOKEN=${BOOKORBIT_SETUP_BOOTSTRAP_TOKEN}
       - APP_URL=${BOOKORBIT_APP_URL}
+      # Phase 3 calibre-library import: BookOrbit's own Settings > Migration
+      # wizard ("Calibre-Web Automated" source, snapshot mode) reads a
+      # stopped-snapshot app.db + metadata.db pair from a read-only mount
+      # rooted here. Works against stock calibre-web's app.db too (verified
+      # against bookorbit/bookorbit's own connector source — it only warns,
+      # doesn't refuse, when CWA-specific tables are absent). Encryption key
+      # protects the stored source connection config at rest, same pattern
+      # as EMAIL_ENCRYPTION_KEY.
+      - MIGRATION_IMPORT_ROOT=/imports
+      - MIGRATION_ENCRYPTION_KEY=${BOOKORBIT_MIGRATION_ENCRYPTION_KEY}
       - TZ=America/New_York
       - PUID=1000
       - PGID=1000
@@ -394,8 +408,9 @@ services:
       bookorbit-db:
         condition: service_healthy
     volumes:
-      - ${BOOKS_TRIAL_ROOT}:/books
+      - ${BOOKS_LIBRARY_ROOT}:/books
       - ${BOOKORBIT_DATA_FOLDER}:/data
+      - ${BOOKORBIT_MIGRATION_IMPORTS_FOLDER}:/imports:ro
     ports:
       - 3005:3000
     read_only: true

@@ -56,6 +56,16 @@ BOOKORBIT_POSTGRES_PASSWORD=$(bws secret get "99c027fc-81d7-44f4-837b-b4ba00e5aa
 [[ -n "$BOOKORBIT_POSTGRES_PASSWORD" && "$BOOKORBIT_POSTGRES_PASSWORD" != "null" ]] \
   || { echo "media-server pre-deploy: failed to fetch bookorbit-postgres-password" >&2; exit 1; }
 
+# Phase 3 (shelfarr-migration.md): encrypts BookOrbit's stored migration
+# source connection config at rest (Settings > Migration), same pattern as
+# EMAIL_ENCRYPTION_KEY upstream. Not strictly required by BookOrbit, but
+# recommended by its own .env.example — provision it since we're wiring up
+# a real migration source (the old calibre library import).
+BOOKORBIT_MIGRATION_ENCRYPTION_KEY=$(bws secret get "50a1e625-3d38-4fe1-b499-b4c00162f739" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$BOOKORBIT_MIGRATION_ENCRYPTION_KEY" && "$BOOKORBIT_MIGRATION_ENCRYPTION_KEY" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch bookorbit-migration-encryption-key" >&2; exit 1; }
+
 # Remove orphaned containers from pre-k3s-ingress era (nginx/certbot/dns no
 # longer in compose; k3s Traefik + cert-manager handle TLS termination).
 for _c in nginx certbot dns; do
@@ -93,20 +103,71 @@ mkdir -p "$CALIBRE_CONFIG_DIR" "$CALIBREWEB_CONFIG_DIR" "$LAZYLIBRARIAN_CONFIG_D
 chown -R 1000:1000 "${CONFIG_ROOT}/calibre" "${CONFIG_ROOT}/calibre-web" "${CONFIG_ROOT}/lazylibrarian" "$CALIBRE_LIBRARY_DIR"
 chmod 0755 "${CONFIG_ROOT}/calibre" "$CALIBRE_CONFIG_DIR" "${CONFIG_ROOT}/calibre-web" "$CALIBREWEB_CONFIG_DIR" "${CONFIG_ROOT}/lazylibrarian" "$LAZYLIBRARIAN_CONFIG_DIR"
 
-# shelfarr + BookOrbit trial dirs. BOOKS_TRIAL_* is deliberately separate
-# from CALIBRE_LIBRARY_DIR — nothing here touches the live library until
-# Phase 3 of the migration plan.
+# shelfarr + BookOrbit dirs. BOOKS_LIBRARY_* (renamed from BOOKS_TRIAL_* in
+# Phase 3 of shelfarr-migration.md — the shelfarr/BookOrbit library is now
+# production, no "trial"-named path stays live) is deliberately separate
+# from CALIBRE_LIBRARY_DIR — the old calibre library is imported in via
+# BookOrbit's own Migration UI, then retired in Phase 4, not merged on disk.
 SHELFARR_CONFIG_DIR="${CONFIG_ROOT}/shelfarr/storage"
 BOOKORBIT_DATA_DIR="${CONFIG_ROOT}/bookorbit/data"
 BOOKORBIT_POSTGRES_DATA_DIR="${CONFIG_ROOT}/bookorbit/postgres"
-BOOKS_TRIAL_ROOT_DIR="/mnt/storage/books/shelfarr-trial"
-BOOKS_TRIAL_EBOOKS_DIR="${BOOKS_TRIAL_ROOT_DIR}/ebooks"
-BOOKS_TRIAL_AUDIOBOOKS_DIR="${BOOKS_TRIAL_ROOT_DIR}/audiobooks"
-BOOKS_TRIAL_COMICS_DIR="${BOOKS_TRIAL_ROOT_DIR}/comics"
+BOOKS_LIBRARY_ROOT_DIR="/mnt/storage/books/library"
+BOOKS_LIBRARY_EBOOKS_DIR="${BOOKS_LIBRARY_ROOT_DIR}/ebooks"
+BOOKS_LIBRARY_AUDIOBOOKS_DIR="${BOOKS_LIBRARY_ROOT_DIR}/audiobooks"
+BOOKS_LIBRARY_COMICS_DIR="${BOOKS_LIBRARY_ROOT_DIR}/comics"
+
+# One-time migration: the directory used to live at the old shelfarr-trial
+# path (Phase 2). Move it in place before mkdir -p below would otherwise
+# create an empty dir at the new path and orphan the real data at the old
+# one. Idempotent — no-ops on every deploy after the first.
+_OLD_BOOKS_TRIAL_ROOT_DIR="/mnt/storage/books/shelfarr-trial"
+if [[ -d "$_OLD_BOOKS_TRIAL_ROOT_DIR" && ! -e "$BOOKS_LIBRARY_ROOT_DIR" ]]; then
+  echo "media-server pre-deploy: migrating ${_OLD_BOOKS_TRIAL_ROOT_DIR} -> ${BOOKS_LIBRARY_ROOT_DIR}"
+  mv "$_OLD_BOOKS_TRIAL_ROOT_DIR" "$BOOKS_LIBRARY_ROOT_DIR"
+fi
+
 mkdir -p "$SHELFARR_CONFIG_DIR" "$BOOKORBIT_DATA_DIR" "$BOOKORBIT_POSTGRES_DATA_DIR" \
-  "$BOOKS_TRIAL_EBOOKS_DIR" "$BOOKS_TRIAL_AUDIOBOOKS_DIR" "$BOOKS_TRIAL_COMICS_DIR"
-chown -R 1000:1000 "${CONFIG_ROOT}/shelfarr" "${CONFIG_ROOT}/bookorbit/data" "$BOOKS_TRIAL_ROOT_DIR"
-chmod 0755 "$SHELFARR_CONFIG_DIR" "$BOOKORBIT_DATA_DIR" "$BOOKS_TRIAL_ROOT_DIR" "$BOOKS_TRIAL_EBOOKS_DIR" "$BOOKS_TRIAL_AUDIOBOOKS_DIR" "$BOOKS_TRIAL_COMICS_DIR"
+  "$BOOKS_LIBRARY_EBOOKS_DIR" "$BOOKS_LIBRARY_AUDIOBOOKS_DIR" "$BOOKS_LIBRARY_COMICS_DIR"
+chown -R 1000:1000 "${CONFIG_ROOT}/shelfarr" "${CONFIG_ROOT}/bookorbit/data" "$BOOKS_LIBRARY_ROOT_DIR"
+chmod 0755 "$SHELFARR_CONFIG_DIR" "$BOOKORBIT_DATA_DIR" "$BOOKS_LIBRARY_ROOT_DIR" "$BOOKS_LIBRARY_EBOOKS_DIR" "$BOOKS_LIBRARY_AUDIOBOOKS_DIR" "$BOOKS_LIBRARY_COMICS_DIR"
+
+# Phase 3 calibre-library import prep: stopped-snapshot copies of
+# calibre-web's app.db and calibre's metadata.db for BookOrbit's Settings >
+# Migration wizard ("Calibre-Web Automated" source, snapshot mode — see
+# compose.yaml comment on bookorbit-app for why this works against stock
+# calibre-web). Regenerated fresh on every deploy via sqlite3's online
+# backup API (safe against concurrent readers/writers, no need to stop
+# calibre/calibre-web) so the snapshot never goes stale before Alex runs
+# the import in the UI. Source files intentionally optional — this stack
+# still has calibre/calibre-web running (Phase 4 removes them), but a
+# from-scratch deploy without that data present must not fail.
+BOOKORBIT_MIGRATION_IMPORTS_DIR="${CONFIG_ROOT}/bookorbit/imports"
+mkdir -p "$BOOKORBIT_MIGRATION_IMPORTS_DIR"
+python3 - "$BOOKORBIT_MIGRATION_IMPORTS_DIR" <<'PY' || echo "media-server pre-deploy: bookorbit migration snapshot skipped (source db missing or busy)" >&2
+import sqlite3, os, sys
+
+dest_dir = sys.argv[1]
+pairs = [
+    ("/mnt/storage/media/config/calibre-web/config/app.db", os.path.join(dest_dir, "app.db")),
+    ("/mnt/storage/books/calibre-library/metadata.db", os.path.join(dest_dir, "metadata.db")),
+]
+for src, dst in pairs:
+    if not os.path.exists(src):
+        continue
+    tmp = dst + ".tmp"
+    if os.path.exists(tmp):
+        os.remove(tmp)
+    s = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
+    d = sqlite3.connect(tmp)
+    with d:
+        s.backup(d)
+    s.close()
+    d.close()
+    os.replace(tmp, dst)
+PY
+chown -R 1000:1000 "$BOOKORBIT_MIGRATION_IMPORTS_DIR"
+chmod 0755 "$BOOKORBIT_MIGRATION_IMPORTS_DIR"
+chmod 0644 "$BOOKORBIT_MIGRATION_IMPORTS_DIR"/*.db 2>/dev/null || true
 # BookOrbit's bundled Postgres (pgvector/pgvector:pg18) hard-codes uid/gid
 # 999 for its "postgres" user and does not honor PUID/PGID like the LSIO
 # images above. Its entrypoint's first (root) pass only chowns $PGDATA
@@ -164,11 +225,13 @@ chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBR
   echo "BOOKORBIT_JWT_SECRET=${BOOKORBIT_JWT_SECRET}"
   echo "BOOKORBIT_SETUP_BOOTSTRAP_TOKEN=${BOOKORBIT_SETUP_BOOTSTRAP_TOKEN}"
   echo "BOOKORBIT_POSTGRES_PASSWORD=${BOOKORBIT_POSTGRES_PASSWORD}"
+  echo "BOOKORBIT_MIGRATION_ENCRYPTION_KEY=${BOOKORBIT_MIGRATION_ENCRYPTION_KEY}"
+  echo "BOOKORBIT_MIGRATION_IMPORTS_FOLDER=${BOOKORBIT_MIGRATION_IMPORTS_DIR}"
   echo "BOOKORBIT_APP_URL=https://bookorbit.media.amer.dev"
-  echo "BOOKS_TRIAL_ROOT=${BOOKS_TRIAL_ROOT_DIR}"
-  echo "BOOKS_TRIAL_EBOOKS_FOLDER=${BOOKS_TRIAL_EBOOKS_DIR}"
-  echo "BOOKS_TRIAL_AUDIOBOOKS_FOLDER=${BOOKS_TRIAL_AUDIOBOOKS_DIR}"
-  echo "BOOKS_TRIAL_COMICS_FOLDER=${BOOKS_TRIAL_COMICS_DIR}"
+  echo "BOOKS_LIBRARY_ROOT=${BOOKS_LIBRARY_ROOT_DIR}"
+  echo "BOOKS_LIBRARY_EBOOKS_FOLDER=${BOOKS_LIBRARY_EBOOKS_DIR}"
+  echo "BOOKS_LIBRARY_AUDIOBOOKS_FOLDER=${BOOKS_LIBRARY_AUDIOBOOKS_DIR}"
+  echo "BOOKS_LIBRARY_COMICS_FOLDER=${BOOKS_LIBRARY_COMICS_DIR}"
   echo "DATA_BASE=/mnt/storage"
   echo "MOVIES_FOLDER=/mnt/storage/movies"
   echo "TV_FOLDER=/mnt/storage/tv"
