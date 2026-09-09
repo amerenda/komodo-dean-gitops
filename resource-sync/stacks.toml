@@ -442,6 +442,12 @@ file_paths = ["murderbot/media-server/compose.yaml"]
 git_account = "amerenda"
 project_name = "media-server"
 webhook_force_deploy = true
+# Without this, `docker compose up -d` never stops/removes a container
+# whose service was deleted from compose.yaml — it just orphans it
+# (confirmed 2026-09-09: removing the lazylibrarian service left the
+# container running untouched after deploy). Needed for every future
+# service removal in this stack too (Phase 4: calibre/calibre-web).
+extra_args = ["--remove-orphans"]
 [stack.config.pre_deploy]
 command = """
 export BWS_ACCESS_TOKEN=$(cat /run/secrets/bws-access-token)
