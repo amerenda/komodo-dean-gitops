@@ -97,11 +97,10 @@ chmod 0755 "${CONFIG_ROOT}/seerr" "$SEERR_CONFIG_DIR"
 # to already be owned 1000:1000 before the container's first start.
 CALIBRE_CONFIG_DIR="${CONFIG_ROOT}/calibre/config"
 CALIBREWEB_CONFIG_DIR="${CONFIG_ROOT}/calibre-web/config"
-LAZYLIBRARIAN_CONFIG_DIR="${CONFIG_ROOT}/lazylibrarian/config"
 CALIBRE_LIBRARY_DIR="/mnt/storage/books/calibre-library"
-mkdir -p "$CALIBRE_CONFIG_DIR" "$CALIBREWEB_CONFIG_DIR" "$LAZYLIBRARIAN_CONFIG_DIR" "$CALIBRE_LIBRARY_DIR"
-chown -R 1000:1000 "${CONFIG_ROOT}/calibre" "${CONFIG_ROOT}/calibre-web" "${CONFIG_ROOT}/lazylibrarian" "$CALIBRE_LIBRARY_DIR"
-chmod 0755 "${CONFIG_ROOT}/calibre" "$CALIBRE_CONFIG_DIR" "${CONFIG_ROOT}/calibre-web" "$CALIBREWEB_CONFIG_DIR" "${CONFIG_ROOT}/lazylibrarian" "$LAZYLIBRARIAN_CONFIG_DIR"
+mkdir -p "$CALIBRE_CONFIG_DIR" "$CALIBREWEB_CONFIG_DIR" "$CALIBRE_LIBRARY_DIR"
+chown -R 1000:1000 "${CONFIG_ROOT}/calibre" "${CONFIG_ROOT}/calibre-web" "$CALIBRE_LIBRARY_DIR"
+chmod 0755 "${CONFIG_ROOT}/calibre" "$CALIBRE_CONFIG_DIR" "${CONFIG_ROOT}/calibre-web" "$CALIBREWEB_CONFIG_DIR"
 
 # shelfarr + BookOrbit dirs. BOOKS_LIBRARY_* (renamed from BOOKS_TRIAL_* in
 # Phase 3 of shelfarr-migration.md — the shelfarr/BookOrbit library is now
@@ -211,7 +210,6 @@ chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBR
   echo "SEERR_CONFIG=${CONFIG_ROOT}/seerr/config"
   echo "CALIBRE_CONFIG=${CONFIG_ROOT}/calibre/config"
   echo "CALIBREWEB_CONFIG=${CONFIG_ROOT}/calibre-web/config"
-  echo "LAZYLIBRARIAN_CONFIG=${CONFIG_ROOT}/lazylibrarian/config"
   echo "HARDCOVER_API_KEY=${HARDCOVER_API_KEY}"
   echo "SONARR_API_KEY=${SONARR_API_KEY}"
   echo "SONARR_CRON_CRONTAB=$(pwd)/murderbot/media-server/config/sonarr-cron/crontab.txt"
