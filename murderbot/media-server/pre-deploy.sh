@@ -135,36 +135,35 @@ chmod 0755 "$SHELFARR_CONFIG_DIR" "$BOOKORBIT_DATA_DIR" "$BOOKS_LIBRARY_ROOT_DIR
 # calibre-web's app.db and calibre's metadata.db for BookOrbit's Settings >
 # Migration wizard ("Calibre-Web Automated" source, snapshot mode — see
 # compose.yaml comment on bookorbit-app for why this works against stock
-# calibre-web). Regenerated fresh on every deploy via sqlite3's online
-# backup API (safe against concurrent readers/writers, no need to stop
-# calibre/calibre-web) so the snapshot never goes stale before Alex runs
-# the import in the UI. Source files intentionally optional — this stack
-# still has calibre/calibre-web running (Phase 4 removes them), but a
-# from-scratch deploy without that data present must not fail.
+# calibre-web). Regenerated fresh on every deploy so the snapshot never
+# goes stale before Alex runs the import in the UI. Neither python3 nor
+# the sqlite3 CLI exist in the Komodo Periphery container this script
+# actually runs in (confirmed 2026-09-09 — a python3-based online-backup
+# approach failed silently here with "command not found" even though
+# python3 is present on the bare host); plain `cp` is all that's
+# available. To stay safe against a concurrent writer, this mirrors the
+# exact same guard BookOrbit's own migration connector applies to the
+# source file before it'll touch it: skip (don't copy) if a non-empty
+# -wal/-journal sidecar is present, since that's a live/uncommitted
+# database and BookOrbit would refuse it anyway. Source files
+# intentionally optional — this stack still has calibre/calibre-web
+# running (Phase 4 removes them), but a from-scratch deploy without that
+# data present must not fail.
 BOOKORBIT_MIGRATION_IMPORTS_DIR="${CONFIG_ROOT}/bookorbit/imports"
 mkdir -p "$BOOKORBIT_MIGRATION_IMPORTS_DIR"
-python3 - "$BOOKORBIT_MIGRATION_IMPORTS_DIR" <<'PY' || echo "media-server pre-deploy: bookorbit migration snapshot skipped (source db missing or busy)" >&2
-import sqlite3, os, sys
-
-dest_dir = sys.argv[1]
-pairs = [
-    ("/mnt/storage/media/config/calibre-web/config/app.db", os.path.join(dest_dir, "app.db")),
-    ("/mnt/storage/books/calibre-library/metadata.db", os.path.join(dest_dir, "metadata.db")),
-]
-for src, dst in pairs:
-    if not os.path.exists(src):
-        continue
-    tmp = dst + ".tmp"
-    if os.path.exists(tmp):
-        os.remove(tmp)
-    s = sqlite3.connect(f"file:{src}?mode=ro", uri=True)
-    d = sqlite3.connect(tmp)
-    with d:
-        s.backup(d)
-    s.close()
-    d.close()
-    os.replace(tmp, dst)
-PY
+_snapshot_calibre_db() {
+  local src="$1" dst="$2"
+  [[ -f "$src" ]] || { echo "media-server pre-deploy: bookorbit migration snapshot skipped for ${dst##*/} (source missing)" >&2; return 0; }
+  for _suffix in -wal -journal; do
+    if [[ -s "${src}${_suffix}" ]]; then
+      echo "media-server pre-deploy: bookorbit migration snapshot skipped for ${dst##*/} (active ${_suffix} sidecar present)" >&2
+      return 0
+    fi
+  done
+  cp -p "$src" "${dst}.tmp" && mv "${dst}.tmp" "$dst"
+}
+_snapshot_calibre_db "/mnt/storage/media/config/calibre-web/config/app.db" "${BOOKORBIT_MIGRATION_IMPORTS_DIR}/app.db"
+_snapshot_calibre_db "/mnt/storage/books/calibre-library/metadata.db" "${BOOKORBIT_MIGRATION_IMPORTS_DIR}/metadata.db"
 chown -R 1000:1000 "$BOOKORBIT_MIGRATION_IMPORTS_DIR"
 chmod 0755 "$BOOKORBIT_MIGRATION_IMPORTS_DIR"
 chmod 0644 "$BOOKORBIT_MIGRATION_IMPORTS_DIR"/*.db 2>/dev/null || true

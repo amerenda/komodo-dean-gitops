@@ -187,9 +187,14 @@ are being fully decommissioned, not kept long-term.
 - **Calibre-library import (Phase 3):** `pre-deploy.sh` regenerates
   stopped-snapshot copies of calibre-web's `app.db` and calibre's
   `metadata.db` into `${CONFIG_ROOT}/bookorbit/imports` on every deploy
-  (via Python's `sqlite3` online backup API — safe against the live
-  calibre/calibre-web containers, no need to stop them), bind-mounted
-  read-only into `bookorbit-app` at `/imports`
+  via a plain `cp` (neither `python3` nor the `sqlite3` CLI exist inside
+  the Komodo Periphery container this script runs in — confirmed
+  2026-09-09, an earlier `python3`-based online-backup attempt failed
+  silently with "command not found"). Guarded the same way BookOrbit's own
+  migration connector guards its source: skipped if a non-empty
+  `-wal`/`-journal` sidecar is present next to the source file, since
+  that's a live/uncommitted database BookOrbit would refuse anyway.
+  Bind-mounted read-only into `bookorbit-app` at `/imports`
   (`MIGRATION_IMPORT_ROOT=/imports`). BookOrbit's Settings > Migration
   wizard reads these as a "Calibre-Web Automated" source in snapshot mode
   — verified against `bookorbit/bookorbit`'s own migration connector
