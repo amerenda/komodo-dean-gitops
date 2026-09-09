@@ -208,13 +208,17 @@ services:
     dns: *dns-servers
     restart: unless-stopped
 
-  # ── Book acquisition/library stack ────────────────────────────────────────
+  # ── Book acquisition/library stack (legacy, being retired — Phase 3/4 of
+  # shelfarr-migration.md) ────────────────────────────────────────────────
   # calibre owns the canonical library (metadata.db, Author/Title/ tree,
-  # calibredb) at CALIBRE_LIBRARY_FOLDER. lazylibrarian searches/acquires via
-  # the existing prowlarr/sabnzbd and imports straight into that library via
-  # calibredb (see Config -> Processing in the LazyLibrarian UI). calibre-web
-  # is the read-facing OPDS/browsing frontend over the same library. All
-  # three complementary, not redundant — see murderbot/media-server/README.md.
+  # calibredb) at CALIBRE_LIBRARY_FOLDER. calibre-web is the read-facing
+  # OPDS/browsing frontend over the same library. LazyLibrarian (the third
+  # leg — searched/acquired via prowlarr/sabnzbd, imported via calibredb)
+  # was removed 2026-09-09 per Alex's explicit call: shelfarr/BookOrbit is
+  # the production stack now, LazyLibrarian's own data was never worth
+  # keeping. calibre/calibre-web stay running only until the old library
+  # is imported into BookOrbit (see bookorbit-app's MIGRATION_IMPORT_ROOT
+  # below) and Phase 4 retires them too.
 
   calibre:
     container_name: calibre
@@ -271,40 +275,18 @@ services:
       retries: 3
     restart: unless-stopped
 
-  lazylibrarian:
-    container_name: lazylibrarian
-    image: lscr.io/linuxserver/lazylibrarian:9838d6fe-ls314
-    networks:
-      servarr:
-    dns: *dns-servers
-    environment:
-      - PUID=1000
-      - PGID=1000
-      - TZ=America/New_York
-      - DOCKER_MODS=linuxserver/mods:universal-calibre
-    volumes:
-      - ${LAZYLIBRARIAN_CONFIG}:/config
-      - ${CALIBRE_LIBRARY_FOLDER}:/calibre-library
-      - ${USENET_DOWNLOADS}:/downloads
-    ports:
-      - 5299:5299
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "-o", "/dev/null", "http://localhost:5299/"]
-      start_period: 30s
-      timeout: 5s
-      interval: 30s
-      retries: 3
-    restart: unless-stopped
-
-  # One source of truth for book metadata: LazyLibrarian sets the ISBN on
-  # import (via its OPF, see calibre_integration.py), this sidecar picks up
-  # any book with an ISBN it hasn't synced yet and pulls canonical
-  # title/authors/series/tags from Hardcover via calibredb — restricted to
-  # the Hardcover source only (--allowed-plugin), no merging with
-  # Amazon/Google. Reuses the calibre image (calibredb/fetch-ebook-metadata
-  # are headless CLI tools, no Xvfb/GUI needed) but skips s6 entirely via a
-  # bare entrypoint override. Books with no ISBN identifier (e.g. only a
-  # goodreads id) are a known gap — not handled here.
+  # One source of truth for book metadata: previously LazyLibrarian set the
+  # ISBN on import (via its OPF, see calibre_integration.py) for this
+  # sidecar to pick up — LazyLibrarian is gone as of 2026-09-09, so no new
+  # books get an ISBN tagged this way. Left running only to keep syncing
+  # already-tagged books until calibre/calibre-web themselves are retired
+  # in Phase 4. Pulls canonical title/authors/series/tags from Hardcover
+  # via calibredb — restricted to the Hardcover source only
+  # (--allowed-plugin), no merging with Amazon/Google. Reuses the calibre
+  # image (calibredb/fetch-ebook-metadata are headless CLI tools, no
+  # Xvfb/GUI needed) but skips s6 entirely via a bare entrypoint override.
+  # Books with no ISBN identifier (e.g. only a goodreads id) are a known
+  # gap — not handled here.
   calibre-metadata-sync:
     container_name: calibre-metadata-sync
     image: lscr.io/linuxserver/calibre:9.11.0

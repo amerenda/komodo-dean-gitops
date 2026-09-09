@@ -98,6 +98,12 @@ a separate env file.
 
 ## Book metadata — one source of truth: Hardcover
 
+**LazyLibrarian was removed 2026-09-09** (Phase 3 of shelfarr-migration.md,
+pulled forward at Alex's explicit request — its own data was never worth
+keeping). Step 1 below no longer happens for any book going forward; kept
+as historical record of how already-tagged books got their ISBN, and
+because `calibre-metadata-sync` (step 2) still runs against those.
+
 Three writers touched book metadata independently (manual `calibredb add`,
 LazyLibrarian's GoodReads-backed import, calibre's own auto-lookup on
 import), producing inconsistent series/title data (e.g. "Red Rising" (id 1)
@@ -148,8 +154,11 @@ upstream limitation, not a config bug
 directory rename automatically and idempotently on deploy, no manual `mv`
 needed). `CALIBRE_LIBRARY_FOLDER` (the old calibre library) is being
 imported into BookOrbit via its own Migration UI, then retired in Phase 4
-— LazyLibrarian/calibre/calibre-web still run during the import window but
-are being fully decommissioned, not kept long-term.
+— calibre/calibre-web still run during the import window but are being
+fully decommissioned, not kept long-term. **LazyLibrarian itself was
+already fully removed 2026-09-09** (Alex's explicit call, pulled forward
+from Phase 4 — its own acquisition data was never worth keeping, no need
+to wait on the calibre-library import first).
 
 - **shelfarr** replaces LazyLibrarian as the acquisition/curation layer —
   it auto-selects a single best release per request (optionally gated by
@@ -219,7 +228,6 @@ are being fully decommissioned, not kept long-term.
 | recyclarr | `ghcr.io/recyclarr/recyclarr` | `7` | Major version only (stable v7 API) |
 | calibre | `lscr.io/linuxserver/calibre` | `9.11.0` | linuxserver tag (no `-lsN`) |
 | calibre-web | `lscr.io/linuxserver/calibre-web` | `0.6.26` | linuxserver tag (no `-lsN`) |
-| lazylibrarian | `lscr.io/linuxserver/lazylibrarian` | `9838d6fe-ls314` | No semver releases exist upstream — only commit-hash build tags. Bumped from f4110fff 2026-07-23: that build's `add_book` handler didn't accept the `source=` param the frontend sends, causing a 404 on every "add book" click. |
 | sonarr-missing-search-cron | `docker:27-cli` | `27` | Same crond shape/version as mac-mini-m4/docker-maintenance. Daily `MissingEpisodeSearch` — see config/sonarr-cron/crontab.txt. |
 | shelfarr | `ghcr.io/pedro-revez-silva/shelfarr` | `2026.08.31.1` | GitHub release `v2026.08.31.1`; OCI tag drops the `v` prefix per upstream's own versioning note. Production, see section above. |
 | bookorbit-app / bookorbit-db | `ghcr.io/bookorbit/bookorbit` / `pgvector/pgvector` | `2.8.1` / `pg18` | BookOrbit's GitHub release tag is `v2.8.1` but its OCI/GHCR image tag drops the `v` prefix (confirmed against the registry directly — `v2.8.1` 404s as `manifest unknown`, `2.8.1` resolves); same convention as shelfarr above. bookorbit-db pinned to major-version tag only, same pattern as recyclarr — upstream doesn't publish patch-level pgvector/PG tags. Production, see section above. |
