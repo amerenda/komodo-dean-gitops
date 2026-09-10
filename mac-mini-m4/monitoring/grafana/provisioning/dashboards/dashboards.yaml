@@ -60,3 +60,13 @@ providers:
     allowUiUpdates: true
     options:
       path: "/etc/grafana/dashboards/_General"
+
+  - name: migrated-murderbot
+    orgId: 1
+    folder: "Murderbot"
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 15
+    allowUiUpdates: true
+    options:
+      path: "/etc/grafana/dashboards/Murderbot"
