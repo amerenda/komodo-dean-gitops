@@ -109,7 +109,7 @@
       "type": "stat",
       "title": "CPU Temp (Tctl)",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 4, "w": 3, "x": 10, "y": 1 },
+      "gridPos": { "h": 4, "w": 2, "x": 10, "y": 1 },
       "id": 5,
       "fieldConfig": {
         "defaults": {
@@ -144,7 +144,7 @@
       "type": "stat",
       "title": "NVMe Temp",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 4, "w": 3, "x": 13, "y": 1 },
+      "gridPos": { "h": 4, "w": 2, "x": 12, "y": 1 },
       "id": 6,
       "fieldConfig": {
         "defaults": {
@@ -179,7 +179,7 @@
       "type": "stat",
       "title": "GPU Temp",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 4, "w": 3, "x": 16, "y": 1 },
+      "gridPos": { "h": 4, "w": 2, "x": 14, "y": 1 },
       "id": 7,
       "fieldConfig": {
         "defaults": {
@@ -212,48 +212,141 @@
     },
     {
       "type": "stat",
-      "title": "Load Average",
+      "title": "HDD sda",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 1 },
-      "id": 8,
+      "gridPos": { "h": 4, "w": 2, "x": 16, "y": 1 },
+      "id": 71,
       "fieldConfig": {
         "defaults": {
+          "unit": "celsius",
           "thresholds": {
             "mode": "absolute",
             "steps": [
               { "color": "green", "value": null },
-              { "color": "yellow", "value": 8 },
-              { "color": "red", "value": 12 }
+              { "color": "yellow", "value": 45 },
+              { "color": "red", "value": 55 }
             ]
-          },
-          "decimals": 2
+          }
         }
       },
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"] },
         "colorMode": "value",
-        "graphMode": "area",
+        "graphMode": "none",
         "orientation": "auto",
         "textMode": "auto"
       },
       "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "node_load1{job=\"murderbot-node\"}",
-          "legendFormat": "1m",
+          "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target1:0:0_1:0:0:0\"}",
+          "legendFormat": "",
           "refId": "A"
-        },
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "HDD sdb",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 2, "x": 18, "y": 1 },
+      "id": 72,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 45 },
+              { "color": "red", "value": 55 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "auto",
+        "textMode": "auto"
+      },
+      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "node_load5{job=\"murderbot-node\"}",
-          "legendFormat": "5m",
-          "refId": "B"
-        },
+          "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target4:0:0_4:0:0:0\"}",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "HDD sdc",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 2, "x": 20, "y": 1 },
+      "id": 73,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 45 },
+              { "color": "red", "value": 55 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "auto",
+        "textMode": "auto"
+      },
+      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
-          "expr": "node_load15{job=\"murderbot-node\"}",
-          "legendFormat": "15m",
-          "refId": "C"
+          "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target0:0:0_0:0:0:0\"}",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "stat",
+      "title": "HDD sdd",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 4, "w": 2, "x": 22, "y": 1 },
+      "id": 74,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 45 },
+              { "color": "red", "value": 55 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "none",
+        "orientation": "auto",
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target5:0:0_5:0:0:0\"}",
+          "legendFormat": "",
+          "refId": "A"
         }
       ]
     },
@@ -623,9 +716,9 @@
     },
     {
       "type": "timeseries",
-      "title": "Temperatures Over Time",
+      "title": "System Temperatures Over Time",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 39 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 39 },
       "id": 41,
       "fieldConfig": {
         "defaults": {
@@ -670,30 +763,58 @@
           "expr": "nvidia_gpu_temperature{job=\"murderbot-nvidia\"}",
           "legendFormat": "GPU",
           "refId": "D"
-        },
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "HDD Temperatures Over Time",
+      "datasource": { "type": "prometheus", "uid": "${datasource}" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 39 },
+      "id": 43,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius",
+          "min": 0,
+          "custom": { "lineWidth": 2, "fillOpacity": 10, "showPoints": "never", "spanNulls": true },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 45 },
+              { "color": "red", "value": 55 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "tooltip": { "mode": "multi", "sort": "desc" },
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
+      },
+      "targets": [
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target1:0:0_1:0:0:0\"}",
           "legendFormat": "HDD sda",
-          "refId": "E"
+          "refId": "A"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target4:0:0_4:0:0:0\"}",
           "legendFormat": "HDD sdb",
-          "refId": "F"
+          "refId": "B"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target0:0:0_0:0:0:0\"}",
           "legendFormat": "HDD sdc",
-          "refId": "G"
+          "refId": "C"
         },
         {
           "datasource": { "type": "prometheus", "uid": "${datasource}" },
           "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target5:0:0_5:0:0:0\"}",
           "legendFormat": "HDD sdd",
-          "refId": "H"
+          "refId": "D"
         }
       ]
     },
