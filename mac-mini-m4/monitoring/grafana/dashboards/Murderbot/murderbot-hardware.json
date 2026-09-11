@@ -625,7 +625,7 @@
       "type": "timeseries",
       "title": "Temperatures Over Time",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 39 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 39 },
       "id": 41,
       "fieldConfig": {
         "defaults": {
@@ -698,10 +698,10 @@
       ]
     },
     {
-      "type": "gauge",
+      "type": "bargauge",
       "title": "Current Temperatures",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 12, "w": 8, "x": 16, "y": 39 },
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 47 },
       "id": 42,
       "fieldConfig": {
         "defaults": {
@@ -738,9 +738,12 @@
       },
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"] },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true,
-        "orientation": "horizontal"
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "valueMode": "color",
+        "showUnfilled": true,
+        "minVizWidth": 0,
+        "minVizHeight": 10
       },
       "targets": [
         {
@@ -791,14 +794,14 @@
       "type": "row",
       "title": "GPU",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 51 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 53 },
       "id": 50
     },
     {
       "type": "timeseries",
       "title": "GPU Utilization",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 52 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 54 },
       "id": 51,
       "fieldConfig": {
         "defaults": {
@@ -831,7 +834,7 @@
       "type": "timeseries",
       "title": "GPU Memory",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 52 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 54 },
       "id": 52,
       "fieldConfig": {
         "defaults": {
@@ -869,7 +872,7 @@
       "type": "timeseries",
       "title": "GPU Power Draw",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 52 },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 54 },
       "id": 53,
       "fieldConfig": {
         "defaults": {
@@ -901,14 +904,14 @@
       "type": "row",
       "title": "Network",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 59 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 61 },
       "id": 60
     },
     {
       "type": "timeseries",
       "title": "Network Traffic",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 60 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 62 },
       "id": 61,
       "fieldConfig": {
         "defaults": {
@@ -945,7 +948,7 @@
       "type": "timeseries",
       "title": "Network Errors & Drops",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 60 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 62 },
       "id": 62,
       "fieldConfig": {
         "defaults": {
