@@ -644,7 +644,7 @@
       },
       "options": {
         "tooltip": { "mode": "multi", "sort": "desc" },
-        "legend": { "displayMode": "list", "placement": "bottom", "calcs": ["mean", "max"] }
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["mean", "max"] }
       },
       "targets": [
         {
@@ -670,6 +670,30 @@
           "expr": "nvidia_gpu_temperature{job=\"murderbot-nvidia\"}",
           "legendFormat": "GPU",
           "refId": "D"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target1:0:0_1:0:0:0\"}",
+          "legendFormat": "HDD sda",
+          "refId": "E"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target4:0:0_4:0:0:0\"}",
+          "legendFormat": "HDD sdb",
+          "refId": "F"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target0:0:0_0:0:0:0\"}",
+          "legendFormat": "HDD sdc",
+          "refId": "G"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target5:0:0_5:0:0:0\"}",
+          "legendFormat": "HDD sdd",
+          "refId": "H"
         }
       ]
     },
@@ -677,7 +701,7 @@
       "type": "gauge",
       "title": "Current Temperatures",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 39 },
+      "gridPos": { "h": 12, "w": 8, "x": 16, "y": 39 },
       "id": 42,
       "fieldConfig": {
         "defaults": {
@@ -692,7 +716,25 @@
               { "color": "red", "value": 85 }
             ]
           }
-        }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byRegexp", "options": "HDD.*" },
+            "properties": [
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    { "color": "green", "value": null },
+                    { "color": "yellow", "value": 45 },
+                    { "color": "red", "value": 55 }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
       },
       "options": {
         "reduceOptions": { "calcs": ["lastNotNull"] },
@@ -718,6 +760,30 @@
           "expr": "nvidia_gpu_temperature{job=\"murderbot-nvidia\"}",
           "legendFormat": "GPU",
           "refId": "C"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target1:0:0_1:0:0:0\"}",
+          "legendFormat": "HDD sda",
+          "refId": "D"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target4:0:0_4:0:0:0\"}",
+          "legendFormat": "HDD sdb",
+          "refId": "E"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target0:0:0_0:0:0:0\"}",
+          "legendFormat": "HDD sdc",
+          "refId": "F"
+        },
+        {
+          "datasource": { "type": "prometheus", "uid": "${datasource}" },
+          "expr": "node_hwmon_temp_celsius{job=\"murderbot-node\", chip=\"target5:0:0_5:0:0:0\"}",
+          "legendFormat": "HDD sdd",
+          "refId": "G"
         }
       ]
     },
@@ -725,14 +791,14 @@
       "type": "row",
       "title": "GPU",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 47 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 51 },
       "id": 50
     },
     {
       "type": "timeseries",
       "title": "GPU Utilization",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 48 },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 52 },
       "id": 51,
       "fieldConfig": {
         "defaults": {
@@ -765,7 +831,7 @@
       "type": "timeseries",
       "title": "GPU Memory",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 48 },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 52 },
       "id": 52,
       "fieldConfig": {
         "defaults": {
@@ -803,7 +869,7 @@
       "type": "timeseries",
       "title": "GPU Power Draw",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 48 },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 52 },
       "id": 53,
       "fieldConfig": {
         "defaults": {
@@ -835,14 +901,14 @@
       "type": "row",
       "title": "Network",
       "collapsed": false,
-      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 55 },
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 59 },
       "id": 60
     },
     {
       "type": "timeseries",
       "title": "Network Traffic",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 56 },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 60 },
       "id": 61,
       "fieldConfig": {
         "defaults": {
@@ -879,7 +945,7 @@
       "type": "timeseries",
       "title": "Network Errors & Drops",
       "datasource": { "type": "prometheus", "uid": "${datasource}" },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 56 },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 60 },
       "id": 62,
       "fieldConfig": {
         "defaults": {
