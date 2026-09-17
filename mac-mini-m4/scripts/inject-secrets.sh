@@ -388,6 +388,7 @@ route:
     - matchers:
         - alertname =~ "DiskSpace.*"
       receiver: 'pushover-disk'
+      repeat_interval: 24h
     - matchers:
         - alertname =~ "MurderbotSwapNearlyExhausted|MurderbotIowaitCritical|MurderbotMemoryLow"
       receiver: 'grafana-only'
