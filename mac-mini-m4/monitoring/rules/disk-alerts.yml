@@ -23,12 +23,17 @@ groups:
       # relabel instance to the hostname), so excluding those two IPs drops only the
       # duplicate copy — never the direct-scrape series, and never other k3s-only
       # nodes (rpi5-0/1, rpi4-0) which have no direct-scrape counterpart to worry about.
+      # mountpoint="/mnt/storage" is excluded from this general rule entirely: it's the
+      # only mountpoint shared by both hosts here, but means opposite things on each —
+      # archlinux's copy is a longhorn host-path disk that's *meant* to stay full (no
+      # alert wanted at all — see the comment at the bottom of this file), and
+      # murderbot's is the media library disk with its own raised thresholds below.
       - alert: DiskSpaceLow
         expr: >
           (
             (
-              node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node", instance!~"10\\.100\\.20\\.19:9100|10\\.100\\.20\\.25:9100"}
-              / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node", instance!~"10\\.100\\.20\\.19:9100|10\\.100\\.20\\.25:9100"}
+              node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node", instance!~"10\\.100\\.20\\.19:9100|10\\.100\\.20\\.25:9100", mountpoint!="/mnt/storage"}
+              / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node", instance!~"10\\.100\\.20\\.19:9100|10\\.100\\.20\\.25:9100", mountpoint!="/mnt/storage"}
             )
             or
             (
@@ -48,14 +53,14 @@ groups:
           dashboard_url: "https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance={{ $labels.instance }}"
 
       # Critical: < 10% free — mirrors the level that caused the 2026-07-12 outage.
-      # Same job="mac-mini-node" mountpoint dedup and murderbot/archlinux k3s-copy
-      # exclusion as DiskSpaceLow above — see comments there.
+      # Same job="mac-mini-node" mountpoint dedup, murderbot/archlinux k3s-copy
+      # exclusion, and /mnt/storage exclusion as DiskSpaceLow above — see comments there.
       - alert: DiskSpaceCritical
         expr: >
           (
             (
-              node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node", instance!~"10\\.100\\.20\\.19:9100|10\\.100\\.20\\.25:9100"}
-              / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node", instance!~"10\\.100\\.20\\.19:9100|10\\.100\\.20\\.25:9100"}
+              node_filesystem_avail_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node", instance!~"10\\.100\\.20\\.19:9100|10\\.100\\.20\\.25:9100", mountpoint!="/mnt/storage"}
+              / node_filesystem_size_bytes{fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs", job!="mac-mini-node", instance!~"10\\.100\\.20\\.19:9100|10\\.100\\.20\\.25:9100", mountpoint!="/mnt/storage"}
             )
             or
             (
@@ -73,3 +78,46 @@ groups:
             {{ $value | printf "%.1f" }}% free ({{ $labels.fstype }}).
             Run: docker builder prune -a -f
           dashboard_url: "https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance={{ $labels.instance }}"
+
+      # murderbot's /mnt/storage is the media library disk (2.6TB) — intentionally run
+      # near-full, so the general 20%/10% free thresholds above fire far too early.
+      # Raised to only alert at 95%/99% used (5%/1% free). instance="murderbot" is the
+      # relabeled hostname from the direct scrape (job=murderbot-node), so this doesn't
+      # need the k3s remote_write dedup exclusion the general rule uses.
+      - alert: DiskSpaceLow
+        expr: >
+          (
+            node_filesystem_avail_bytes{instance="murderbot", mountpoint="/mnt/storage", fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs"}
+            / node_filesystem_size_bytes{instance="murderbot", mountpoint="/mnt/storage", fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs"}
+          ) * 100 < 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: >
+            {{ $labels.mountpoint }} on {{ $labels.instance }} has
+            {{ $value | printf "%.1f" }}% free ({{ $labels.fstype }}).
+            Warning threshold: 5% free (95% used) — raised for this media library disk.
+          dashboard_url: "https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance={{ $labels.instance }}"
+
+      - alert: DiskSpaceCritical
+        expr: >
+          (
+            node_filesystem_avail_bytes{instance="murderbot", mountpoint="/mnt/storage", fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs"}
+            / node_filesystem_size_bytes{instance="murderbot", mountpoint="/mnt/storage", fstype!~"tmpfs|devtmpfs|overlay|aufs|squashfs|virtiofs"}
+          ) * 100 < 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "CRITICAL: disk nearly full on {{ $labels.instance }} ({{ $labels.mountpoint }})"
+          description: >
+            {{ $labels.mountpoint }} on {{ $labels.instance }} has only
+            {{ $value | printf "%.1f" }}% free ({{ $labels.fstype }}).
+            Critical threshold: 1% free (99% used) — raised for this media library disk.
+          dashboard_url: "https://grafana.amer.dev/d/infra-node-exporter/infra3a-node-exporter?var-instance={{ $labels.instance }}"
+
+      # archlinux's /mnt/storage is a longhorn host-path disk that's meant to be kept
+      # full — deliberately no alert rule for it at all (see the general rule's
+      # mountpoint!="/mnt/storage" exclusion above).
