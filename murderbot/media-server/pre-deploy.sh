@@ -99,9 +99,15 @@ RADARR_CONFIG_ROOT=/opt/radarr-config
 SABNZBD_CONFIG_ROOT=/opt/sabnzbd-config
 SHELFARR_CONFIG_ROOT=/opt/shelfarr-config
 SONARR_CONFIG_ROOT=/opt/sonarr-config
+# maintainerr (Projects/Media Server Stack/Plans/maintainerr-request-cleanup.md,
+# Phase 1) also keeps an embedded SQLite db for its rules/collections state —
+# same rationale as the services above, goes on SSD from day one rather than
+# starting on RAID5 and needing a later migration.
+MAINTAINERR_CONFIG_ROOT=/opt/maintainerr-config
 for _ssd_dir in "$JELLYFIN_CONFIG_ROOT" "$SEERR_CONFIG_ROOT" "$BAZARR_CONFIG_ROOT" \
   "$CALIBREWEB_CONFIG_ROOT" "$PROFILARR_CONFIG_ROOT" "$PROWLARR_CONFIG_ROOT" \
-  "$RADARR_CONFIG_ROOT" "$SABNZBD_CONFIG_ROOT" "$SHELFARR_CONFIG_ROOT" "$SONARR_CONFIG_ROOT"; do
+  "$RADARR_CONFIG_ROOT" "$SABNZBD_CONFIG_ROOT" "$SHELFARR_CONFIG_ROOT" "$SONARR_CONFIG_ROOT" \
+  "$MAINTAINERR_CONFIG_ROOT"; do
   mkdir -p "$_ssd_dir"
   chown 1000:1000 "$_ssd_dir"
 done
@@ -222,6 +228,7 @@ chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBR
   echo "SABNZBD_CONFIG=${SABNZBD_CONFIG_ROOT}"
   echo "JELLYFIN_CONFIG=${JELLYFIN_CONFIG_ROOT}"
   echo "SEERR_CONFIG=${SEERR_CONFIG_ROOT}"
+  echo "MAINTAINERR_CONFIG=${MAINTAINERR_CONFIG_ROOT}"
   echo "CALIBRE_CONFIG=${CONFIG_ROOT}/calibre/config"
   echo "CALIBREWEB_CONFIG=${CALIBREWEB_CONFIG_ROOT}"
   echo "HARDCOVER_API_KEY=${HARDCOVER_API_KEY}"

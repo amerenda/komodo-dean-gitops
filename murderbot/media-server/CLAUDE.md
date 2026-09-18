@@ -250,6 +250,7 @@ to wait on the calibre-library import first).
 | bazarr | `linuxserver/bazarr` | `1.5.6` | linuxserver tag |
 | jellyfin | `linuxserver/jellyfin` | `10.11.11` | Upgraded 2026-07-13 to unblock IntroSkipper ≥1.10.11.20 |
 | seerr | `ghcr.io/seerr-team/seerr` | `v3.2.0` | GitHub release tag |
+| maintainerr | `ghcr.io/maintainerr/maintainerr` | `3.27.0` | GitHub release tag, no `v` prefix on the OCI tag. Request-based cleanup — see Obsidian `Projects/Media Server Stack/Plans/maintainerr-request-cleanup.md`. Config db is SQLite, so it goes straight on `/opt` (`MAINTAINERR_CONFIG_ROOT`) rather than starting on RAID5 — see "SQLite configs moved off the RAID5 array" above. |
 | recyclarr | `ghcr.io/recyclarr/recyclarr` | `7` | Major version only (stable v7 API) |
 | calibre | `lscr.io/linuxserver/calibre` | `9.11.0` | linuxserver tag (no `-lsN`) |
 | calibre-web | `lscr.io/linuxserver/calibre-web` | `0.6.26` | linuxserver tag (no `-lsN`) |
