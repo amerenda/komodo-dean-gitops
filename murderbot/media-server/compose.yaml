@@ -195,6 +195,21 @@ services:
       retries: 3
     restart: unless-stopped
 
+  maintainerr:
+    container_name: maintainerr
+    image: ghcr.io/maintainerr/maintainerr:3.27.0
+    user: "1000:1000"
+    networks:
+      servarr:
+    dns: *dns-servers
+    environment:
+      - TZ=America/New_York
+    volumes:
+      - ${MAINTAINERR_CONFIG}:/opt/data
+    ports:
+      - 6246:6246
+    restart: unless-stopped
+
   recyclarr:
     container_name: recyclarr
     image: ghcr.io/recyclarr/recyclarr:7
