@@ -10,7 +10,6 @@ mac-mini-m4/core/.env
 mac-mini-m4/automation/.env
 mac-mini-m4/monitoring/.env
 mac-mini-m4/monitoring/ha-token
-mac-mini-m4/runners/compose.env
 mac-mini-m4/llm/.env
 mac-mini-m4/llm/.ansible-memory-bytes
 mac-mini-m4/llm/ollama.env
