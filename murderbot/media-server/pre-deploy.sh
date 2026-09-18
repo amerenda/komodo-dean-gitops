@@ -76,38 +76,52 @@ ENV=murderbot/media-server/.env
 
 umask 077
 CONFIG_ROOT=/mnt/storage/media/config
-# Jellyfin config/db lives on the NVMe SSD, not the RAID5 array, to reduce
-# SQLite "database is locked" contention under concurrent access (scans +
-# playback + Streamyfin downloads). See CLAUDE.md "Jellyfin — known issue".
-# Moved 2026-08-02. Every other service's config stays on CONFIG_ROOT (RAID).
+# SQLite-backed services get their config/db off the RAID5 array
+# (/mnt/storage) onto the NVMe SSD (/opt) to avoid lock contention and
+# high read/write latency under concurrent access. Jellyfin was moved
+# 2026-08-02 (see CLAUDE.md "Jellyfin — known issue"); the rest of the
+# stack's actual db-bearing services were moved 2026-09-18 after seerr's
+# web UI (and Wholphin's requests page, which hits seerr's API) was found
+# sluggish with its SQLite db sitting on the spinning RAID5 array. Old RAID
+# copies are left in place (not deleted) as a pre-migration backup — see
+# each service's now-orphaned "${CONFIG_ROOT}/<service>/..." path.
+# recyclarr and calibre have no embedded db (recyclarr is yaml/log only;
+# calibre's real metadata.db lives under CALIBRE_LIBRARY_DIR, the book
+# library, not its own /config) and bookorbit-db (postgres) had never
+# written any data as of this migration — all three stay on CONFIG_ROOT.
 JELLYFIN_CONFIG_ROOT=/opt/jellyfin-config
-mkdir -p "$JELLYFIN_CONFIG_ROOT"
-chown 1000:1000 "$JELLYFIN_CONFIG_ROOT"
-SEERR_CONFIG_DIR="${CONFIG_ROOT}/seerr/config"
+SEERR_CONFIG_ROOT=/opt/seerr-config
+BAZARR_CONFIG_ROOT=/opt/bazarr-config
+CALIBREWEB_CONFIG_ROOT=/opt/calibre-web-config
+PROFILARR_CONFIG_ROOT=/opt/profilarr-config
+PROWLARR_CONFIG_ROOT=/opt/prowlarr-config
+RADARR_CONFIG_ROOT=/opt/radarr-config
+SABNZBD_CONFIG_ROOT=/opt/sabnzbd-config
+SHELFARR_CONFIG_ROOT=/opt/shelfarr-config
+SONARR_CONFIG_ROOT=/opt/sonarr-config
+for _ssd_dir in "$JELLYFIN_CONFIG_ROOT" "$SEERR_CONFIG_ROOT" "$BAZARR_CONFIG_ROOT" \
+  "$CALIBREWEB_CONFIG_ROOT" "$PROFILARR_CONFIG_ROOT" "$PROWLARR_CONFIG_ROOT" \
+  "$RADARR_CONFIG_ROOT" "$SABNZBD_CONFIG_ROOT" "$SHELFARR_CONFIG_ROOT" "$SONARR_CONFIG_ROOT"; do
+  mkdir -p "$_ssd_dir"
+  chown 1000:1000 "$_ssd_dir"
+done
 
-# Seerr runs as the `node` user (UID/GID 1000) and writes logs below
-# /app/config. If Docker created the bind mount path as root on first boot,
-# startup fails with EACCES when Seerr tries to create /app/config/logs.
-mkdir -p "$SEERR_CONFIG_DIR"
-chown 1000:1000 "${CONFIG_ROOT}/seerr" "$SEERR_CONFIG_DIR"
-chmod 0755 "${CONFIG_ROOT}/seerr" "$SEERR_CONFIG_DIR"
-
-# Same EACCES-on-first-boot issue applies to the new book stack: linuxserver
-# images run as PUID/PGID 1000 and need their config + shared library dirs
-# to already be owned 1000:1000 before the container's first start.
+# calibre itself stays on RAID (CONFIG_ROOT) — no embedded db, just app
+# config/GUI state. Its shared library dir also stays put (book data, not
+# a perf-sensitive config db; calibre/calibre-web are slated for
+# retirement in Phase 4 of shelfarr-migration.md anyway).
 CALIBRE_CONFIG_DIR="${CONFIG_ROOT}/calibre/config"
-CALIBREWEB_CONFIG_DIR="${CONFIG_ROOT}/calibre-web/config"
 CALIBRE_LIBRARY_DIR="/mnt/storage/books/calibre-library"
-mkdir -p "$CALIBRE_CONFIG_DIR" "$CALIBREWEB_CONFIG_DIR" "$CALIBRE_LIBRARY_DIR"
-chown -R 1000:1000 "${CONFIG_ROOT}/calibre" "${CONFIG_ROOT}/calibre-web" "$CALIBRE_LIBRARY_DIR"
-chmod 0755 "${CONFIG_ROOT}/calibre" "$CALIBRE_CONFIG_DIR" "${CONFIG_ROOT}/calibre-web" "$CALIBREWEB_CONFIG_DIR"
+mkdir -p "$CALIBRE_CONFIG_DIR" "$CALIBRE_LIBRARY_DIR"
+chown -R 1000:1000 "${CONFIG_ROOT}/calibre" "$CALIBRE_LIBRARY_DIR"
+chmod 0755 "${CONFIG_ROOT}/calibre" "$CALIBRE_CONFIG_DIR"
 
 # shelfarr + BookOrbit dirs. BOOKS_LIBRARY_* (renamed from BOOKS_TRIAL_* in
 # Phase 3 of shelfarr-migration.md — the shelfarr/BookOrbit library is now
 # production, no "trial"-named path stays live) is deliberately separate
 # from CALIBRE_LIBRARY_DIR — the old calibre library is imported in via
 # BookOrbit's own Migration UI, then retired in Phase 4, not merged on disk.
-SHELFARR_CONFIG_DIR="${CONFIG_ROOT}/shelfarr/storage"
+SHELFARR_CONFIG_DIR="$SHELFARR_CONFIG_ROOT"
 BOOKORBIT_DATA_DIR="${CONFIG_ROOT}/bookorbit/data"
 BOOKORBIT_POSTGRES_DATA_DIR="${CONFIG_ROOT}/bookorbit/postgres"
 BOOKS_LIBRARY_ROOT_DIR="/mnt/storage/books/library"
@@ -125,9 +139,9 @@ if [[ -d "$_OLD_BOOKS_TRIAL_ROOT_DIR" && ! -e "$BOOKS_LIBRARY_ROOT_DIR" ]]; then
   mv "$_OLD_BOOKS_TRIAL_ROOT_DIR" "$BOOKS_LIBRARY_ROOT_DIR"
 fi
 
-mkdir -p "$SHELFARR_CONFIG_DIR" "$BOOKORBIT_DATA_DIR" "$BOOKORBIT_POSTGRES_DATA_DIR" \
+mkdir -p "$BOOKORBIT_DATA_DIR" "$BOOKORBIT_POSTGRES_DATA_DIR" \
   "$BOOKS_LIBRARY_EBOOKS_DIR" "$BOOKS_LIBRARY_AUDIOBOOKS_DIR" "$BOOKS_LIBRARY_COMICS_DIR"
-chown -R 1000:1000 "${CONFIG_ROOT}/shelfarr" "${CONFIG_ROOT}/bookorbit/data" "$BOOKS_LIBRARY_ROOT_DIR"
+chown -R 1000:1000 "${CONFIG_ROOT}/bookorbit/data" "$BOOKS_LIBRARY_ROOT_DIR"
 chmod 0755 "$SHELFARR_CONFIG_DIR" "$BOOKORBIT_DATA_DIR" "$BOOKS_LIBRARY_ROOT_DIR" "$BOOKS_LIBRARY_EBOOKS_DIR" "$BOOKS_LIBRARY_AUDIOBOOKS_DIR" "$BOOKS_LIBRARY_COMICS_DIR"
 
 # Phase 3 calibre-library import prep: stopped-snapshot copies of
@@ -161,7 +175,7 @@ _snapshot_calibre_db() {
   done
   cp -p "$src" "${dst}.tmp" && mv "${dst}.tmp" "$dst"
 }
-_snapshot_calibre_db "/mnt/storage/media/config/calibre-web/config/app.db" "${BOOKORBIT_MIGRATION_IMPORTS_DIR}/app.db"
+_snapshot_calibre_db "${CALIBREWEB_CONFIG_ROOT}/app.db" "${BOOKORBIT_MIGRATION_IMPORTS_DIR}/app.db"
 _snapshot_calibre_db "/mnt/storage/books/calibre-library/metadata.db" "${BOOKORBIT_MIGRATION_IMPORTS_DIR}/metadata.db"
 chown -R 1000:1000 "$BOOKORBIT_MIGRATION_IMPORTS_DIR"
 chmod 0755 "$BOOKORBIT_MIGRATION_IMPORTS_DIR"
@@ -199,17 +213,17 @@ chmod 0755 "${CALIBRE_SYNC_SCRIPTS_DIR}/loop.sh"
 chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBRE_SYNC_SCRIPTS_DIR"
 {
   echo "CONFIG_BASE=${CONFIG_ROOT}"
-  echo "PROFILARR_CONFIG=${CONFIG_ROOT}/profilarr/config"
-  echo "RADARR_CONFIG=${CONFIG_ROOT}/radarr/config"
-  echo "BAZARR_CONFIG=${CONFIG_ROOT}/bazarr/config"
-  echo "SONARR_CONFIG=${CONFIG_ROOT}/sonarr/config"
+  echo "PROFILARR_CONFIG=${PROFILARR_CONFIG_ROOT}"
+  echo "RADARR_CONFIG=${RADARR_CONFIG_ROOT}"
+  echo "BAZARR_CONFIG=${BAZARR_CONFIG_ROOT}"
+  echo "SONARR_CONFIG=${SONARR_CONFIG_ROOT}"
   echo "RECYCLARR_CONFIG=${CONFIG_ROOT}/recyclarr/config"
-  echo "PROWLARR_CONFIG=${CONFIG_ROOT}/prowlarr/config"
-  echo "SABNZBD_CONFIG=${CONFIG_ROOT}/sabnzbd/config"
+  echo "PROWLARR_CONFIG=${PROWLARR_CONFIG_ROOT}"
+  echo "SABNZBD_CONFIG=${SABNZBD_CONFIG_ROOT}"
   echo "JELLYFIN_CONFIG=${JELLYFIN_CONFIG_ROOT}"
-  echo "SEERR_CONFIG=${CONFIG_ROOT}/seerr/config"
+  echo "SEERR_CONFIG=${SEERR_CONFIG_ROOT}"
   echo "CALIBRE_CONFIG=${CONFIG_ROOT}/calibre/config"
-  echo "CALIBREWEB_CONFIG=${CONFIG_ROOT}/calibre-web/config"
+  echo "CALIBREWEB_CONFIG=${CALIBREWEB_CONFIG_ROOT}"
   echo "HARDCOVER_API_KEY=${HARDCOVER_API_KEY}"
   echo "SONARR_API_KEY=${SONARR_API_KEY}"
   echo "SONARR_CRON_CRONTAB=$(pwd)/murderbot/media-server/config/sonarr-cron/crontab.txt"

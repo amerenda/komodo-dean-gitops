@@ -37,10 +37,35 @@ Mitigations applied/considered, roughly in order of effort:
 4. **Applied 2026-08-02:** Config dir moved off the RAID5 HDD array
    (`/mnt/storage`) onto the NVMe SSD (`nvme0n1`, Patriot M.2 P320 128GB,
    mounted at `/`) — now at `/opt/jellyfin-config` on the host, set via
-   `JELLYFIN_CONFIG_ROOT` in `pre-deploy.sh` (separate from `CONFIG_ROOT`,
-   which stays on RAID for every other service in this stack). This is the
-   standard recommendation but is reported to help, not fully resolve, this
-   issue.
+   `JELLYFIN_CONFIG_ROOT` in `pre-deploy.sh`. This is the standard
+   recommendation but is reported to help, not fully resolve, this issue.
+
+## SQLite configs moved off the RAID5 array (2026-09-18)
+
+Following the Jellyfin precedent above, every other SQLite-backed service in
+this stack was found with its db sitting on the spinning RAID5 array
+(`/mnt/storage`) — discovered while investigating slow seerr web UI /
+Wholphin requests-page response times. Moved to `/opt/<service>-config` on
+the NVMe SSD, same pattern as Jellyfin: seerr, bazarr, calibre-web,
+profilarr, prowlarr, radarr, sabnzbd, shelfarr, sonarr. `pre-deploy.sh` sets
+each `*_CONFIG_ROOT` and creates/chowns the dir every deploy.
+
+**Not moved:** `recyclarr` (yaml/log only, no db) and `calibre` itself (no
+embedded db — its `metadata.db` lives in the book library, not `/config`,
+and calibre/calibre-web are slated for retirement in Phase 4 of
+`shelfarr-migration.md` anyway). `bookorbit-db` (Postgres) had never
+written any data as of this migration, so there was nothing to move —
+worth revisiting once it's actually in use.
+
+The pre-existing RAID copies at `${CONFIG_ROOT}/<service>/...` were left in
+place (not deleted) as a pre-migration backup.
+
+**Watch for this class of bug:** anything that reads a moved service's db
+by hardcoded RAID path instead of its env var will silently start reading a
+frozen, increasingly stale copy. Found and fixed one instance of this in
+`pre-deploy.sh` — the BookOrbit calibre-library-import snapshot step was
+reading `calibre-web`'s `app.db` from its old RAID path; redirected to
+`$CALIBREWEB_CONFIG_ROOT`.
 
 ## Jellyfin metadata — known issue: anime plugins contaminating Movies/TV
 
