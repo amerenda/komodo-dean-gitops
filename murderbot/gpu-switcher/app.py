@@ -1,7 +1,9 @@
 """
 gpu-switcher: switches murderbot's single GPU between mutually-exclusive
 "known configurations" -- currently three llm-murderbot model profiles
-(qwen36, qwen38, qwen3coder) and the img-murderbot image-generation stack.
+(qwen36, qwen38, qwen3coder), the img-murderbot image-generation stack, and
+"none" (nothing loaded -- frees VRAM for e.g. Tdarr's nightly transcode
+window; see Areas/Infrastructure/Plans/gpu-switcher-idle-mode.md).
 
 Drives Komodo's own API to do the actual work (DestroyStack/DeployStack,
 UpdateVariableValue) rather than touching docker directly, so Komodo never
@@ -9,6 +11,15 @@ loses track of what's running. Switching a config is a runtime action via
 this service's HTTP API -- never a git commit. See murderbot/llm/compose.yaml
 and resource-sync/stacks.toml for how the LLM profile selection
 (the MURDERBOT_LLM_PROFILE Komodo Variable) actually reaches docker compose.
+
+Any config other than qwen36/qwen38/qwen3coder leaves llm-murderbot torn
+down, which makes Prometheus's `LLMBackendDown` alert
+(mac-mini-m4/monitoring/rules/llm-alerts.yml) fire -- correctly, for an
+unexpected crash, but it's just noise for an intentional switch via this
+API. So every switch silences or unsilences that specific alert in
+Alertmanager to match the new state (see (un)silence_llm_backend_down_alert
+below) -- a real backend crash while an LLM profile IS the active config
+still pages normally.
 
 CONFIGS is the git-tracked source of truth for what configurations exist.
 Adding a new switchable config (e.g. a third LLM profile) is a data change
@@ -18,6 +29,7 @@ here, not a rearchitecture.
 import asyncio
 import os
 import time
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import httpx
@@ -28,6 +40,9 @@ KOMODO_URL = "https://komodo.amer.dev"
 KOMODO_API_KEY = os.environ["KOMODO_API_KEY"]
 KOMODO_API_SECRET = os.environ["KOMODO_API_SECRET"]
 SWITCHER_TOKEN = os.environ["SWITCHER_TOKEN"]
+
+ALERTMANAGER_URL = "https://alertmanager.amer.dev"
+LLM_BACKEND_DOWN_SILENCE_HOURS = 24  # safety cap -- see unsilence_llm_backend_down_alert
 
 # The mutually-exclusive GPU-owning stacks on murderbot. Exactly one of these
 # should ever be "running" at a time -- switching always tears down whichever
@@ -68,12 +83,26 @@ CONFIGS = {
         "description": "ComfyUI + FLUX image generation",
         "health_url": "http://10.100.20.19:8188/system_stats",
     },
+    "none": {
+        "stack": None,
+        "variable": None,
+        "value": None,
+        "description": "GPU idle -- no LLM or image-gen stack running, VRAM free",
+        "health_url": None,
+    },
 }
 
 # In-memory switch state. Single-process, single-GPU host -- no need for
 # anything heavier than a module-level dict guarded by a lock.
 _lock = asyncio.Lock()
-state = {"status": "idle", "target": None, "error": None, "started_at": None, "finished_at": None}
+state = {
+    "status": "idle",
+    "target": None,
+    "error": None,
+    "started_at": None,
+    "finished_at": None,
+    "alert_silence_error": None,
+}
 
 app = FastAPI(title="murderbot gpu-switcher")
 
@@ -94,6 +123,59 @@ async def komodo_call(kind: str, type_: str, params: dict) -> dict | list:
         return r.json()
 
 
+async def alertmanager_call(method: str, path: str, json: Optional[dict] = None) -> dict | list:
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.request(method, f"{ALERTMANAGER_URL}{path}", json=json)
+        r.raise_for_status()
+        return r.json() if r.content else {}
+
+
+async def silence_llm_backend_down_alert() -> None:
+    """Silence LLMBackendDown -- called whenever a switch lands on a config
+    that doesn't run llm-murderbot (none, imagegen), where the alert firing
+    is expected, not a real outage. Time-boxed rather than indefinite so a
+    silence never outlives a gpu-switcher crash/restart and permanently
+    blinds this alert -- unsilence_llm_backend_down_alert clears it
+    immediately on the next switch back to an LLM profile."""
+    now = datetime.now(timezone.utc)
+    payload = {
+        "matchers": [{"name": "alertname", "value": "LLMBackendDown", "isRegex": False, "isEqual": True}],
+        "startsAt": now.isoformat(),
+        "endsAt": (now + timedelta(hours=LLM_BACKEND_DOWN_SILENCE_HOURS)).isoformat(),
+        "createdBy": "gpu-switcher",
+        "comment": "llama-server intentionally down -- active config has no LLM profile loaded (see gpu-switcher /status)",
+    }
+    await alertmanager_call("POST", "/api/v2/silences", json=payload)
+
+
+async def unsilence_llm_backend_down_alert() -> None:
+    """Expire any active LLMBackendDown silence(s). Looked up by matcher
+    against Alertmanager's current silences rather than an id kept in this
+    process's memory -- that id wouldn't survive a gpu-switcher restart, and
+    only this service ever silences this alert, so matching by alertname
+    alone is safe."""
+    silences = await alertmanager_call("GET", "/api/v2/silences")
+    for s in silences:
+        if s.get("status", {}).get("state") != "active":
+            continue
+        if any(m.get("name") == "alertname" and m.get("value") == "LLMBackendDown" for m in s.get("matchers", [])):
+            await alertmanager_call("DELETE", f"/api/v2/silence/{s['id']}")
+
+
+async def sync_llm_backend_down_silence(cfg: dict) -> None:
+    """Best-effort -- an Alertmanager hiccup here should never fail an
+    otherwise-successful switch, just leave the silence state slightly
+    stale until the next switch call."""
+    try:
+        if cfg["stack"] == "llm-murderbot":
+            await unsilence_llm_backend_down_alert()
+        else:
+            await silence_llm_backend_down_alert()
+        state["alert_silence_error"] = None
+    except Exception as e:
+        state["alert_silence_error"] = str(e)
+
+
 async def get_running_gpu_stacks() -> list[str]:
     stacks = await komodo_call("read", "ListStacks", {})
     return [s["name"] for s in stacks if s["name"] in GPU_STACKS and s["info"].get("state") == "running"]
@@ -106,8 +188,12 @@ async def get_active_llm_profile() -> Optional[str]:
 
 
 async def get_active_config() -> Optional[str]:
-    """Best-effort: which known config is currently active, if any."""
+    """Best-effort: which known config is currently active, if any. "none" is
+    itself a known config -- report it explicitly rather than leaving idle
+    GPU state as an ambiguous `None` indistinguishable from "unknown"."""
     running = await get_running_gpu_stacks()
+    if not running:
+        return "none"
     if "img-murderbot" in running:
         return "imagegen"
     if "llm-murderbot" in running:
@@ -232,13 +318,18 @@ async def _do_switch(config_name: str) -> None:
             for stack in running:
                 await run_stack_action("execute", "DestroyStack", stack)
 
-            if cfg["variable"]:
-                await komodo_call("write", "UpdateVariableValue", {"name": cfg["variable"], "value": cfg["value"]})
+            if cfg["stack"] is not None:
+                # every other target deploys something; "none" is teardown-only.
+                if cfg["variable"]:
+                    await komodo_call(
+                        "write", "UpdateVariableValue", {"name": cfg["variable"], "value": cfg["value"]}
+                    )
 
-            await run_stack_action("execute", "DeployStack", cfg["stack"])
-            state.update(status="waiting_healthy")
-            await wait_for_health(cfg["health_url"])
+                await run_stack_action("execute", "DeployStack", cfg["stack"])
+                state.update(status="waiting_healthy")
+                await wait_for_health(cfg["health_url"])
 
+            await sync_llm_backend_down_silence(cfg)
             state.update(status="idle", finished_at=time.time())
         except Exception as e:
             state.update(status="error", error=str(e), finished_at=time.time())
