@@ -246,17 +246,24 @@ Trakt account used for Radarr's own Trakt import lists (Phase 1 of that
 plan) and (separately) the official Jellyfin Trakt scrobbler plugin.
 
 **Lists are tracked declaratively, not point-and-click:** Alex adds new
-lists by editing `config/jellyfin-auto-collections/lists.yaml` (plain
-`name` + full `trakt.tv` list URL pairs) and opening a PR — nothing else
-to configure. `pre-deploy.sh` parses that file and renders the tool's
-actual `config.yaml` (including translating each full URL into the bare
+lists by editing `config/jellyfin-auto-collections/lists.yaml` (`name`,
+the full `trakt.tv` list URL, and `apps` — zero or more of
+`radarr`/`sonarr`) and opening a PR — nothing else to configure.
+`pre-deploy.sh` parses that file and renders the tool's actual
+`config.yaml` (including translating each full URL into the bare
 `users/<user>/lists/<slug>` form the tool's Trakt plugin expects) fresh on
 every deploy, the same "copy/render from repo on every deploy so
 version-controlled edits take effect" pattern used for the calibre mods
-above. This file only controls the *Jellyfin collection* — a list that
-should also auto-download missing titles needs a separate one-time Radarr
-Import List entry (Settings → Lists → Trakt List in Radarr's own UI), not
-controlled by this repo.
+above. `apps` additionally drives auto-download: for each app an entry
+names, `pre-deploy.sh` ensures a matching Trakt import list exists there
+(matched by username+listname, created via that app's API if missing,
+tagged `trakt-manifest`), reusing whichever import list in that app
+already has a completed Trakt OAuth — a one-time per-app "Authenticate
+with Trakt" click-through in that app's own UI (Settings → Lists → Trakt
+List), not per-list. Best-effort: an app that's unreachable, not yet
+authenticated, or a list Trakt rejects for that app (e.g. a TV-only list
+named under `apps: [radarr]`) logs a warning and is skipped, never fails
+the deploy.
 
 **Personal Trakt app required, unlike Radarr.** Radarr's Trakt integration
 uses Radarr's own pre-registered app (no client_id needed, sidesteps
