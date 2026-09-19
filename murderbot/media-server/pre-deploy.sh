@@ -31,6 +31,23 @@ SONARR_API_KEY=$(bws secret get "d3a7aeb5-0dc5-4fa2-99b6-b4b4014fb50a" \
 [[ -n "$SONARR_API_KEY" && "$SONARR_API_KEY" != "null" ]] \
   || { echo "media-server pre-deploy: failed to fetch sonarr-api-key" >&2; exit 1; }
 
+# jellyfin-auto-collections (Obsidian Projects/Media Server Stack/Plans/community-collections-trakt.md,
+# Phase 2): syncs Trakt lists into Jellyfin collections.
+JELLYFIN_API_KEY=$(bws secret get "53080732-f813-46d7-b53d-b49801601e5d" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$JELLYFIN_API_KEY" && "$JELLYFIN_API_KEY" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch jellyfin-api-key" >&2; exit 1; }
+
+TRAKT_CLIENT_ID=$(bws secret get "fd5e7729-2e3c-4d1a-ac7d-b4ca000e0270" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$TRAKT_CLIENT_ID" && "$TRAKT_CLIENT_ID" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch jellyfin-trakt-client-id" >&2; exit 1; }
+
+TRAKT_CLIENT_SECRET=$(bws secret get "dc191d31-0835-4488-bb44-b4ca000e2c43" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$TRAKT_CLIENT_SECRET" && "$TRAKT_CLIENT_SECRET" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch jellyfin-trakt-client-secret" >&2; exit 1; }
+
 # shelfarr + BookOrbit trial (Phase 2 of the LazyLibrarian→shelfarr migration,
 # see Obsidian Projects/Media Server Stack/Plans/shelfarr-migration.md).
 # shelfarr's own docker-entrypoint auto-generates and persists its
@@ -217,6 +234,52 @@ cp murderbot/media-server/config/calibre-mods/hardcover-metadata-sync.py "${CALI
 cp murderbot/media-server/config/calibre-mods/loop.sh "${CALIBRE_SYNC_SCRIPTS_DIR}/loop.sh"
 chmod 0755 "${CALIBRE_SYNC_SCRIPTS_DIR}/loop.sh"
 chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBRE_SYNC_SCRIPTS_DIR"
+
+# jellyfin-auto-collections: Trakt lists are tracked by Alex as plain
+# name/url pairs in murderbot/media-server/config/jellyfin-auto-collections/lists.yaml
+# (see Obsidian Projects/Media Server Stack/Plans/community-collections-trakt.md,
+# Phase 2 — one PR per new list, nothing else to touch). Rendered into the
+# tool's actual config.yaml here because it wants Trakt list_ids as the bare
+# `users/<user>/lists/<slug>` path, not a full URL, and — same constraint as
+# the calibre-library snapshot step above — Komodo Periphery has no python3
+# for a real YAML parser, so this is plain sed against the file's simple
+# flat shape. No embedded db (config.yaml + a small OAuth token file only),
+# so it stays on CONFIG_ROOT (RAID5), same as recyclarr/calibre.
+JELLYFIN_AUTO_COLLECTIONS_CONFIG_DIR="${CONFIG_ROOT}/jellyfin-auto-collections/config"
+mkdir -p "$JELLYFIN_AUTO_COLLECTIONS_CONFIG_DIR"
+chown -R 1000:1000 "$JELLYFIN_AUTO_COLLECTIONS_CONFIG_DIR"
+
+JAC_LISTS_FILE="murderbot/media-server/config/jellyfin-auto-collections/lists.yaml"
+JAC_LIST_IDS=""
+if [[ -f "$JAC_LISTS_FILE" ]]; then
+  while IFS= read -r _jac_url; do
+    _jac_url="${_jac_url%$'\r'}"
+    _jac_slug="${_jac_url#https://app.trakt.tv/}"
+    _jac_slug="${_jac_slug#https://trakt.tv/}"
+    [[ -n "$_jac_slug" ]] && JAC_LIST_IDS+="      - ${_jac_slug}"$'\n'
+  done < <(sed -n 's/^[[:space:]]*url:[[:space:]]*//p' "$JAC_LISTS_FILE")
+fi
+[[ -n "$JAC_LIST_IDS" ]] \
+  || { echo "media-server pre-deploy: no lists found in ${JAC_LISTS_FILE}" >&2; exit 1; }
+
+cat > "${JELLYFIN_AUTO_COLLECTIONS_CONFIG_DIR}/config.yaml" <<EOF
+crontab: !ENV \${CRONTAB}
+timezone: !ENV \${TZ}
+jellyfin:
+  server_url: http://jellyfin:8096
+  api_key: !ENV \${JELLYFIN_API_KEY}
+  user_id: 4e56c2a4ae1847a998965736b7a8891d
+plugins:
+  trakt:
+    enabled: true
+    clear_collection: true
+    list_ids:
+${JAC_LIST_IDS}    client_id: !ENV \${TRAKT_CLIENT_ID}
+    client_secret: !ENV \${TRAKT_CLIENT_SECRET}
+EOF
+chown 1000:1000 "${JELLYFIN_AUTO_COLLECTIONS_CONFIG_DIR}/config.yaml"
+echo "media-server pre-deploy: rendered jellyfin-auto-collections config.yaml ($(grep -c '^      - ' <<<"$JAC_LIST_IDS") list(s))"
+
 {
   echo "CONFIG_BASE=${CONFIG_ROOT}"
   echo "PROFILARR_CONFIG=${PROFILARR_CONFIG_ROOT}"
@@ -229,6 +292,11 @@ chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBR
   echo "JELLYFIN_CONFIG=${JELLYFIN_CONFIG_ROOT}"
   echo "SEERR_CONFIG=${SEERR_CONFIG_ROOT}"
   echo "MAINTAINERR_CONFIG=${MAINTAINERR_CONFIG_ROOT}"
+  echo "JELLYFIN_AUTO_COLLECTIONS_CONFIG=${JELLYFIN_AUTO_COLLECTIONS_CONFIG_DIR}"
+  echo "JELLYFIN_AUTO_COLLECTIONS_CRONTAB=0 */6 * * *"
+  echo "JELLYFIN_API_KEY=${JELLYFIN_API_KEY}"
+  echo "TRAKT_CLIENT_ID=${TRAKT_CLIENT_ID}"
+  echo "TRAKT_CLIENT_SECRET=${TRAKT_CLIENT_SECRET}"
   echo "CALIBRE_CONFIG=${CONFIG_ROOT}/calibre/config"
   echo "CALIBREWEB_CONFIG=${CALIBREWEB_CONFIG_ROOT}"
   echo "HARDCOVER_API_KEY=${HARDCOVER_API_KEY}"

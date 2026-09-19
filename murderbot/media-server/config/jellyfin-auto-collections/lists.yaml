@@ -1,0 +1,13 @@
+# Trakt lists synced into Jellyfin collections by jellyfin-auto-collections.
+#
+# To add a new list: add an entry below (name + the full trakt.tv list URL)
+# and open a PR — no other changes needed. pre-deploy.sh parses this file and
+# renders jellyfin-auto-collections' own config.yaml from it on every deploy.
+#
+# This only drives the Jellyfin collection half. If a list should ALSO
+# auto-download missing titles via Radarr, that's a separate one-time setup
+# in Radarr's own UI (Settings -> Lists -> Trakt List) — not controlled by
+# this file. See Obsidian Projects/Media Server Stack/Plans/community-collections-trakt.md
+# (Phase 2) for the full design.
+- name: Erotic Thrillers
+  url: https://app.trakt.tv/users/amer_dev/lists/erotic-thrillers

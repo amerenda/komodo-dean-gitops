@@ -238,6 +238,43 @@ to wait on the calibre-library import first).
   resolution against the ~14 ebooks already in BookOrbit, then the live
   run) is a UI-driven judgment call — done by Alex, not automated here.
 
+## Jellyfin collection sync — jellyfin-auto-collections (2026-09-19)
+
+Added per Obsidian `Projects/Media Server Stack/Plans/community-collections-trakt.md`
+(Phase 2). Syncs Trakt lists into Jellyfin collections, keyed off the same
+Trakt account used for Radarr's own Trakt import lists (Phase 1 of that
+plan) and (separately) the official Jellyfin Trakt scrobbler plugin.
+
+**Lists are tracked declaratively, not point-and-click:** Alex adds new
+lists by editing `config/jellyfin-auto-collections/lists.yaml` (plain
+`name` + full `trakt.tv` list URL pairs) and opening a PR — nothing else
+to configure. `pre-deploy.sh` parses that file and renders the tool's
+actual `config.yaml` (including translating each full URL into the bare
+`users/<user>/lists/<slug>` form the tool's Trakt plugin expects) fresh on
+every deploy, the same "copy/render from repo on every deploy so
+version-controlled edits take effect" pattern used for the calibre mods
+above. This file only controls the *Jellyfin collection* — a list that
+should also auto-download missing titles needs a separate one-time Radarr
+Import List entry (Settings → Lists → Trakt List in Radarr's own UI), not
+controlled by this repo.
+
+**Personal Trakt app required, unlike Radarr.** Radarr's Trakt integration
+uses Radarr's own pre-registered app (no client_id needed, sidesteps
+Trakt's VIP-for-app-creation paywall entirely). `jellyfin-auto-collections`
+has no such shared app — its `trakt` plugin needs a personal
+`client_id`/`client_secret` (`trakt.tv/oauth/applications/new`, requires
+Trakt VIP as of the same paywall). It uses Trakt's **device code flow**
+(`/oauth/device/code` + `/oauth/device/token` — confirmed by reading
+`plugins/trakt.py` directly, 2026-09-19), not a browser-redirect flow, so
+the app's Redirect URI field is a required formality only — set it to
+`urn:ietf:wg:oauth:2.0:oob` (Trakt's standard non-web-app placeholder). No
+public reachability (Tailscale Funnel or otherwise) is needed for
+`media.amer.dev` because of this. Credentials: BWS
+`jellyfin-trakt-client-id` / `jellyfin-trakt-client-secret`.
+
+**No pinned semver tag exists upstream** — see the pinned-versions table
+below for the commit-SHA-pin rationale.
+
 ### Current pinned versions
 
 | Service | Image | Pinned Version | Notes |
@@ -257,3 +294,4 @@ to wait on the calibre-library import first).
 | sonarr-missing-search-cron | `docker:27-cli` | `27` | Same crond shape/version as mac-mini-m4/docker-maintenance. Daily `MissingEpisodeSearch` — see config/sonarr-cron/crontab.txt. |
 | shelfarr | `ghcr.io/pedro-revez-silva/shelfarr` | `2026.08.31.1` | GitHub release `v2026.08.31.1`; OCI tag drops the `v` prefix per upstream's own versioning note. Production, see section above. |
 | bookorbit-app / bookorbit-db | `ghcr.io/bookorbit/bookorbit` / `pgvector/pgvector` | `2.8.1` / `pg18` | BookOrbit's GitHub release tag is `v2.8.1` but its OCI/GHCR image tag drops the `v` prefix (confirmed against the registry directly — `v2.8.1` 404s as `manifest unknown`, `2.8.1` resolves); same convention as shelfarr above. bookorbit-db pinned to major-version tag only, same pattern as recyclarr — upstream doesn't publish patch-level pgvector/PG tags. Production, see section above. |
+| jellyfin-auto-collections | `ghcr.io/ghomashudson/jellyfin-auto-collections` | `b0ba91c2742d61adc196131a2c1ad7996b52949d` | **Deliberate exception to "no commit SHA digests" above** — upstream (`ghomasHudson/Jellyfin-Auto-Collections`) publishes no GitHub releases at all; its own CI (`.github/workflows/push_to_docker.yml`) only ever tags images `:latest` and `:<git-sha>` (confirmed 2026-09-19). A pinned, immutable SHA is the closest available option to this stack's pinning rule when no semver tag exists upstream. See "Jellyfin collection sync" section below. |
