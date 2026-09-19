@@ -1,0 +1,22 @@
+# Trakt lists synced into Jellyfin collections by jellyfin-auto-collections,
+# and (optionally) auto-downloaded via Radarr/Sonarr import lists.
+#
+# To add a new list: add an entry below (name, the full trakt.tv list URL,
+# and apps — see below) and open a PR — no other changes needed.
+# pre-deploy.sh parses this file, renders jellyfin-auto-collections' own
+# config.yaml, AND (for any apps named) creates a matching Radarr/Sonarr
+# import list if one doesn't already exist, on every deploy.
+#
+# `apps` is required on every entry (use `apps: []` for collection-only —
+# always present so pre-deploy.sh's parser stays aligned). Name zero or
+# more of `radarr`/`sonarr` — whichever app(s), if any, should treat this
+# list as an auto-download source. Each named app must already have its
+# own one-time Trakt authentication done (Settings -> Lists -> Trakt List
+# -> Authenticate with Trakt in that app's UI, once ever per app, not
+# per-list) before pre-deploy.sh can create anything there.
+#
+# See Obsidian Projects/Media Server Stack/Plans/community-collections-trakt.md
+# (Phase 2) for the full design.
+- name: Erotic Thrillers
+  url: https://app.trakt.tv/users/amer_dev/lists/erotic-thrillers
+  apps: [radarr]

@@ -195,6 +195,31 @@ services:
       retries: 3
     restart: unless-stopped
 
+  jellyfin-auto-collections:
+    container_name: jellyfin-auto-collections
+    # Pinned to the master-branch commit SHA, not a semver tag — upstream
+    # publishes no GitHub releases and its own CI only ever tags images
+    # `:latest` and `:<git-sha>` (confirmed 2026-09-19 against
+    # .github/workflows/push_to_docker.yml). This is the closest to this
+    # stack's normal pinned-version rule available: immutable and
+    # reproducible, just not human-readable-semver. See this stack's
+    # CLAUDE.md pinned-versions table for the same note.
+    image: ghcr.io/ghomashudson/jellyfin-auto-collections:b0ba91c2742d61adc196131a2c1ad7996b52949d
+    environment:
+      - CRONTAB=${JELLYFIN_AUTO_COLLECTIONS_CRONTAB}
+      - TZ=America/New_York
+      - JELLYFIN_API_KEY=${JELLYFIN_API_KEY}
+      - TRAKT_CLIENT_ID=${TRAKT_CLIENT_ID}
+      - TRAKT_CLIENT_SECRET=${TRAKT_CLIENT_SECRET}
+    volumes:
+      - ${JELLYFIN_AUTO_COLLECTIONS_CONFIG}:/app/config
+    networks:
+      servarr:
+    dns: *dns-servers
+    depends_on:
+      - jellyfin
+    restart: unless-stopped
+
   maintainerr:
     container_name: maintainerr
     image: ghcr.io/maintainerr/maintainerr:3.27.0

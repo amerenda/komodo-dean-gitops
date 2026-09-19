@@ -31,6 +31,30 @@ SONARR_API_KEY=$(bws secret get "d3a7aeb5-0dc5-4fa2-99b6-b4b4014fb50a" \
 [[ -n "$SONARR_API_KEY" && "$SONARR_API_KEY" != "null" ]] \
   || { echo "media-server pre-deploy: failed to fetch sonarr-api-key" >&2; exit 1; }
 
+# Needed for the lists.yaml -> Radarr import-list reconciliation below
+# (Phase 2, community-collections-trakt.md) — not previously fetched here.
+RADARR_API_KEY=$(bws secret get "3f35a994-b66c-41d6-87d2-b4c90106aa6c" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$RADARR_API_KEY" && "$RADARR_API_KEY" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch media-server-radarr-api-key" >&2; exit 1; }
+
+# jellyfin-auto-collections (Obsidian Projects/Media Server Stack/Plans/community-collections-trakt.md,
+# Phase 2): syncs Trakt lists into Jellyfin collections.
+JELLYFIN_API_KEY=$(bws secret get "53080732-f813-46d7-b53d-b49801601e5d" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$JELLYFIN_API_KEY" && "$JELLYFIN_API_KEY" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch jellyfin-api-key" >&2; exit 1; }
+
+TRAKT_CLIENT_ID=$(bws secret get "fd5e7729-2e3c-4d1a-ac7d-b4ca000e0270" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$TRAKT_CLIENT_ID" && "$TRAKT_CLIENT_ID" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch jellyfin-trakt-client-id" >&2; exit 1; }
+
+TRAKT_CLIENT_SECRET=$(bws secret get "dc191d31-0835-4488-bb44-b4ca000e2c43" \
+    --access-token "$BWS_ACCESS_TOKEN" | jq -r .value | tr -d '[:space:]')
+[[ -n "$TRAKT_CLIENT_SECRET" && "$TRAKT_CLIENT_SECRET" != "null" ]] \
+  || { echo "media-server pre-deploy: failed to fetch jellyfin-trakt-client-secret" >&2; exit 1; }
+
 # shelfarr + BookOrbit trial (Phase 2 of the LazyLibrarian→shelfarr migration,
 # see Obsidian Projects/Media Server Stack/Plans/shelfarr-migration.md).
 # shelfarr's own docker-entrypoint auto-generates and persists its
@@ -217,6 +241,177 @@ cp murderbot/media-server/config/calibre-mods/hardcover-metadata-sync.py "${CALI
 cp murderbot/media-server/config/calibre-mods/loop.sh "${CALIBRE_SYNC_SCRIPTS_DIR}/loop.sh"
 chmod 0755 "${CALIBRE_SYNC_SCRIPTS_DIR}/loop.sh"
 chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBRE_SYNC_SCRIPTS_DIR"
+
+# jellyfin-auto-collections: Trakt lists are tracked by Alex as plain
+# name/url pairs in murderbot/media-server/config/jellyfin-auto-collections/lists.yaml
+# (see Obsidian Projects/Media Server Stack/Plans/community-collections-trakt.md,
+# Phase 2 — one PR per new list, nothing else to touch). Rendered into the
+# tool's actual config.yaml here because it wants Trakt list_ids as the bare
+# `users/<user>/lists/<slug>` path, not a full URL, and — same constraint as
+# the calibre-library snapshot step above — Komodo Periphery has no python3
+# for a real YAML parser, so this is plain sed against the file's simple
+# flat shape. No embedded db (config.yaml + a small OAuth token file only),
+# so it stays on CONFIG_ROOT (RAID5), same as recyclarr/calibre.
+JELLYFIN_AUTO_COLLECTIONS_CONFIG_DIR="${CONFIG_ROOT}/jellyfin-auto-collections/config"
+mkdir -p "$JELLYFIN_AUTO_COLLECTIONS_CONFIG_DIR"
+chown -R 1000:1000 "$JELLYFIN_AUTO_COLLECTIONS_CONFIG_DIR"
+
+JAC_LISTS_FILE="murderbot/media-server/config/jellyfin-auto-collections/lists.yaml"
+JAC_LIST_IDS=""
+if [[ -f "$JAC_LISTS_FILE" ]]; then
+  while IFS= read -r _jac_url; do
+    _jac_url="${_jac_url%$'\r'}"
+    _jac_slug="${_jac_url#https://app.trakt.tv/}"
+    _jac_slug="${_jac_slug#https://trakt.tv/}"
+    [[ -n "$_jac_slug" ]] && JAC_LIST_IDS+="      - ${_jac_slug}"$'\n'
+  done < <(sed -n 's/^[[:space:]]*url:[[:space:]]*//p' "$JAC_LISTS_FILE")
+fi
+[[ -n "$JAC_LIST_IDS" ]] \
+  || { echo "media-server pre-deploy: no lists found in ${JAC_LISTS_FILE}" >&2; exit 1; }
+
+cat > "${JELLYFIN_AUTO_COLLECTIONS_CONFIG_DIR}/config.yaml" <<EOF
+crontab: !ENV \${CRONTAB}
+timezone: !ENV \${TZ}
+jellyfin:
+  server_url: http://jellyfin:8096
+  api_key: !ENV \${JELLYFIN_API_KEY}
+  user_id: 4e56c2a4ae1847a998965736b7a8891d
+plugins:
+  trakt:
+    enabled: true
+    clear_collection: true
+    list_ids:
+${JAC_LIST_IDS}    client_id: !ENV \${TRAKT_CLIENT_ID}
+    client_secret: !ENV \${TRAKT_CLIENT_SECRET}
+EOF
+chown 1000:1000 "${JELLYFIN_AUTO_COLLECTIONS_CONFIG_DIR}/config.yaml"
+echo "media-server pre-deploy: rendered jellyfin-auto-collections config.yaml ($(grep -c '^      - ' <<<"$JAC_LIST_IDS") list(s))"
+
+# lists.yaml -> Radarr/Sonarr import-list reconciliation (Phase 2,
+# community-collections-trakt.md). Each lists.yaml entry may name zero or
+# more of `radarr`/`sonarr` in its `apps:` field (every entry must include
+# an explicit `apps:` line, `apps: []` if none, so the three sed passes
+# below stay positionally aligned). For each app an entry names, ensure a
+# matching Trakt import list exists (matched by username+listname) —
+# create it if missing, reusing that app's own already-authenticated
+# Trakt OAuth token (from whichever existing TraktListImport entry has
+# authUser set — the one-time per-app "Authenticate with Trakt"
+# click-through, not per-list). Tagged `trakt-manifest` in both apps so
+# manifest-created lists are identifiable (informational only, same as
+# Radarr's `curated-list` tag from Phase 1 — not load-bearing for
+# Maintainerr exclusion, see Phase 3).
+#
+# Best-effort by design: an app that isn't reachable yet (e.g. first-ever
+# deploy, before Radarr/Sonarr have started), hasn't had its one-time
+# Trakt auth done, or a manifest entry Trakt rejects (e.g. a TV-only list
+# named under `apps: [radarr]`) gets a warning, not a failed deploy —
+# this whole section runs with errexit off.
+mapfile -t JAC_ENTRY_NAMES < <(sed -n 's/^[[:space:]]*- name:[[:space:]]*//p' "$JAC_LISTS_FILE")
+mapfile -t JAC_ENTRY_URLS  < <(sed -n 's/^[[:space:]]*url:[[:space:]]*//p' "$JAC_LISTS_FILE")
+mapfile -t JAC_ENTRY_APPS  < <(sed -n 's/^[[:space:]]*apps:[[:space:]]*//p' "$JAC_LISTS_FILE")
+
+if [[ ${#JAC_ENTRY_NAMES[@]} -ne ${#JAC_ENTRY_URLS[@]} || ${#JAC_ENTRY_NAMES[@]} -ne ${#JAC_ENTRY_APPS[@]} ]]; then
+  echo "media-server pre-deploy: lists.yaml entries must each have name/url/apps (apps: [] if none) — skipping app reconciliation" >&2
+else
+  reconcile_trakt_import_list() {
+    local app="$1" base_url="$2" api_key="$3" name="$4" username="$5" listname="$6" auto_field="$7" auto_value="$8" search_field="$9" search_value="${10}"
+    local lists_json tmpl exists tag_id payload http_code resp_file
+    resp_file=$(mktemp)
+
+    lists_json=$(curl -sf -H "X-Api-Key: $api_key" "${base_url}/api/v3/importlist")
+    if [[ -z "$lists_json" ]]; then
+      echo "media-server pre-deploy: ${app} unreachable, skipping manifest reconciliation for '${name}'" >&2
+      rm -f "$resp_file"; return
+    fi
+
+    exists=$(jq -r --arg u "$username" --arg l "$listname" '
+      any(.[]?; .implementation=="TraktListImport" and
+        ((.fields[]? | select(.name=="username").value)==$u) and
+        ((.fields[]? | select(.name=="listname").value)==$l))
+    ' <<<"$lists_json")
+    if [[ "$exists" == "true" ]]; then
+      echo "media-server pre-deploy: ${app} import list for '${name}' (${username}/${listname}) already exists, skipping"
+      rm -f "$resp_file"; return
+    fi
+
+    tmpl=$(jq '[.[]? | select(.implementation=="TraktListImport" and
+      ((.fields[]? | select(.name=="authUser").value // "") != ""))][0]' <<<"$lists_json")
+    if [[ "$tmpl" == "null" || -z "$tmpl" ]]; then
+      echo "media-server pre-deploy: ${app} has no authenticated Trakt list yet (one-time Settings -> Lists -> Trakt List -> Authenticate with Trakt required) — skipping '${name}'" >&2
+      rm -f "$resp_file"; return
+    fi
+
+    tag_id=$(curl -sf -H "X-Api-Key: $api_key" "${base_url}/api/v3/tag" | jq -r '.[] | select(.label=="trakt-manifest") | .id' | head -n1)
+    if [[ -z "$tag_id" ]]; then
+      tag_id=$(curl -sf -H "X-Api-Key: $api_key" -H "Content-Type: application/json" \
+        -d '{"label":"trakt-manifest"}' "${base_url}/api/v3/tag" | jq -r '.id')
+    fi
+    if [[ -z "$tag_id" || "$tag_id" == "null" ]]; then
+      echo "media-server pre-deploy: ${app} failed to find/create 'trakt-manifest' tag — skipping '${name}'" >&2
+      rm -f "$resp_file"; return
+    fi
+
+    payload=$(jq --arg name "$name" --arg username "$username" --arg listname "$listname" \
+      --argjson tag "$tag_id" --arg auto_field "$auto_field" --argjson auto_value "$auto_value" \
+      --arg search_field "$search_field" --argjson search_value "$search_value" '
+      del(.id)
+      | .name = $name
+      | .tags = [$tag]
+      | .[$auto_field] = $auto_value
+      | .[$search_field] = $search_value
+      | .fields = (.fields | map(
+          if .name=="username" then .value = $username
+          elif .name=="listname" then .value = $listname
+          else . end))
+    ' <<<"$tmpl")
+
+    http_code=$(curl -s -o "$resp_file" -w "%{http_code}" \
+      -H "X-Api-Key: $api_key" -H "Content-Type: application/json" \
+      -d "$payload" "${base_url}/api/v3/importlist")
+    if [[ "$http_code" == "201" ]]; then
+      echo "media-server pre-deploy: created ${app} import list for '${name}' (${username}/${listname})"
+    else
+      echo "media-server pre-deploy: WARNING failed to create ${app} import list for '${name}' (HTTP ${http_code}): $(cat "$resp_file")" >&2
+    fi
+    rm -f "$resp_file"
+  }
+
+  set +e
+  for _jac_i in "${!JAC_ENTRY_NAMES[@]}"; do
+    _jac_name="${JAC_ENTRY_NAMES[$_jac_i]}"
+    _jac_url="${JAC_ENTRY_URLS[$_jac_i]%$'\r'}"
+    _jac_apps="${JAC_ENTRY_APPS[$_jac_i]%$'\r'}"
+    _jac_apps="${_jac_apps#\[}"; _jac_apps="${_jac_apps%\]}"
+    [[ -z "${_jac_apps//[[:space:]]/}" ]] && continue
+
+    _jac_entry_slug="${_jac_url#https://app.trakt.tv/}"
+    _jac_entry_slug="${_jac_entry_slug#https://trakt.tv/}"
+    _jac_entry_username="${_jac_entry_slug#users/}"
+    _jac_entry_username="${_jac_entry_username%%/lists/*}"
+    _jac_entry_listname="${_jac_entry_slug##*/lists/}"
+
+    IFS=',' read -ra _jac_apps_arr <<<"$_jac_apps"
+    for _jac_app in "${_jac_apps_arr[@]}"; do
+      _jac_app="$(echo "$_jac_app" | tr -d '[:space:]')"
+      case "$_jac_app" in
+        radarr)
+          reconcile_trakt_import_list radarr "http://127.0.0.1:7878/radarr" "$RADARR_API_KEY" \
+            "$_jac_name" "$_jac_entry_username" "$_jac_entry_listname" \
+            enableAuto true searchOnAdd true
+          ;;
+        sonarr)
+          reconcile_trakt_import_list sonarr "http://127.0.0.1:8989/sonarr" "$SONARR_API_KEY" \
+            "$_jac_name" "$_jac_entry_username" "$_jac_entry_listname" \
+            enableAutomaticAdd true searchForMissingEpisodes false
+          ;;
+        "") ;;
+        *) echo "media-server pre-deploy: unknown app '${_jac_app}' in lists.yaml for '${_jac_name}', skipping" >&2 ;;
+      esac
+    done
+  done
+  set -e
+fi
+
 {
   echo "CONFIG_BASE=${CONFIG_ROOT}"
   echo "PROFILARR_CONFIG=${PROFILARR_CONFIG_ROOT}"
@@ -229,6 +424,11 @@ chown -R 1000:1000 "$CALIBRE_CUSTOM_INIT_DIR" "$HARDCOVER_PROVIDER_DIR" "$CALIBR
   echo "JELLYFIN_CONFIG=${JELLYFIN_CONFIG_ROOT}"
   echo "SEERR_CONFIG=${SEERR_CONFIG_ROOT}"
   echo "MAINTAINERR_CONFIG=${MAINTAINERR_CONFIG_ROOT}"
+  echo "JELLYFIN_AUTO_COLLECTIONS_CONFIG=${JELLYFIN_AUTO_COLLECTIONS_CONFIG_DIR}"
+  echo "JELLYFIN_AUTO_COLLECTIONS_CRONTAB=0 */6 * * *"
+  echo "JELLYFIN_API_KEY=${JELLYFIN_API_KEY}"
+  echo "TRAKT_CLIENT_ID=${TRAKT_CLIENT_ID}"
+  echo "TRAKT_CLIENT_SECRET=${TRAKT_CLIENT_SECRET}"
   echo "CALIBRE_CONFIG=${CONFIG_ROOT}/calibre/config"
   echo "CALIBREWEB_CONFIG=${CALIBREWEB_CONFIG_ROOT}"
   echo "HARDCOVER_API_KEY=${HARDCOVER_API_KEY}"
