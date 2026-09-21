@@ -134,6 +134,14 @@ services:
     networks:
       servarr:
     dns: *dns-servers
+    # The Moonfin plugin logs into Seerr server-side via its Funnel URL
+    # (SeerrUrl). 1.1.1.1 intermittently answers NXDOMAIN for that name's A
+    # record, leaving only AAAA, and murderbot has IPv6 disabled, so the
+    # login fails/hangs. Pin it to murderbot's own tailnet IP, where
+    # `tailscale serve` terminates the same hostname/cert, so this hairpin
+    # never depends on public DNS.
+    extra_hosts:
+      - "murderbot.tail993c0b.ts.net:100.84.110.83"
     environment:
       - PUID=1000
       - PGID=1000
