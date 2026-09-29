@@ -76,7 +76,7 @@ NOT an EFR32 firmware issue (corrected 2026-07-20, re-confirmed 2026-07-22):
   now does replicate that automatically as of failure mode 4 above — stop
   Z2M outright rather than trying to out-clever it purely at the proxy layer.
 
-Listen: 127.0.0.1:6639  →  SLZB: 10.100.20.179:6638
+Listen: 127.0.0.1:6639  →  SLZB: 10.100.20.158:6638
 """
 
 from __future__ import annotations
@@ -92,7 +92,7 @@ import sys
 
 LISTEN_HOST          = "127.0.0.1"
 LISTEN_PORT          = int(os.environ.get("PROXY_LISTEN_PORT", "6639"))
-SLZB_HOST            = os.environ.get("SLZB_HOST", "10.100.20.179")
+SLZB_HOST            = os.environ.get("SLZB_HOST", "10.100.20.158")
 SLZB_PORT            = int(os.environ.get("SLZB_PORT", "6638"))
 RECONNECT_DELAY      = 2    # seconds between SLZB reconnect attempts
 # Total hold period after each real Z2M disconnect. With RECONNECT=True the
