@@ -64,6 +64,58 @@ groups:
             alongside the VIP alert) points at a broader network-segment
             issue.
 
+      # Incident 2026-09-29: gmktec-3's Cilium agent lost ARP resolution for its own announced
+      # shared-ingress VIP (10.100.20.171) after a routine pod restart, with zero signal from
+      # anything else - Cilium's own health checks all reported OK, ArgoCD showed Synced/Healthy,
+      # cert-manager kept issuing certs fine (DNS-01 doesn't touch the VIP at all). Only caught by
+      # a manual end-to-end curl. Same blind spot TraefikVipUnreachable above closes for the
+      # legacy cluster's Traefik VIP - this is that same direct signal for gmktec's two VIPs.
+      - alert: GmktecLbVipUnreachable
+        expr: probe_success{job="tcp-probe-gmktec-lb-vips"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "gmktec VIP {{ $labels.service }} ({{ $labels.instance }}) is unreachable"
+          description: |
+            A TCP connection to this gmktec LoadBalancer VIP's HTTPS port has
+            been failing for 2+ minutes. If {{ $labels.service }} is
+            gmktec-cilium-ingress-vip, every *.amer.dev host routed through
+            that cluster's shared ingress is affected regardless of which
+            backend actually serves it.
+
+            Check: does GmktecNodeUnreachable also fire for one or more
+            nodes? If yes, this may be a broader network-segment issue, not
+            Cilium-specific.
+            Check: on the node holding this VIP's L2-announcement lease
+            (`kubectl get lease -n kube-system | grep l2announce`), does
+            `ip neigh show <vip>` resolve a real MAC, or FAILED? FAILED with
+            Cilium's own health checks reporting OK was the actual signature
+            of the 2026-09-29 incident - a cilium-agent pod restart
+            (`kubectl delete pod -n kube-system <cilium-agent-pod>`) is the
+            known fix, but only after confirming `envoyConfig.enabled` and
+            `loadBalancer.l7.backend` are actually set in the live Helm
+            values first (ansible-playbooks group_vars/debian_k3s.yml) - a
+            plain restart without those alone gets stuck waiting forever on
+            missing CRDs instead of fixing anything.
+
+      # Comparison signal for GmktecLbVipUnreachable above, same role icmp-probe-k3s-nodes/
+      # K3sNodeUnreachable play for the legacy cluster - all three gmktec nodes are always-on
+      # control-plane members, no sleep-by-design exclusions needed.
+      - alert: GmktecNodeUnreachable
+        expr: probe_success{job="icmp-probe-gmktec-nodes"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "gmktec node {{ $labels.node }} ({{ $labels.instance }}) is unreachable via ICMP"
+          description: |
+            Direct ping to gmktec node {{ $labels.node }} has been failing
+            for 2+ minutes. Correlate with GmktecLbVipUnreachable: one node
+            alone points at that node specifically; more than one at once
+            (or alongside the VIP alert) points at a broader network-segment
+            issue.
+
       # Every alert built on probe_success (WebServiceDown, LiteLLMDown,
       # Mem0Down, CouchDBDown, TraefikVipUnreachable, K3sNodeUnreachable,
       # etc. — effectively the entire probe-based half of this monitoring
