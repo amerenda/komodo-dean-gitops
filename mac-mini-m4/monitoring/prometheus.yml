@@ -186,9 +186,9 @@ scrape_configs:
       - replacement: localhost:9115
         target_label: __address__
 
-  # TCP-connect reachability to the gmktec cluster's Cilium-managed LoadBalancer VIPs — the same
+  # TCP-connect reachability to the dean cluster's Cilium-managed LoadBalancer VIPs — the same
   # "can't reach the VIP at all" signal as tcp-probe-traefik-vip above, for the new cluster.
-  # Added 2026-09-29 after gmktec-3's Cilium agent silently lost ARP resolution for its own
+  # Added 2026-09-29 after dean-3's Cilium agent silently lost ARP resolution for its own
   # announced VIP (10.100.20.171) with zero signal anywhere else (Cilium's own health checks all
   # reported OK, ArgoCD showed Synced/Healthy, cert-manager issued certs fine via DNS-01 which
   # doesn't touch the VIP at all) - the only way this was caught was a manual end-to-end curl.
@@ -196,17 +196,17 @@ scrape_configs:
   # guaranteed to answer ICMP even when healthy - verify against this cluster's actual behavior
   # before assuming, but default to the same safe choice already proven correct for the legacy
   # cluster's VIP.
-  - job_name: tcp-probe-gmktec-lb-vips
+  - job_name: tcp-probe-dean-lb-vips
     metrics_path: /probe
     params:
       module: [tcp_connect]
     static_configs:
       - targets: ["10.100.20.171:443"]
         labels:
-          service: gmktec-cilium-ingress-vip
+          service: dean-cilium-ingress-vip
       - targets: ["10.100.20.170:443"]
         labels:
-          service: gmktec-argocd-vip
+          service: dean-argocd-vip
     relabel_configs:
       - source_labels: [__address__]
         target_label: __param_target
@@ -215,11 +215,11 @@ scrape_configs:
       - replacement: localhost:9115
         target_label: __address__
 
-  # ICMP reachability to the three gmktec nodes themselves - the comparison point for
-  # GmktecLbVipUnreachable, same role icmp-probe-k3s-nodes plays for TraefikVipUnreachable above.
-  # Unlike the legacy cluster's mixed always-on/sleeps-by-design nodes, all three gmktec nodes are
+  # ICMP reachability to the three dean nodes themselves - the comparison point for
+  # DeanLbVipUnreachable, same role icmp-probe-k3s-nodes plays for TraefikVipUnreachable above.
+  # Unlike the legacy cluster's mixed always-on/sleeps-by-design nodes, all three dean nodes are
   # always-on control-plane members - no exclusions needed here.
-  - job_name: icmp-probe-gmktec-nodes
+  - job_name: icmp-probe-dean-nodes
     metrics_path: /probe
     params:
       module: [icmp]
